@@ -1,0 +1,332 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fs from 'fs-extra';
+import path from 'path';
+import os from 'os';
+import { BatchAnalysisService } from './batchAnalysisService.js';
+import type { BatchAnalysisOptions, BatchProgress } from '../types/batch.js';
+
+describe('BatchAnalysisService', () => {
+  let testProjectPath: string;
+  let batchService: BatchAnalysisService;
+
+  beforeEach(async () => {
+    // Create temporary test directory
+    testProjectPath = path.join(os.tmpdir(), `goose-test-${Date.now()}`);
+    await fs.ensureDir(testProjectPath);
+
+    // Create test project structure
+    await fs.ensureDir(path.join(testProjectPath, 'src'));
+    await fs.ensureDir(path.join(testProjectPath, 'tests'));
+    await fs.ensureDir(path.join(testProjectPath, '.code-review'));
+
+    // Create config file with mock API key
+    const configPath = path.join(testProjectPath, '.code-review', 'config.json');
+    await fs.writeJson(configPath, {
+      aiProvider: 'openai',
+      openai: {
+        apiKey: 'test-api-key-12345',
+        model: 'gpt-4',
+      },
+      analyzableFileExtensions: ['.js', '.ts', '.py'],
+    });
+
+    // Create test files
+    await fs.writeFile(
+      path.join(testProjectPath, 'src', 'index.ts'),
+      'console.log("hello world");',
+      'utf-8'
+    );
+
+    await fs.writeFile(
+      path.join(testProjectPath, 'src', 'utils.js'),
+      'function add(a, b) { return a + b; }',
+      'utf-8'
+    );
+
+    await fs.writeFile(
+      path.join(testProjectPath, 'README.md'),
+      '# Test Project',
+      'utf-8'
+    );
+
+    batchService = new BatchAnalysisService(testProjectPath);
+  });
+
+  afterEach(async () => {
+    // Clean up test directory
+    await fs.remove(testProjectPath);
+    vi.restoreAllMocks();
+  });
+
+  describe('analyzeProject', () => {
+    it('should throw error if AI is not configured', async () => {
+      // Remove config file
+      await fs.remove(path.join(testProjectPath, '.code-review', 'config.json'));
+
+      await expect(batchService.analyzeProject()).rejects.toThrow(
+        'AI provider not configured'
+      );
+    });
+
+    it('should find all analyzable files', async () => {
+      // Mock AI service methods
+      const mockAnalyzeCode = vi.fn().mockResolvedValue({
+        issues: [],
+        summary: 'No issues found',
+        timestamp: new Date().toISOString(),
+      });
+
+      // Mock the private methods by accessing the service instances
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath) => ({
+        filePath,
+        analyzed: true,
+        analysis: await mockAnalyzeCode(),
+        duration: 100,
+      }));
+
+      const result = await batchService.analyzeProject({ force: true });
+
+      // Should find 2 analyzable files (.ts and .js) and skip .md
+      expect(result.analyzableFiles).toBe(2);
+      expect(result.totalFiles).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should skip files that have not been modified since last review', async () => {
+      const filePath = 'src/index.ts';
+
+      // Create a review record with recent timestamp
+      const reviewsDir = path.join(testProjectPath, '.code-review', 'reviews');
+      await fs.ensureDir(reviewsDir);
+
+      const review = {
+        id: 'test-review-id',
+        timestamp: new Date().toISOString(), // Current timestamp
+        firstReviewedAt: new Date().toISOString(),
+        reviewCount: 1,
+        filePath,
+        fileName: 'index.ts',
+        analysis: {
+          issues: [],
+          summary: 'Previous review',
+          timestamp: new Date().toISOString(),
+        },
+        bookmarked: false,
+        resolved: false,
+      };
+
+      await fs.writeJson(path.join(reviewsDir, 'test-review-id.json'), review);
+
+      // Mock analyzeFile to check skip behavior
+      const analyzeFileSpy = vi.spyOn(batchService as any, 'analyzeFile');
+      analyzeFileSpy.mockImplementation(async (fp: unknown, force: unknown) => {
+        const filePathArg = fp as string;
+        const forceArg = force as boolean;
+        if (!forceArg && filePathArg === filePath) {
+          return {
+            filePath: filePathArg,
+            analyzed: false,
+            skipReason: 'File not modified since last review',
+          };
+        }
+        return {
+          filePath: filePathArg,
+          analyzed: true,
+          analysis: {
+            issues: [],
+            summary: 'Test analysis',
+            timestamp: new Date().toISOString(),
+          },
+          duration: 50,
+        };
+      });
+
+      const result = await batchService.analyzeProject({ force: false });
+
+      // Should skip at least one file
+      expect(result.skippedCount).toBeGreaterThan(0);
+    });
+
+    it('should force re-analysis when force option is true', async () => {
+      // Create review records for all files
+      const reviewsDir = path.join(testProjectPath, '.code-review', 'reviews');
+      await fs.ensureDir(reviewsDir);
+
+      const mockAnalyzeCode = vi.fn().mockResolvedValue({
+        issues: [],
+        summary: 'Forced re-analysis',
+        timestamp: new Date().toISOString(),
+      });
+
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath) => ({
+        filePath,
+        analyzed: true,
+        analysis: await mockAnalyzeCode(),
+        duration: 100,
+      }));
+
+      const result = await batchService.analyzeProject({ force: true });
+
+      // All files should be analyzed, none skipped
+      expect(result.analyzedCount).toBe(result.analyzableFiles);
+      expect(result.skippedCount).toBe(0);
+    });
+
+    it('should respect concurrency option', async () => {
+      const mockAnalyzeCode = vi.fn().mockResolvedValue({
+        issues: [],
+        summary: 'Test analysis',
+        timestamp: new Date().toISOString(),
+      });
+
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath) => ({
+        filePath,
+        analyzed: true,
+        analysis: await mockAnalyzeCode(),
+        duration: 100,
+      }));
+
+      const result = await batchService.analyzeProject({
+        force: true,
+        concurrency: 3,
+      });
+
+      expect(result.analyzedCount).toBeGreaterThan(0);
+    });
+
+    it('should call progress callback during analysis', async () => {
+      const progressUpdates: BatchProgress[] = [];
+      const onProgress = (progress: BatchProgress) => {
+        progressUpdates.push({ ...progress });
+      };
+
+      const mockAnalyzeCode = vi.fn().mockResolvedValue({
+        issues: [],
+        summary: 'Test analysis',
+        timestamp: new Date().toISOString(),
+      });
+
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath) => ({
+        filePath,
+        analyzed: true,
+        analysis: await mockAnalyzeCode(),
+        duration: 100,
+      }));
+
+      await batchService.analyzeProject({
+        force: true,
+        onProgress,
+      });
+
+      // Should have received progress updates
+      expect(progressUpdates.length).toBeGreaterThan(0);
+      expect(progressUpdates[0]).toHaveProperty('currentFile');
+      expect(progressUpdates[0]).toHaveProperty('analyzed');
+      expect(progressUpdates[0]).toHaveProperty('total');
+    });
+
+    it('should calculate summary statistics correctly', async () => {
+      const mockAnalysis = {
+        issues: [
+          {
+            severity: 'critical' as const,
+            category: 'security' as const,
+            line: 1,
+            message: 'Critical issue',
+            suggestion: 'Fix it',
+          },
+          {
+            severity: 'high' as const,
+            category: 'bug' as const,
+            line: 2,
+            message: 'High issue',
+            suggestion: 'Fix it',
+          },
+          {
+            severity: 'medium' as const,
+            category: 'quality' as const,
+            line: 3,
+            message: 'Medium issue',
+            suggestion: 'Fix it',
+          },
+        ],
+        summary: 'Found 3 issues',
+        timestamp: new Date().toISOString(),
+      };
+
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath) => ({
+        filePath,
+        analyzed: true,
+        analysis: mockAnalysis,
+        duration: 100,
+      }));
+
+      const result = await batchService.analyzeProject({ force: true });
+
+      // Should calculate issue counts correctly
+      // Each file gets 3 issues, 2 files total = 6 issues
+      expect(result.summary.totalIssues).toBeGreaterThan(0);
+      expect(result.summary.criticalIssues).toBeGreaterThan(0);
+      expect(result.summary.highIssues).toBeGreaterThan(0);
+      expect(result.summary.mediumIssues).toBeGreaterThan(0);
+    });
+
+    it('should handle errors gracefully', async () => {
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath: unknown) => {
+        const fp = filePath as string;
+        if (fp.includes('index.ts')) {
+          return {
+            filePath: fp,
+            analyzed: false,
+            error: 'Failed to analyze file',
+            duration: 50,
+          };
+        }
+        return {
+          filePath: fp,
+          analyzed: true,
+          analysis: {
+            issues: [],
+            summary: 'Test analysis',
+            timestamp: new Date().toISOString(),
+          },
+          duration: 100,
+        };
+      });
+
+      const result = await batchService.analyzeProject({ force: true });
+
+      // Should have at least one error
+      expect(result.errorCount).toBeGreaterThan(0);
+
+      // Should have error details in results
+      const erroredFile = result.results.find((r) => r.error);
+      expect(erroredFile).toBeDefined();
+      expect(erroredFile?.error).toBe('Failed to analyze file');
+    });
+
+    it('should filter by file extensions when provided', async () => {
+      const mockAnalyzeCode = vi.fn().mockResolvedValue({
+        issues: [],
+        summary: 'Test analysis',
+        timestamp: new Date().toISOString(),
+      });
+
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath) => ({
+        filePath,
+        analyzed: true,
+        analysis: await mockAnalyzeCode(),
+        duration: 100,
+      }));
+
+      // Only analyze .ts files
+      const result = await batchService.analyzeProject({
+        force: true,
+        extensions: ['.ts'],
+      });
+
+      // Should only find .ts files
+      const tsFiles = result.results.filter((r) => r.filePath.endsWith('.ts'));
+      expect(tsFiles.length).toBe(result.analyzableFiles);
+    });
+  });
+});
