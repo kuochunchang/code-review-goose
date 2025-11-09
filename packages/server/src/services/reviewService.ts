@@ -722,4 +722,19 @@ export class ReviewService {
     }
     return text;
   }
+
+  /**
+   * Export reviews to JSON format
+   */
+  async exportToJSON(options: ExportOptions): Promise<string> {
+    const { reviews } = await this.list({
+      filter: options.filter,
+    });
+
+    const filtered = options.includeResolved
+      ? reviews
+      : reviews.filter((r) => !r.resolved);
+
+    return JSON.stringify(filtered, null, 2);
+  }
 }
