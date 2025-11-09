@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
 import chalk from 'chalk';
+import { Command } from 'commander';
 import { startCommand } from './commands/start.js';
 import { getPackageInfo } from './utils/package.js';
 
@@ -14,9 +14,7 @@ async function main() {
     program
       .name('goose')
       .description(description)
-      .version(version, '-v, --version', 'Display version number');
-
-    program
+      .version(version, '-v, --version', 'Display version number')
       .argument('[project-path]', 'Project path (defaults to current directory)')
       .option('-p, --port <port>', 'Specify server port', '3456')
       .option('--no-open', 'Do not automatically open browser')

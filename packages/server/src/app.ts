@@ -1,17 +1,17 @@
-import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
+import express, { Express, Request, Response } from 'express';
+import fs from 'fs';
+import { Server } from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Server } from 'http';
-import fs from 'fs';
-import { projectRouter } from './routes/project.js';
-import { fileRouter } from './routes/file.js';
+import { errorHandler } from './middleware/errorHandler.js';
 import { analysisRouter } from './routes/analysis.js';
 import { configRouter } from './routes/config.js';
+import { fileRouter } from './routes/file.js';
+import { projectRouter } from './routes/project.js';
 import { reviewRouter } from './routes/review.js';
 import { searchRouter } from './routes/search.js';
 import { umlRouter } from './routes/uml.js';
-import { errorHandler } from './middleware/errorHandler.js';
 import type { ServerConfig, ServerInstance } from './types/server.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -54,8 +54,8 @@ export async function createServer(config: ServerConfig): Promise<ServerInstance
   // Try to find web dist in different locations (for development vs. production)
   const possiblePaths = [
     path.join(__dirname, '../../web/dist'),           // Development (monorepo)
-    path.join(__dirname, '../../web-dist'),           // Published npm package
-    path.join(__dirname, '../../../web-dist'),        // Alternative npm package structure
+    path.join(__dirname, '../web-dist'),              // Published npm package (same level as server-dist)
+    path.join(__dirname, '../../web-dist'),           // Alternative npm package structure
   ];
 
   const webDistPath = possiblePaths.find((p) => {
