@@ -12,7 +12,7 @@
   },
   "scripts": {
     "dev": "tsx packages/cli/src/index.ts",
-    "build": "npm run build -w @code-review-goose/server && npm run build -w @code-review-goose/web && npm run build -w goose-code-review",
+    "build": "npm run build -w @code-review-goose/server && npm run build -w @code-review-goose/web && npm run build -w @kuochunchang/goose-code-review",
     "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
     "lint": "eslint . --ext .ts,.vue",
     "format": "prettier --write \"**/*.{ts,vue,json,md}\"",
