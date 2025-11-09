@@ -16,7 +16,7 @@
 
 ```
 packages/
-├── cli/          # Entry point CLI tool (published to npm as goose-code-review)
+├── cli/          # Entry point CLI tool (published to npm as @kuochunchang/goose-code-review)
 ├── server/       # Express.js backend API
 └── web/          # Vue 3 + Vuetify frontend
 ```
@@ -156,13 +156,13 @@ Must build in this specific order due to dependencies:
 
 1. `npm run build -w @code-review-goose/server` (builds server)
 2. `npm run build -w @code-review-goose/web` (builds web UI)
-3. `npm run build -w goose-code-review` (builds CLI, copies server-dist & web-dist)
+3. `npm run build -w @kuochunchang/goose-code-review` (builds CLI, copies server-dist & web-dist)
 
 Or simply: `npm run build` (handles order automatically)
 
 ### Publishing
 
-- Published package: `goose-code-review` (CLI package)
+- Published package: `@kuochunchang/goose-code-review` (CLI package)
 - Includes: `dist/`, `server-dist/`, `web-dist/`
 - `prepublishOnly` script ensures build before publish
 - Binary commands: `goose` and `goose-code-review`

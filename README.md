@@ -16,10 +16,10 @@ A local AI-assisted code review tool with a web-based interface.
 
 ```bash
 # Install globally
-npm install -g goose-code-review
+npm install -g @kuochunchang/goose-code-review
 
 # Or use npx without installing
-npx goose-code-review
+npx @kuochunchang/goose-code-review
 ```
 
 ### Install from Source (For Development)
