@@ -606,4 +606,120 @@ export class ReviewService {
     };
     return text.replace(/[&<>"']/g, (m) => map[m]);
   }
+
+  /**
+   * Export reviews to CSV format
+   */
+  async exportToCSV(options: ExportOptions): Promise<string> {
+    const { reviews } = await this.list({
+      filter: options.filter,
+    });
+
+    const filtered = options.includeResolved
+      ? reviews
+      : reviews.filter((r) => !r.resolved);
+
+    // CSV header
+    const headers = [
+      'Review ID',
+      'File Path',
+      'File Name',
+      'Timestamp',
+      'First Reviewed At',
+      'Review Count',
+      'Bookmarked',
+      'Resolved',
+      'Summary',
+      'Issue Count',
+      'Critical Issues',
+      'High Issues',
+      'Medium Issues',
+      'Low Issues',
+      'Info Issues',
+      'Security Issues',
+      'Quality Issues',
+      'Performance Issues',
+      'Best Practice Issues',
+      'Bug Issues',
+      'Code Range',
+      'Notes',
+      'Tags',
+    ];
+
+    const rows: string[][] = [];
+
+    for (const review of filtered) {
+      // Count issues by severity
+      const severityCounts = {
+        critical: 0,
+        high: 0,
+        medium: 0,
+        low: 0,
+        info: 0,
+      };
+
+      // Count issues by category
+      const categoryCounts = {
+        security: 0,
+        quality: 0,
+        performance: 0,
+        'best-practice': 0,
+        bug: 0,
+      };
+
+      for (const issue of review.analysis.issues) {
+        severityCounts[issue.severity]++;
+        categoryCounts[issue.category]++;
+      }
+
+      const row = [
+        review.id,
+        review.filePath,
+        review.fileName,
+        new Date(review.timestamp).toISOString(),
+        review.firstReviewedAt ? new Date(review.firstReviewedAt).toISOString() : '',
+        review.reviewCount.toString(),
+        review.bookmarked ? 'Yes' : 'No',
+        review.resolved ? 'Yes' : 'No',
+        review.analysis.summary,
+        review.analysis.issues.length.toString(),
+        severityCounts.critical.toString(),
+        severityCounts.high.toString(),
+        severityCounts.medium.toString(),
+        severityCounts.low.toString(),
+        severityCounts.info.toString(),
+        categoryCounts.security.toString(),
+        categoryCounts.quality.toString(),
+        categoryCounts.performance.toString(),
+        categoryCounts['best-practice'].toString(),
+        categoryCounts.bug.toString(),
+        review.codeSnippet
+          ? `Lines ${review.codeSnippet.startLine}-${review.codeSnippet.endLine}`
+          : '',
+        review.notes || '',
+        review.tags?.join('; ') || '',
+      ];
+
+      rows.push(row);
+    }
+
+    // Convert to CSV format
+    const csvLines = [headers, ...rows].map((row) =>
+      row.map((cell) => this.escapeCSV(cell)).join(',')
+    );
+
+    return csvLines.join('\n');
+  }
+
+  /**
+   * CSV escape - properly escape CSV fields
+   */
+  private escapeCSV(text: string): string {
+    // If the field contains comma, newline, or double quote, wrap it in quotes
+    // and escape any internal quotes by doubling them
+    if (text.includes(',') || text.includes('\n') || text.includes('"')) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  }
 }

@@ -89,7 +89,7 @@ export interface ReviewStats {
 /**
  * Export format
  */
-export type ExportFormat = 'markdown' | 'html' | 'json';
+export type ExportFormat = 'markdown' | 'html' | 'json' | 'csv';
 
 /**
  * Export options

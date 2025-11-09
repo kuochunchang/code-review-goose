@@ -3,6 +3,7 @@
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { startCommand } from './commands/start.js';
+import { exportCSVCommand } from './commands/export-csv.js';
 import { getPackageInfo } from './utils/package.js';
 
 const program = new Command();
@@ -11,26 +12,42 @@ async function main() {
   try {
     const { version, description } = await getPackageInfo();
 
+    program.name('goose').description(description).version(version, '-v, --version', 'Display version number');
+
+    // Default command: start server
     program
-      .name('goose')
-      .description(description)
-      .version(version, '-v, --version', 'Display version number')
+      .command('start', { isDefault: true })
+      .description('Start the code review web interface')
       .argument('[project-path]', 'Project path (defaults to current directory)')
       .option('-p, --port <port>', 'Specify server port', '3456')
       .option('--no-open', 'Do not automatically open browser')
       .action((projectPath, options) => {
-        // If no path provided, use current working directory (evaluated at runtime)
         const resolvedPath = projectPath || process.cwd();
         startCommand(resolvedPath, options);
+      });
+
+    // Export CSV command
+    program
+      .command('export-csv')
+      .description('Export code review results to CSV format')
+      .argument('[project-path]', 'Project path (defaults to current directory)')
+      .option('-o, --output <file>', 'Output file path (defaults to stdout)')
+      .option('--include-resolved', 'Include resolved reviews in export')
+      .action((projectPath, options) => {
+        const resolvedPath = projectPath || process.cwd();
+        exportCSVCommand(resolvedPath, options);
       });
 
     program.on('--help', () => {
       console.log('');
       console.log('Examples:');
-      console.log('  $ goose                    # Start in current directory');
-      console.log('  $ goose /path/to/project   # Start in specified directory');
-      console.log('  $ goose -p 8080            # Specify port');
-      console.log('  $ goose --no-open          # Do not open browser');
+      console.log('  $ goose                                   # Start in current directory');
+      console.log('  $ goose start /path/to/project            # Start in specified directory');
+      console.log('  $ goose start -p 8080                     # Specify port');
+      console.log('  $ goose start --no-open                   # Do not open browser');
+      console.log('  $ goose export-csv                        # Export to stdout');
+      console.log('  $ goose export-csv -o reviews.csv         # Export to file');
+      console.log('  $ goose export-csv --include-resolved     # Include resolved reviews');
       console.log('');
     });
 

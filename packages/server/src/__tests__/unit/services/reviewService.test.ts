@@ -887,6 +887,271 @@ describe('ReviewService', () => {
     });
   });
 
+  describe('exportToCSV', () => {
+    it('should export reviews to CSV format', async () => {
+      const mockReview: ReviewRecord = {
+        id: 'test-id-123',
+        filePath: 'src/test.ts',
+        fileName: 'test.ts',
+        timestamp: new Date('2024-01-01T12:00:00.000Z').toISOString(),
+        firstReviewedAt: new Date('2024-01-01T10:00:00.000Z').toISOString(),
+        reviewCount: 2,
+        analysis: {
+          issues: [
+            {
+              severity: 'high',
+              category: 'security',
+              line: 10,
+              message: 'Security vulnerability',
+              suggestion: 'Fix the issue',
+            },
+            {
+              severity: 'medium',
+              category: 'quality',
+              line: 20,
+              message: 'Code quality issue',
+              suggestion: 'Improve quality',
+            },
+          ],
+          summary: 'Found 2 issues',
+          timestamp: new Date().toISOString(),
+        },
+        bookmarked: true,
+        resolved: false,
+        notes: 'Important note',
+        codeSnippet: {
+          code: 'const x = 1;',
+          startLine: 5,
+          endLine: 10,
+        },
+        tags: ['urgent', 'security'],
+      };
+
+      vi.mocked(fs.pathExists).mockResolvedValue(true);
+      vi.mocked(fs.readdir).mockResolvedValue(['test-id-123.json'] as any);
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(mockReview) as any);
+
+      const csv = await reviewService.exportToCSV({
+        format: 'csv',
+        includeResolved: true,
+      });
+
+      // Check CSV header
+      expect(csv).toContain('Review ID,File Path,File Name,Timestamp');
+      expect(csv).toContain('Critical Issues,High Issues,Medium Issues,Low Issues,Info Issues');
+      expect(csv).toContain('Security Issues,Quality Issues,Performance Issues');
+
+      // Check CSV content
+      expect(csv).toContain('test-id-123');
+      expect(csv).toContain('src/test.ts');
+      expect(csv).toContain('test.ts');
+      expect(csv).toContain('2024-01-01T12:00:00.000Z');
+      expect(csv).toContain('2024-01-01T10:00:00.000Z');
+      expect(csv).toContain('2'); // reviewCount
+      expect(csv).toContain('Yes'); // bookmarked
+      expect(csv).toContain('No'); // resolved
+      expect(csv).toContain('Found 2 issues');
+      expect(csv).toContain('Lines 5-10');
+      expect(csv).toContain('Important note');
+      expect(csv).toContain('urgent; security');
+
+      // Check issue counts
+      const lines = csv.split('\n');
+      const dataLine = lines[1]; // Second line is the data
+      const fields = dataLine.split(',');
+
+      // Issue count should be 2
+      expect(fields[9]).toBe('2');
+      // High issues should be 1
+      expect(fields[11]).toBe('1');
+      // Medium issues should be 1
+      expect(fields[12]).toBe('1');
+      // Security issues should be 1
+      expect(fields[15]).toBe('1');
+      // Quality issues should be 1
+      expect(fields[16]).toBe('1');
+    });
+
+    it('should handle CSV escaping correctly', async () => {
+      const mockReview: ReviewRecord = {
+        id: 'test-id',
+        filePath: 'src/file,with,commas.ts',
+        fileName: 'file,with,commas.ts',
+        timestamp: new Date('2024-01-01').toISOString(),
+        firstReviewedAt: new Date('2024-01-01').toISOString(),
+        reviewCount: 1,
+        analysis: {
+          issues: [],
+          summary: 'Summary with "quotes" and, commas',
+          timestamp: new Date().toISOString(),
+        },
+        bookmarked: false,
+        resolved: false,
+        notes: 'Note with\nnewlines',
+      };
+
+      vi.mocked(fs.pathExists).mockResolvedValue(true);
+      vi.mocked(fs.readdir).mockResolvedValue(['test-id.json'] as any);
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(mockReview) as any);
+
+      const csv = await reviewService.exportToCSV({
+        format: 'csv',
+        includeResolved: true,
+      });
+
+      // Fields with commas should be wrapped in quotes
+      expect(csv).toContain('"src/file,with,commas.ts"');
+      expect(csv).toContain('"file,with,commas.ts"');
+      // Fields with quotes should have escaped quotes
+      expect(csv).toContain('"Summary with ""quotes"" and, commas"');
+      // Fields with newlines should be wrapped in quotes
+      expect(csv).toContain('"Note with\nnewlines"');
+    });
+
+    it('should exclude resolved reviews when includeResolved is false', async () => {
+      const mockReviews: ReviewRecord[] = [
+        {
+          id: 'resolved-id-123',
+          filePath: 'src/completed.ts',
+          fileName: 'completed.ts',
+          timestamp: new Date().toISOString(),
+          firstReviewedAt: new Date().toISOString(),
+          reviewCount: 1,
+          analysis: { issues: [], summary: 'This was resolved', timestamp: new Date().toISOString() },
+          bookmarked: false,
+          resolved: true,
+        },
+        {
+          id: 'unresolved-id-456',
+          filePath: 'src/pending.ts',
+          fileName: 'pending.ts',
+          timestamp: new Date().toISOString(),
+          firstReviewedAt: new Date().toISOString(),
+          reviewCount: 1,
+          analysis: { issues: [], summary: 'Still pending', timestamp: new Date().toISOString() },
+          bookmarked: false,
+          resolved: false,
+        },
+      ];
+
+      vi.mocked(fs.pathExists).mockResolvedValue(true);
+      vi.mocked(fs.readdir).mockResolvedValue(['resolved-id-123.json', 'unresolved-id-456.json'] as any);
+      vi.mocked(fs.readFile)
+        .mockResolvedValueOnce(JSON.stringify(mockReviews[0]) as any)
+        .mockResolvedValueOnce(JSON.stringify(mockReviews[1]) as any);
+
+      const csv = await reviewService.exportToCSV({
+        format: 'csv',
+        includeResolved: false,
+      });
+
+      const lines = csv.split('\n');
+      // Should have header + 1 data row (only unresolved)
+      expect(lines.length).toBe(2);
+
+      expect(csv).toContain('pending.ts');
+      expect(csv).toContain('Still pending');
+      expect(csv).not.toContain('completed.ts');
+      expect(csv).not.toContain('This was resolved');
+    });
+
+    it('should handle reviews with all severity levels', async () => {
+      const mockReview: ReviewRecord = {
+        id: 'test-id',
+        filePath: 'src/test.ts',
+        fileName: 'test.ts',
+        timestamp: new Date().toISOString(),
+        firstReviewedAt: new Date().toISOString(),
+        reviewCount: 1,
+        analysis: {
+          issues: [
+            { severity: 'critical', category: 'security', line: 1, message: 'Critical', suggestion: 'Fix' },
+            { severity: 'critical', category: 'bug', line: 2, message: 'Critical 2', suggestion: 'Fix' },
+            { severity: 'high', category: 'quality', line: 3, message: 'High', suggestion: 'Fix' },
+            { severity: 'medium', category: 'performance', line: 4, message: 'Medium', suggestion: 'Fix' },
+            { severity: 'low', category: 'best-practice', line: 5, message: 'Low', suggestion: 'Fix' },
+            { severity: 'info', category: 'quality', line: 6, message: 'Info', suggestion: 'Fix' },
+          ],
+          summary: 'Multiple severity levels',
+          timestamp: new Date().toISOString(),
+        },
+        bookmarked: false,
+        resolved: false,
+      };
+
+      vi.mocked(fs.pathExists).mockResolvedValue(true);
+      vi.mocked(fs.readdir).mockResolvedValue(['test-id.json'] as any);
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(mockReview) as any);
+
+      const csv = await reviewService.exportToCSV({
+        format: 'csv',
+        includeResolved: true,
+      });
+
+      const lines = csv.split('\n');
+      const dataLine = lines[1];
+      const fields = dataLine.split(',');
+
+      // Total issues: 6
+      expect(fields[9]).toBe('6');
+      // Critical: 2
+      expect(fields[10]).toBe('2');
+      // High: 1
+      expect(fields[11]).toBe('1');
+      // Medium: 1
+      expect(fields[12]).toBe('1');
+      // Low: 1
+      expect(fields[13]).toBe('1');
+      // Info: 1
+      expect(fields[14]).toBe('1');
+    });
+
+    it('should handle reviews without optional fields', async () => {
+      const mockReview: ReviewRecord = {
+        id: 'minimal',
+        filePath: 'src/minimal.ts',
+        fileName: 'minimal.ts',
+        timestamp: new Date().toISOString(),
+        firstReviewedAt: new Date().toISOString(),
+        reviewCount: 1,
+        analysis: {
+          issues: [],
+          summary: 'No issues',
+          timestamp: new Date().toISOString(),
+        },
+        bookmarked: false,
+        resolved: false,
+      };
+
+      vi.mocked(fs.pathExists).mockResolvedValue(true);
+      vi.mocked(fs.readdir).mockResolvedValue(['minimal.json'] as any);
+      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify(mockReview) as any);
+
+      const csv = await reviewService.exportToCSV({
+        format: 'csv',
+        includeResolved: true,
+      });
+
+      expect(csv).toContain('minimal');
+      expect(csv).toContain('No issues');
+      // Should have header row + 1 data row
+      expect(csv.split('\n').length).toBe(2);
+    });
+
+    it('should export empty CSV when no reviews exist', async () => {
+      vi.mocked(fs.pathExists).mockResolvedValue(false);
+
+      const csv = await reviewService.exportToCSV({
+        format: 'csv',
+        includeResolved: true,
+      });
+
+      // Should only contain header row
+      expect(csv).toContain('Review ID,File Path,File Name');
+      expect(csv.split('\n').length).toBe(1);
+    });
+  });
+
   describe('exportToHTML', () => {
     it('should export reviews to HTML format', async () => {
       const mockReview: ReviewRecord = {
