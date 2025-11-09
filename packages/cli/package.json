@@ -1,6 +1,6 @@
 {
-  "name": "goose-code-review",
-  "version": "1.0.1",
+  "name": "@kuochunchang/goose-code-review",
+  "version": "1.0.0",
   "description": "AI-assisted code review tool with local web UI - View, analyze and review code with AI-powered insights",
   "main": "dist/index.js",
   "type": "module",
