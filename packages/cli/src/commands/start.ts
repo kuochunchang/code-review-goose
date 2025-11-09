@@ -1,9 +1,15 @@
 import chalk from 'chalk';
-import path from 'path';
-import fs from 'fs';
 import detectPort from 'detect-port';
+import fs from 'fs';
 import open from 'open';
-import { createServer } from '@code-review-goose/server';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Import from bundled server
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const serverPath = path.join(__dirname, '../../server-dist/index.js');
+const { createServer } = await import(serverPath);
 
 interface StartOptions {
   port: string;

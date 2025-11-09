@@ -18,18 +18,25 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "npm run build:compile && npm run build:copy",
-    "build:compile": "tsc -p tsconfig.json",
+    "build:compile": "rm -f tsconfig.tsbuildinfo && tsc -p tsconfig.json",
     "build:copy": "mkdir -p server-dist web-dist && cp -r ../server/dist/* server-dist/ && cp -r ../web/dist/* web-dist/",
-    "clean": "rm -rf dist server-dist web-dist",
+    "clean": "rm -rf dist server-dist web-dist tsconfig.tsbuildinfo",
     "start": "node dist/index.js",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@code-review-goose/server": "file:../server",
     "commander": "^11.1.0",
     "detect-port": "^1.5.1",
     "open": "^9.1.0",
-    "chalk": "^5.3.0"
+    "chalk": "^5.3.0",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "fs-extra": "^11.2.0",
+    "ignore": "^5.3.0",
+    "openai": "^6.8.1",
+    "@babel/parser": "^7.28.5",
+    "@babel/traverse": "^7.28.5",
+    "@babel/types": "^7.28.5"
   },
   "devDependencies": {
     "@types/detect-port": "^1.3.5",
