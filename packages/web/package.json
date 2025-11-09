@@ -1,6 +1,6 @@
 {
   "name": "@code-review-goose/web",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Goose Code Review Tool - Web UI",
   "type": "module",
   "scripts": {

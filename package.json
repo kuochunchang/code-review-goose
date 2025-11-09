@@ -1,6 +1,6 @@
 {
   "name": "goose-code-review",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI-assisted code review tool with local web UI - View, analyze and review code with AI-powered insights",
   "private": true,
   "workspaces": [

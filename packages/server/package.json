@@ -1,6 +1,6 @@
 {
   "name": "@code-review-goose/server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Goose Code Review Tool - Server",
   "main": "dist/index.js",
   "type": "module",
