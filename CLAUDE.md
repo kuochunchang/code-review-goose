@@ -1,6 +1,4 @@
-# Goose Code Review - Claude Code Reference
-
-This file provides essential context for Claude Code when working on this project.
+# Goose Code Review
 
 ## Project Overview
 
@@ -347,7 +345,3 @@ Default ignore patterns:
 - Mermaid syntax: https://mermaid.js.org/
 - Vuetify docs: https://vuetifyjs.com/
 - Monaco Editor API: https://microsoft.github.io/monaco-editor/
-
----
-
-**Note for Claude**: When making changes, always consider the monorepo structure and build dependencies. Test changes at both package level and root level. Use E2E tests to verify user-facing changes. Follow the code style strictly - this project uses TypeScript strict mode.

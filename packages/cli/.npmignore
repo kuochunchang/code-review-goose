@@ -24,11 +24,7 @@ tests/
 # Documentation (except README)
 docs/
 CLAUDE.md
-PRD.md
-開發計劃.md
-SETUP.md
-TEST-RESULTS.md
-QUICK-START.md
+
 
 # Git
 .git/
