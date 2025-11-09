@@ -1,0 +1,46 @@
+# Source files
+src/
+*.ts
+!*.d.ts
+
+# Config files
+tsconfig.json
+tsconfig.tsbuildinfo
+.eslintrc*
+.prettierrc*
+
+# Development files
+node_modules/
+.code-review/
+*.log
+*.lock
+
+# Test files
+test/
+tests/
+*.test.ts
+*.spec.ts
+
+# Documentation (except README)
+docs/
+CLAUDE.md
+PRD.md
+開發計劃.md
+SETUP.md
+TEST-RESULTS.md
+QUICK-START.md
+
+# Git
+.git/
+.gitignore
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Build artifacts
+*.tsbuildinfo
