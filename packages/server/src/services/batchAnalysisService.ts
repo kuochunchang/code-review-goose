@@ -1,4 +1,3 @@
-import fs from 'fs-extra';
 import path from 'path';
 import pLimit from 'p-limit';
 import type {

@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import os from 'os';
 import { BatchAnalysisService } from './batchAnalysisService.js';
-import type { BatchAnalysisOptions, BatchProgress } from '../types/batch.js';
+import type { BatchProgress } from '../types/batch.js';
 
 describe('BatchAnalysisService', () => {
   let testProjectPath: string;
@@ -93,7 +93,6 @@ describe('BatchAnalysisService', () => {
 
     it('should skip files that are already cached', async () => {
       const filePath = 'src/index.ts';
-      const content = 'console.log("hello world");';
 
       // Mock analyzeFile to check skip behavior based on cache
       const analyzeFileSpy = vi.spyOn(batchService as any, 'analyzeFile');
