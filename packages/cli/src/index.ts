@@ -38,6 +38,7 @@ async function main() {
       .option('-c, --concurrency <number>', 'Number of concurrent analyses (default: 1)', '1')
       .option('-o, --output <format>', 'Output format: text, json, markdown (default: text)', 'text')
       .option('-d, --dir <directory...>', 'Specific directories to analyze (e.g., src lib)')
+      .option('-e, --exclude <pattern...>', 'Exclude patterns (e.g., "**/*.test.ts" "**/__mocks__/**")')
       .action((projectPath, options) => {
         const resolvedPath = projectPath || process.cwd();
         batchCommand(resolvedPath, options);

@@ -28,6 +28,13 @@ export interface BatchAnalysisOptions {
   directories?: string[];
 
   /**
+   * Glob patterns to exclude from analysis
+   * e.g., ['star-star/*.test.ts', 'star-star/dist/star-star']
+   * Patterns support wildcards: * (any chars), star-star (any path segments)
+   */
+  excludePatterns?: string[];
+
+  /**
    * Progress callback
    */
   onProgress?: (progress: BatchProgress) => void;

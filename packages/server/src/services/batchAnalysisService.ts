@@ -1,5 +1,6 @@
 import path from 'path';
 import pLimit from 'p-limit';
+import ignore from 'ignore';
 import type {
   BatchAnalysisOptions,
   BatchAnalysisResult,
@@ -50,6 +51,11 @@ export class BatchAnalysisService {
     // Filter by directories if specified
     if (options.directories && options.directories.length > 0) {
       allFiles = this.filterByDirectories(allFiles, options.directories);
+    }
+
+    // Exclude files matching exclude patterns
+    if (options.excludePatterns && options.excludePatterns.length > 0) {
+      allFiles = this.filterByExcludePatterns(allFiles, options.excludePatterns);
     }
 
     // Filter to only analyzable files
@@ -232,6 +238,22 @@ export class BatchAnalysisService {
         return normalizedFile === normalizedDir ||
                normalizedFile.startsWith(normalizedDir + '/');
       });
+    });
+  }
+
+  /**
+   * Filter out files matching exclude patterns
+   * Uses gitignore-style pattern matching
+   */
+  private filterByExcludePatterns(files: string[], excludePatterns: string[]): string[] {
+    const ig = ignore.default().add(excludePatterns);
+
+    return files.filter((file) => {
+      // Normalize the file path (remove leading ./ or /)
+      const normalizedFile = file.replace(/^\.?\//, '');
+
+      // Check if file should be excluded
+      return !ig.ignores(normalizedFile);
     });
   }
 

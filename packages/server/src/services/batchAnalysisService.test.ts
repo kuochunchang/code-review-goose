@@ -390,6 +390,34 @@ describe('BatchAnalysisService', () => {
       expect(utilsFiles.length).toBe(0);
     });
 
+    it('should exclude files matching exclude patterns', async () => {
+      // Create test files
+      await fs.writeFile(path.join(testProjectPath, 'src', 'app.ts'), 'code');
+      await fs.writeFile(path.join(testProjectPath, 'src', 'app.test.ts'), 'test');
+      await fs.ensureDir(path.join(testProjectPath, 'src', '__mocks__'));
+      await fs.writeFile(path.join(testProjectPath, 'src', '__mocks__', 'mock.ts'), 'mock');
+
+      // Mock analyzeFile to return success
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath: unknown) => ({
+        filePath: filePath as string,
+        analyzed: true,
+        analysis: { issues: [], summary: 'OK', timestamp: new Date().toISOString() },
+        duration: 100,
+      }));
+
+      // Exclude test files and __mocks__ directory
+      const result = await batchService.analyzeProject({
+        force: true,
+        excludePatterns: ['**/*.test.ts', '**/__mocks__/**'],
+      });
+
+      // Should analyze app.ts but not app.test.ts or mock.ts
+      const analyzedFiles = result.results.map(r => r.filePath);
+      expect(analyzedFiles).toContain('src/app.ts');
+      expect(analyzedFiles).not.toContain('src/app.test.ts');
+      expect(analyzedFiles).not.toContain('src/__mocks__/mock.ts');
+    });
+
     it('should save reviews that can be retrieved by ReviewService', async () => {
       const { ReviewService } = await import('./reviewService.js');
 

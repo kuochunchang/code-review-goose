@@ -42,6 +42,7 @@ interface BatchOptions {
   concurrency?: string;
   output?: 'json' | 'markdown' | 'text';
   dir?: string | string[];
+  exclude?: string | string[];
 }
 
 export async function batchCommand(projectPath: string, options: BatchOptions) {
@@ -71,6 +72,12 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
       directories = Array.isArray(options.dir) ? options.dir : [options.dir];
     }
 
+    // Handle exclude patterns option (can be string or array)
+    let excludePatterns: string[] | undefined;
+    if (options.exclude) {
+      excludePatterns = Array.isArray(options.exclude) ? options.exclude : [options.exclude];
+    }
+
     if (options.force) {
       console.log(chalk.yellow('⚠ Force mode enabled - re-analyzing all files'));
       console.log('');
@@ -78,6 +85,11 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
 
     if (directories && directories.length > 0) {
       console.log(chalk.cyan(`📁 Analyzing directories: ${directories.join(', ')}`));
+      console.log('');
+    }
+
+    if (excludePatterns && excludePatterns.length > 0) {
+      console.log(chalk.yellow(`🚫 Excluding patterns: ${excludePatterns.join(', ')}`));
       console.log('');
     }
 
@@ -112,6 +124,7 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
       force: options.force || false,
       concurrency,
       directories,
+      excludePatterns,
       onProgress,
     });
 
