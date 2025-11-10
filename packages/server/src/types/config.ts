@@ -3,7 +3,7 @@
  */
 
 export interface ProjectConfig {
-  aiProvider?: 'openai' | 'claude' | 'gemini' | 'ollama';
+  aiProvider?: 'openai' | 'claude' | 'gemini' | 'ollama' | 'custom';
   openai?: {
     apiKey: string;
     model: string;
@@ -22,6 +22,12 @@ export interface ProjectConfig {
   ollama?: {
     baseUrl: string;
     model: string;
+    timeout?: number; // Request timeout in milliseconds (default: 60000)
+  };
+  custom?: {
+    baseUrl: string; // Custom API base URL (e.g., https://llm.webcomm.com.tw/v1)
+    apiKey?: string; // Optional API key (some local services may not require it)
+    model: string; // Model name (e.g., small-instruct, multimodal, instruct, think)
     timeout?: number; // Request timeout in milliseconds (default: 60000)
   };
   ignorePatterns?: string[];
@@ -63,23 +69,22 @@ export const DEFAULT_CONFIG: ProjectConfig = {
     model: 'gpt-4',
     timeout: 60000, // 60 seconds default timeout
   },
-  ignorePatterns: [
-    'node_modules',
-    '.git',
-    'dist',
-    'build',
-    '.next',
-    'coverage',
-  ],
+  ignorePatterns: ['node_modules', '.git', 'dist', 'build', '.next', 'coverage'],
   maxFileSize: 5 * 1024 * 1024, // 5MB
   // Common programming language file extensions
   analyzableFileExtensions: [
     // JavaScript/TypeScript
-    '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs',
+    '.js',
+    '.jsx',
+    '.ts',
+    '.tsx',
+    '.mjs',
+    '.cjs',
     // Vue
     '.vue',
     // Python
-    '.py', '.pyw',
+    '.py',
+    '.pyw',
     // Java
     '.java',
     // Go
@@ -87,7 +92,13 @@ export const DEFAULT_CONFIG: ProjectConfig = {
     // Rust
     '.rs',
     // C/C++
-    '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.hxx',
+    '.c',
+    '.cpp',
+    '.cc',
+    '.cxx',
+    '.h',
+    '.hpp',
+    '.hxx',
     // C#
     '.cs',
     // PHP
@@ -97,21 +108,32 @@ export const DEFAULT_CONFIG: ProjectConfig = {
     // Swift
     '.swift',
     // Kotlin
-    '.kt', '.kts',
+    '.kt',
+    '.kts',
     // Scala
     '.scala',
     // R
-    '.r', '.R',
+    '.r',
+    '.R',
     // Dart
     '.dart',
     // HTML/CSS
-    '.html', '.htm', '.css', '.scss', '.sass', '.less',
+    '.html',
+    '.htm',
+    '.css',
+    '.scss',
+    '.sass',
+    '.less',
     // SQL
     '.sql',
     // Shell
-    '.sh', '.bash', '.zsh',
+    '.sh',
+    '.bash',
+    '.zsh',
     // Config files (may contain logic)
-    '.yaml', '.yml', '.json',
+    '.yaml',
+    '.yml',
+    '.json',
   ],
   uml: {
     generationMode: 'hybrid',

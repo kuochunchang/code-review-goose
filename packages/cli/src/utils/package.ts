@@ -20,7 +20,9 @@ export async function getPackageInfo(): Promise<PackageInfo> {
 
     return {
       version: packageJson.version || '1.0.0',
-      description: packageJson.description || 'Goose Code Review Tool - AI-assisted code review tool running locally',
+      description:
+        packageJson.description ||
+        'Goose Code Review Tool - AI-assisted code review tool running locally',
     };
   } catch (error) {
     // Fallback to default values if reading fails

@@ -87,17 +87,7 @@ export const mockCustomExtensionsConfig: ProjectConfig = {
   },
   ignorePatterns: ['node_modules'],
   maxFileSize: 5242880,
-  analyzableFileExtensions: [
-    '.ts',
-    '.js',
-    '.tsx',
-    '.jsx',
-    '.vue',
-    '.py',
-    '.java',
-    '.go',
-    '.rs',
-  ],
+  analyzableFileExtensions: ['.ts', '.js', '.tsx', '.jsx', '.vue', '.py', '.java', '.go', '.rs'],
 };
 
 /**

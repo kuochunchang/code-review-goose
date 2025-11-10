@@ -123,9 +123,11 @@ describe('Batch API Routes', () => {
     });
 
     it('should accept extensions option', async () => {
-      const response = await request(app).post('/api/batch/analyze').send({
-        extensions: ['.ts'],
-      });
+      const response = await request(app)
+        .post('/api/batch/analyze')
+        .send({
+          extensions: ['.ts'],
+        });
 
       // Basic smoke test
       expect([200, 500]).toContain(response.status);

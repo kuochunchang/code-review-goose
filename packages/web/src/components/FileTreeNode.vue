@@ -13,12 +13,7 @@
         size="small"
         class="expand-icon"
       ></v-icon>
-      <v-icon
-        :icon="nodeIcon"
-        size="small"
-        class="node-icon"
-        :class="iconClass"
-      ></v-icon>
+      <v-icon :icon="nodeIcon" size="small" class="node-icon" :class="iconClass"></v-icon>
       <span class="node-name">{{ node.name }}</span>
       <span v-if="isFile && node.size" class="node-size text-caption text-grey">
         {{ formatSize(node.size) }}
@@ -54,7 +49,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const emit = defineEmits<{
-  selectFile: [filePath: string]
+  selectFile: [filePath: string];
 }>();
 
 const expanded = ref(props.level === 0); // Root directory expanded by default
@@ -71,18 +66,18 @@ const nodeIcon = computed(() => {
   // Return different icons based on file extension
   const ext = props.node.name.split('.').pop()?.toLowerCase();
   const iconMap: Record<string, string> = {
-    'ts': 'mdi-language-typescript',
-    'js': 'mdi-language-javascript',
-    'vue': 'mdi-vuejs',
-    'json': 'mdi-code-json',
-    'md': 'mdi-language-markdown',
-    'css': 'mdi-language-css3',
-    'scss': 'mdi-sass',
-    'html': 'mdi-language-html5',
-    'py': 'mdi-language-python',
-    'java': 'mdi-language-java',
-    'go': 'mdi-language-go',
-    'rs': 'mdi-language-rust',
+    ts: 'mdi-language-typescript',
+    js: 'mdi-language-javascript',
+    vue: 'mdi-vuejs',
+    json: 'mdi-code-json',
+    md: 'mdi-language-markdown',
+    css: 'mdi-language-css3',
+    scss: 'mdi-sass',
+    html: 'mdi-language-html5',
+    py: 'mdi-language-python',
+    java: 'mdi-language-java',
+    go: 'mdi-language-go',
+    rs: 'mdi-language-rust',
   };
 
   return iconMap[ext || ''] || 'mdi-file-outline';
@@ -91,11 +86,11 @@ const nodeIcon = computed(() => {
 const iconClass = computed(() => {
   const ext = props.node.name.split('.').pop()?.toLowerCase();
   const classMap: Record<string, string> = {
-    'ts': 'text-blue',
-    'js': 'text-yellow-darken-2',
-    'vue': 'text-green',
-    'json': 'text-grey-darken-1',
-    'md': 'text-blue-grey',
+    ts: 'text-blue',
+    js: 'text-yellow-darken-2',
+    vue: 'text-green',
+    json: 'text-grey-darken-1',
+    md: 'text-blue-grey',
   };
   return classMap[ext || ''] || '';
 });

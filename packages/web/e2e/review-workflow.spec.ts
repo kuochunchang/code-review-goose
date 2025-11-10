@@ -20,23 +20,23 @@ test.describe('Review Workflow', () => {
     // Look for create review button
     const createReviewBtn = page.locator('[data-testid="create-review-button"]');
 
-    if (await createReviewBtn.count() > 0) {
+    if ((await createReviewBtn.count()) > 0) {
       await createReviewBtn.click();
 
       // Wait for success message or confirmation
-      await expect(
-        page.locator('.v-snackbar, [data-testid="review-created-message"]')
-      ).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('.v-snackbar, [data-testid="review-created-message"]')).toBeVisible(
+        { timeout: 5000 }
+      );
     }
   });
 
   test('should view review history', async ({ page }) => {
     // Look for review history button (could be in toolbar or menu)
-    const reviewHistoryBtn = page.locator(
-      '[data-testid="review-history-button"], button:has-text("Review History")'
-    ).first();
+    const reviewHistoryBtn = page
+      .locator('[data-testid="review-history-button"], button:has-text("Review History")')
+      .first();
 
-    if (await reviewHistoryBtn.count() > 0) {
+    if ((await reviewHistoryBtn.count()) > 0) {
       await reviewHistoryBtn.click();
 
       // Wait for review history dialog/panel to open
@@ -48,8 +48,8 @@ test.describe('Review Workflow', () => {
       const reviewList = page.locator('[data-testid="review-list"], [data-testid="review-item"]');
 
       // Either there are reviews or an empty state message
-      const hasReviews = await reviewList.count() > 0;
-      const hasEmptyState = await page.locator('text=No reviews found').count() > 0;
+      const hasReviews = (await reviewList.count()) > 0;
+      const hasEmptyState = (await page.locator('text=No reviews found').count()) > 0;
 
       expect(hasReviews || hasEmptyState).toBeTruthy();
     }
@@ -57,11 +57,11 @@ test.describe('Review Workflow', () => {
 
   test('should bookmark and filter reviews', async ({ page }) => {
     // Open review history
-    const reviewHistoryBtn = page.locator(
-      '[data-testid="review-history-button"], button:has-text("Review History")'
-    ).first();
+    const reviewHistoryBtn = page
+      .locator('[data-testid="review-history-button"], button:has-text("Review History")')
+      .first();
 
-    if (await reviewHistoryBtn.count() > 0) {
+    if ((await reviewHistoryBtn.count()) > 0) {
       await reviewHistoryBtn.click();
 
       // Wait for dialog to open
@@ -72,20 +72,24 @@ test.describe('Review Workflow', () => {
       // Look for the first review item
       const firstReview = page.locator('[data-testid="review-item"]').first();
 
-      if (await firstReview.count() > 0) {
+      if ((await firstReview.count()) > 0) {
         // Find and click bookmark button
-        const bookmarkBtn = firstReview.locator('[data-testid="bookmark-button"], button[aria-label*="bookmark"]');
+        const bookmarkBtn = firstReview.locator(
+          '[data-testid="bookmark-button"], button[aria-label*="bookmark"]'
+        );
 
-        if (await bookmarkBtn.count() > 0) {
+        if ((await bookmarkBtn.count()) > 0) {
           await bookmarkBtn.click();
 
           // Wait for bookmark to be applied
           await page.waitForTimeout(500);
 
           // Check for bookmark filter
-          const bookmarkFilter = page.locator('[data-testid="bookmark-filter"], input[type="checkbox"]:near(text="Bookmarked")');
+          const bookmarkFilter = page.locator(
+            '[data-testid="bookmark-filter"], input[type="checkbox"]:near(text="Bookmarked")'
+          );
 
-          if (await bookmarkFilter.count() > 0) {
+          if ((await bookmarkFilter.count()) > 0) {
             await bookmarkFilter.click();
 
             // Verify filtered results

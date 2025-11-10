@@ -1,10 +1,7 @@
-import type {
-  AIProvider,
-  AnalysisOptions,
-  AnalysisResult,
-} from '../types/ai.js';
+import type { AIProvider, AnalysisOptions, AnalysisResult } from '../types/ai.js';
 import type { ProjectConfig } from '../types/config.js';
 import { OpenAIProvider } from './providers/openaiProvider.js';
+import { CustomProvider } from './providers/customProvider.js';
 import { ConfigService } from './configService.js';
 
 export class AIService {
@@ -31,6 +28,22 @@ export class AIService {
           model: config.openai.model,
           timeout: config.openai.timeout,
         });
+
+      case 'custom': {
+        const customConfig = config.custom;
+        if (!customConfig?.baseUrl) {
+          throw new Error('Custom provider base URL not configured');
+        }
+        if (!customConfig.model) {
+          throw new Error('Custom provider model not configured');
+        }
+        return new CustomProvider({
+          baseUrl: customConfig.baseUrl,
+          apiKey: customConfig.apiKey,
+          model: customConfig.model,
+          timeout: customConfig.timeout,
+        });
+      }
 
       case 'claude':
         throw new Error('Claude provider not yet implemented');
@@ -66,10 +79,7 @@ export class AIService {
   /**
    * Analyze code
    */
-  async analyzeCode(
-    code: string,
-    options: AnalysisOptions = {}
-  ): Promise<AnalysisResult> {
+  async analyzeCode(code: string, options: AnalysisOptions = {}): Promise<AnalysisResult> {
     const provider = await this.getProvider();
     return provider.analyze(code, options);
   }
@@ -84,6 +94,8 @@ export class AIService {
       switch (config.aiProvider) {
         case 'openai':
           return !!config.openai?.apiKey;
+        case 'custom':
+          return !!config.custom?.baseUrl && !!config.custom?.model;
         case 'claude':
           return !!config.claude?.apiKey;
         case 'gemini':

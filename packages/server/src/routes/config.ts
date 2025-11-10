@@ -80,14 +80,7 @@ configRouter.post('/reset', async (req: Request, res: Response): Promise<void> =
         apiKey: '',
         model: 'gpt-4',
       },
-      ignorePatterns: [
-        'node_modules',
-        '.git',
-        'dist',
-        'build',
-        '.next',
-        'coverage',
-      ],
+      ignorePatterns: ['node_modules', '.git', 'dist', 'build', '.next', 'coverage'],
       maxFileSize: 5 * 1024 * 1024,
     };
 

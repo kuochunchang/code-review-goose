@@ -51,7 +51,7 @@ interface BatchOptions {
 function promptConfirmation(message: string): Promise<boolean> {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   });
 
   return new Promise((resolve) => {
@@ -126,7 +126,9 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
     });
 
     console.log('');
-    console.log(chalk.bold(`Found ${analyzableFiles.length} files to analyze (${totalFiles} total)`));
+    console.log(
+      chalk.bold(`Found ${analyzableFiles.length} files to analyze (${totalFiles} total)`)
+    );
     console.log('');
 
     // Group files by directory for better display
@@ -167,9 +169,7 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
 
     // Ask for confirmation unless --yes flag is provided
     if (!options.yes) {
-      const confirmed = await promptConfirmation(
-        chalk.yellow(`Proceed with analysis? [Y/n] `)
-      );
+      const confirmed = await promptConfirmation(chalk.yellow(`Proceed with analysis? [Y/n] `));
 
       if (!confirmed) {
         console.log(chalk.yellow('Analysis cancelled.'));
@@ -183,9 +183,12 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
 
     // Progress reporting
     const onProgress = (progress: BatchProgress) => {
-      const percentage = progress.total > 0
-        ? Math.round((progress.analyzed + progress.skipped + progress.errors) / progress.total * 100)
-        : 0;
+      const percentage =
+        progress.total > 0
+          ? Math.round(
+              ((progress.analyzed + progress.skipped + progress.errors) / progress.total) * 100
+            )
+          : 0;
 
       process.stdout.write(
         chalk.gray(
@@ -217,7 +220,6 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
     console.log('');
     console.log(chalk.gray(`Total time: ${duration}s`));
     console.log('');
-
   } catch (error) {
     console.error('');
     console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error');
@@ -287,7 +289,7 @@ function displayTextResults(result: BatchAnalysisResult) {
   // Show files with errors
   if (result.errorCount > 0) {
     console.log(chalk.bold('Files with errors:'));
-    const errored = result.results.filter(r => r.error);
+    const errored = result.results.filter((r) => r.error);
     for (const file of errored) {
       console.log(chalk.red(`  ✗ ${file.filePath}: ${file.error}`));
     }
@@ -296,14 +298,20 @@ function displayTextResults(result: BatchAnalysisResult) {
 
   // Show files with critical issues
   const criticalFiles = result.results.filter(
-    r => r.analysis && r.analysis.issues.some((i: any) => i.severity === 'critical')
+    (r) => r.analysis && r.analysis.issues.some((i: any) => i.severity === 'critical')
   );
 
   if (criticalFiles.length > 0) {
     console.log(chalk.bold('Files with critical issues:'));
     for (const file of criticalFiles) {
-      const criticalCount = file.analysis!.issues.filter((i: any) => i.severity === 'critical').length;
-      console.log(chalk.red(`  🔴 ${file.filePath} (${criticalCount} critical issue${criticalCount > 1 ? 's' : ''})`));
+      const criticalCount = file.analysis!.issues.filter(
+        (i: any) => i.severity === 'critical'
+      ).length;
+      console.log(
+        chalk.red(
+          `  🔴 ${file.filePath} (${criticalCount} critical issue${criticalCount > 1 ? 's' : ''})`
+        )
+      );
     }
     console.log('');
   }
@@ -341,7 +349,7 @@ function displayMarkdownResults(result: BatchAnalysisResult) {
   if (result.errorCount > 0) {
     console.log('## Files with Errors');
     console.log('');
-    const errored = result.results.filter(r => r.error);
+    const errored = result.results.filter((r) => r.error);
     for (const file of errored) {
       console.log(`- \`${file.filePath}\`: ${file.error}`);
     }
@@ -349,15 +357,19 @@ function displayMarkdownResults(result: BatchAnalysisResult) {
   }
 
   const criticalFiles = result.results.filter(
-    r => r.analysis && r.analysis.issues.some((i: any) => i.severity === 'critical')
+    (r) => r.analysis && r.analysis.issues.some((i: any) => i.severity === 'critical')
   );
 
   if (criticalFiles.length > 0) {
     console.log('## Files with Critical Issues');
     console.log('');
     for (const file of criticalFiles) {
-      const criticalCount = file.analysis!.issues.filter((i: any) => i.severity === 'critical').length;
-      console.log(`- \`${file.filePath}\` (${criticalCount} critical issue${criticalCount > 1 ? 's' : ''})`);
+      const criticalCount = file.analysis!.issues.filter(
+        (i: any) => i.severity === 'critical'
+      ).length;
+      console.log(
+        `- \`${file.filePath}\` (${criticalCount} critical issue${criticalCount > 1 ? 's' : ''})`
+      );
     }
     console.log('');
   }

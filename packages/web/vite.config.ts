@@ -27,10 +27,7 @@ if (!existsSync(testConfigPath) && process.env.BACKEND_PORT) {
 }
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    vuetify({ autoImport: true }),
-  ],
+  plugins: [vue(), vuetify({ autoImport: true })],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

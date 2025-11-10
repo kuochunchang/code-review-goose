@@ -94,9 +94,7 @@ describe('Project Store', () => {
         name: 'src',
         type: 'directory',
         path: 'src',
-        children: [
-          { name: 'index.ts', type: 'file', path: 'src/index.ts' },
-        ],
+        children: [{ name: 'index.ts', type: 'file', path: 'src/index.ts' }],
       };
 
       vi.mocked(api.projectApi.getFileTree).mockResolvedValue(mockFileTree as any);

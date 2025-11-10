@@ -26,9 +26,7 @@ describe('ConfigService', () => {
       const config = await configService.load();
 
       expect(config).toEqual(DEFAULT_CONFIG);
-      expect(fs.ensureDir).toHaveBeenCalledWith(
-        path.join(mockProjectPath, '.code-review')
-      );
+      expect(fs.ensureDir).toHaveBeenCalledWith(path.join(mockProjectPath, '.code-review'));
     });
 
     it('should load saved config from file', async () => {
@@ -108,10 +106,7 @@ describe('ConfigService', () => {
       const config = await configService.load();
 
       expect(config).toEqual(DEFAULT_CONFIG);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to load config:',
-        expect.any(Error)
-      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to load config:', expect.any(Error));
 
       consoleErrorSpy.mockRestore();
     });
@@ -132,9 +127,7 @@ describe('ConfigService', () => {
 
       await configService.save(newConfig);
 
-      expect(fs.ensureDir).toHaveBeenCalledWith(
-        path.join(mockProjectPath, '.code-review')
-      );
+      expect(fs.ensureDir).toHaveBeenCalledWith(path.join(mockProjectPath, '.code-review'));
       expect(fs.writeFile).toHaveBeenCalledWith(
         configPath,
         JSON.stringify(newConfig, null, 2),
@@ -151,9 +144,7 @@ describe('ConfigService', () => {
 
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(configService.save(newConfig)).rejects.toThrow(
-        'Failed to save configuration'
-      );
+      await expect(configService.save(newConfig)).rejects.toThrow('Failed to save configuration');
       expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to save config:', error);
 
       consoleErrorSpy.mockRestore();

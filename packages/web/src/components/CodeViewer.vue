@@ -18,16 +18,16 @@
           {{ error }}
         </v-alert>
         <div v-if="!currentFile && !loading && !error" class="empty-state">
-          <pre class="ascii-art">  _____  ____   ____   _____ ______
+          <pre class="ascii-art">
+  _____  ____   ____   _____ ______
  / ____|/ __ \ / __ \ / ____|  ____|
 | |  __| |  | | |  | | (___ | |__
 | | |_ | |  | | |  | |\___ \|  __|
 | |__| | |__| | |__| |____) | |____
- \_____|\____/ \____/|_____/|______|</pre>
+ \_____|\____/ \____/|_____/|______|</pre
+          >
 
-          <p class="text-body-2 text-grey mt-8">
-            Project: {{ projectInfo?.path || 'Loading...' }}
-          </p>
+          <p class="text-body-2 text-grey mt-8">Project: {{ projectInfo?.path || 'Loading...' }}</p>
           <p class="text-body-2 text-grey-lighten-1 mt-4">
             Select a file from the left panel to start reviewing
           </p>
@@ -37,7 +37,11 @@
           <div class="markdown-content" v-html="markdownHtml"></div>
         </div>
         <!-- Code Editor -->
-        <div ref="editorContainer" class="editor-container" :style="{ display: currentFile && !error && !isMarkdownFile ? 'block' : 'none' }"></div>
+        <div
+          ref="editorContainer"
+          class="editor-container"
+          :style="{ display: currentFile && !error && !isMarkdownFile ? 'block' : 'none' }"
+        ></div>
       </v-card-text>
     </v-card>
   </div>
@@ -102,19 +106,25 @@ onUnmounted(() => {
   }
 });
 
-watch(() => props.filePath, async (newFilePath) => {
-  if (newFilePath) {
-    await loadFile(newFilePath);
+watch(
+  () => props.filePath,
+  async (newFilePath) => {
+    if (newFilePath) {
+      await loadFile(newFilePath);
+    }
   }
-});
+);
 
 // Watch theme changes and update Monaco editor
-watch(() => uiStore.theme, (newTheme) => {
-  if (editor && !isMarkdownFile.value) {
-    const theme = newTheme === 'light' ? 'vs' : 'vs-dark';
-    editor.updateOptions({ theme });
+watch(
+  () => uiStore.theme,
+  (newTheme) => {
+    if (editor && !isMarkdownFile.value) {
+      const theme = newTheme === 'light' ? 'vs' : 'vs-dark';
+      editor.updateOptions({ theme });
+    }
   }
-});
+);
 
 const loadFile = async (filePath: string) => {
   loading.value = true;
@@ -188,31 +198,31 @@ const detectLanguage = (filePath: string): string => {
   const ext = filePath.split('.').pop()?.toLowerCase();
 
   const languageMap: Record<string, string> = {
-    'ts': 'typescript',
-    'tsx': 'typescript',
-    'js': 'javascript',
-    'jsx': 'javascript',
-    'vue': 'html', // Vue SFC includes HTML
-    'json': 'json',
-    'md': 'markdown',
-    'css': 'css',
-    'scss': 'scss',
-    'less': 'less',
-    'html': 'html',
-    'xml': 'xml',
-    'py': 'python',
-    'java': 'java',
-    'go': 'go',
-    'rs': 'rust',
-    'c': 'c',
-    'cpp': 'cpp',
-    'cs': 'csharp',
-    'php': 'php',
-    'rb': 'ruby',
-    'sh': 'shell',
-    'yaml': 'yaml',
-    'yml': 'yaml',
-    'sql': 'sql',
+    ts: 'typescript',
+    tsx: 'typescript',
+    js: 'javascript',
+    jsx: 'javascript',
+    vue: 'html', // Vue SFC includes HTML
+    json: 'json',
+    md: 'markdown',
+    css: 'css',
+    scss: 'scss',
+    less: 'less',
+    html: 'html',
+    xml: 'xml',
+    py: 'python',
+    java: 'java',
+    go: 'go',
+    rs: 'rust',
+    c: 'c',
+    cpp: 'cpp',
+    cs: 'csharp',
+    php: 'php',
+    rb: 'ruby',
+    sh: 'shell',
+    yaml: 'yaml',
+    yml: 'yaml',
+    sql: 'sql',
   };
 
   return languageMap[ext || ''] || 'plaintext';
@@ -244,16 +254,19 @@ const jumpToLine = (lineNumber: number) => {
   const model = editor.getModel();
   if (model) {
     // Add temporary decoration (highlight effect)
-    const decorations = editor.deltaDecorations([], [
-      {
-        range: new monaco.Range(lineNumber, 1, lineNumber, model.getLineMaxColumn(lineNumber)),
-        options: {
-          isWholeLine: true,
-          className: 'highlighted-line',
-          inlineClassName: 'highlighted-line-text',
+    const decorations = editor.deltaDecorations(
+      [],
+      [
+        {
+          range: new monaco.Range(lineNumber, 1, lineNumber, model.getLineMaxColumn(lineNumber)),
+          options: {
+            isWholeLine: true,
+            className: 'highlighted-line',
+            inlineClassName: 'highlighted-line-text',
+          },
         },
-      },
-    ]);
+      ]
+    );
 
     // Remove highlight after 2 seconds
     setTimeout(() => {

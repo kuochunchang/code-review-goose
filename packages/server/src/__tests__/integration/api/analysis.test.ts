@@ -4,11 +4,7 @@ import express from 'express';
 import { analysisRouter } from '../../../routes/analysis.js';
 import { AIService } from '../../../services/aiService.js';
 import { CacheService } from '../../../services/cacheService.js';
-import {
-  mockAnalysisResult,
-  mockCachedResult,
-  mockOpenAIConfig,
-} from '../../fixtures/index.js';
+import { mockAnalysisResult, mockCachedResult, mockOpenAIConfig } from '../../fixtures/index.js';
 
 // Mock services
 vi.mock('../../../services/aiService.js');

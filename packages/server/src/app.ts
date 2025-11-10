@@ -55,18 +55,19 @@ export async function createServer(config: ServerConfig): Promise<ServerInstance
   // Static assets serving
   // Try to find web dist in different locations (for development vs. production)
   const possiblePaths = [
-    path.join(__dirname, '../../web/dist'),           // Development (monorepo)
-    path.join(__dirname, '../web-dist'),              // Published npm package (same level as server-dist)
-    path.join(__dirname, '../../web-dist'),           // Alternative npm package structure
+    path.join(__dirname, '../../web/dist'), // Development (monorepo)
+    path.join(__dirname, '../web-dist'), // Published npm package (same level as server-dist)
+    path.join(__dirname, '../../web-dist'), // Alternative npm package structure
   ];
 
-  const webDistPath = possiblePaths.find((p) => {
-    try {
-      return fs.existsSync(p);
-    } catch {
-      return false;
-    }
-  }) || possiblePaths[0]; // Fallback to first path if none found
+  const webDistPath =
+    possiblePaths.find((p) => {
+      try {
+        return fs.existsSync(p);
+      } catch {
+        return false;
+      }
+    }) || possiblePaths[0]; // Fallback to first path if none found
 
   app.use(express.static(webDistPath));
 

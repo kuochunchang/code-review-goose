@@ -26,7 +26,7 @@ export function createWrapper(component: any, options: any = {}): VueWrapper {
 /**
  * Wait for the next tick
  */
-export const nextTick = () => new Promise(resolve => setTimeout(resolve, 0));
+export const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 /**
  * Create a mock file tree for testing

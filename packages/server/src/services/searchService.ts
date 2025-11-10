@@ -85,7 +85,9 @@ export class SearchService {
         searchRegex = new RegExp(escapedQuery, caseSensitive ? 'g' : 'gi');
       }
     } catch (error) {
-      throw new Error(`Invalid regex pattern: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Invalid regex pattern: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
 
     // Collect all files
@@ -159,7 +161,11 @@ export class SearchService {
         }
 
         // Context after
-        for (let i = lineIndex + 1; i <= Math.min(lines.length - 1, lineIndex + contextLines); i++) {
+        for (
+          let i = lineIndex + 1;
+          i <= Math.min(lines.length - 1, lineIndex + contextLines);
+          i++
+        ) {
           contextAfter.push(lines[i] || '');
         }
 

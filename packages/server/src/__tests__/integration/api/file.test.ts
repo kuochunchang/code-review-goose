@@ -3,11 +3,7 @@ import request from 'supertest';
 import express from 'express';
 import { fileRouter } from '../../../routes/file.js';
 import { FileService } from '../../../services/fileService.js';
-import {
-  mockFileInfo,
-  mockFileContent,
-  mockFileChunk,
-} from '../../fixtures/index.js';
+import { mockFileInfo, mockFileContent, mockFileChunk } from '../../fixtures/index.js';
 
 // Mock FileService
 vi.mock('../../../services/fileService.js');
@@ -174,9 +170,7 @@ describe('File API', () => {
           }) as any
       );
 
-      const response = await request(app)
-        .get('/api/file/chunk')
-        .query({ path: 'nonexistent.ts' });
+      const response = await request(app).get('/api/file/chunk').query({ path: 'nonexistent.ts' });
 
       expect(response.status).toBe(500);
       expect(response.body.success).toBe(false);

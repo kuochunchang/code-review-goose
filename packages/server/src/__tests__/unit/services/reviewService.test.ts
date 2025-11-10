@@ -370,7 +370,13 @@ describe('ReviewService', () => {
           reviewCount: 1,
           analysis: {
             issues: [
-              { severity: 'critical', category: 'security', line: 1, message: 'msg', suggestion: 'fix' },
+              {
+                severity: 'critical',
+                category: 'security',
+                line: 1,
+                message: 'msg',
+                suggestion: 'fix',
+              },
               { severity: 'high', category: 'quality', line: 2, message: 'msg', suggestion: 'fix' },
             ],
             summary: 'Test 1',
@@ -386,7 +392,13 @@ describe('ReviewService', () => {
           reviewCount: 1,
           analysis: {
             issues: [
-              { severity: 'medium', category: 'performance', line: 3, message: 'msg', suggestion: 'fix' },
+              {
+                severity: 'medium',
+                category: 'performance',
+                line: 3,
+                message: 'msg',
+                suggestion: 'fix',
+              },
             ],
             summary: 'Test 2',
             timestamp: new Date().toISOString(),
@@ -510,7 +522,15 @@ describe('ReviewService', () => {
         createMockReview({
           id: '1',
           analysis: {
-            issues: [{ severity: 'critical', category: 'security', line: 1, message: 'msg', suggestion: 'fix' }],
+            issues: [
+              {
+                severity: 'critical',
+                category: 'security',
+                line: 1,
+                message: 'msg',
+                suggestion: 'fix',
+              },
+            ],
             summary: 'Critical issue',
             timestamp: new Date().toISOString(),
           },
@@ -518,7 +538,9 @@ describe('ReviewService', () => {
         createMockReview({
           id: '2',
           analysis: {
-            issues: [{ severity: 'low', category: 'quality', line: 1, message: 'msg', suggestion: 'fix' }],
+            issues: [
+              { severity: 'low', category: 'quality', line: 1, message: 'msg', suggestion: 'fix' },
+            ],
             summary: 'Low issue',
             timestamp: new Date().toISOString(),
           },
@@ -526,7 +548,9 @@ describe('ReviewService', () => {
         createMockReview({
           id: '3',
           analysis: {
-            issues: [{ severity: 'high', category: 'bug', line: 1, message: 'msg', suggestion: 'fix' }],
+            issues: [
+              { severity: 'high', category: 'bug', line: 1, message: 'msg', suggestion: 'fix' },
+            ],
             summary: 'High issue',
             timestamp: new Date().toISOString(),
           },
@@ -597,7 +621,15 @@ describe('ReviewService', () => {
           id: '1',
           filePath: 'src/auth.ts',
           analysis: {
-            issues: [{ severity: 'high', category: 'security', line: 1, message: 'SQL injection', suggestion: 'Use prepared statements' }],
+            issues: [
+              {
+                severity: 'high',
+                category: 'security',
+                line: 1,
+                message: 'SQL injection',
+                suggestion: 'Use prepared statements',
+              },
+            ],
             summary: 'Security vulnerabilities found',
             timestamp: new Date().toISOString(),
           },
@@ -703,7 +735,9 @@ describe('ReviewService', () => {
         createMockReview({
           id: '1',
           analysis: {
-            issues: [{ severity: 'low', category: 'quality', line: 1, message: 'msg', suggestion: 'fix' }],
+            issues: [
+              { severity: 'low', category: 'quality', line: 1, message: 'msg', suggestion: 'fix' },
+            ],
             summary: 'Low',
             timestamp: new Date().toISOString(),
           },
@@ -711,7 +745,15 @@ describe('ReviewService', () => {
         createMockReview({
           id: '2',
           analysis: {
-            issues: [{ severity: 'critical', category: 'security', line: 1, message: 'msg', suggestion: 'fix' }],
+            issues: [
+              {
+                severity: 'critical',
+                category: 'security',
+                line: 1,
+                message: 'msg',
+                suggestion: 'fix',
+              },
+            ],
             summary: 'Critical',
             timestamp: new Date().toISOString(),
           },
@@ -719,7 +761,15 @@ describe('ReviewService', () => {
         createMockReview({
           id: '3',
           analysis: {
-            issues: [{ severity: 'medium', category: 'performance', line: 1, message: 'msg', suggestion: 'fix' }],
+            issues: [
+              {
+                severity: 'medium',
+                category: 'performance',
+                line: 1,
+                message: 'msg',
+                suggestion: 'fix',
+              },
+            ],
             summary: 'Medium',
             timestamp: new Date().toISOString(),
           },
@@ -826,7 +876,11 @@ describe('ReviewService', () => {
           fileName: 'completedfile.ts',
           timestamp: new Date().toISOString(),
           reviewCount: 1,
-          analysis: { issues: [], summary: 'This was resolved', timestamp: new Date().toISOString() },
+          analysis: {
+            issues: [],
+            summary: 'This was resolved',
+            timestamp: new Date().toISOString(),
+          },
           bookmarked: false,
           resolved: true,
         },
@@ -1017,7 +1071,11 @@ describe('ReviewService', () => {
           timestamp: new Date().toISOString(),
           firstReviewedAt: new Date().toISOString(),
           reviewCount: 1,
-          analysis: { issues: [], summary: 'This was resolved', timestamp: new Date().toISOString() },
+          analysis: {
+            issues: [],
+            summary: 'This was resolved',
+            timestamp: new Date().toISOString(),
+          },
           bookmarked: false,
           resolved: true,
         },
@@ -1035,7 +1093,10 @@ describe('ReviewService', () => {
       ];
 
       vi.mocked(fs.pathExists).mockResolvedValue(true);
-      vi.mocked(fs.readdir).mockResolvedValue(['resolved-id-123.json', 'unresolved-id-456.json'] as any);
+      vi.mocked(fs.readdir).mockResolvedValue([
+        'resolved-id-123.json',
+        'unresolved-id-456.json',
+      ] as any);
       vi.mocked(fs.readFile)
         .mockResolvedValueOnce(JSON.stringify(mockReviews[0]) as any)
         .mockResolvedValueOnce(JSON.stringify(mockReviews[1]) as any);
@@ -1065,11 +1126,35 @@ describe('ReviewService', () => {
         reviewCount: 1,
         analysis: {
           issues: [
-            { severity: 'critical', category: 'security', line: 1, message: 'Critical', suggestion: 'Fix' },
-            { severity: 'critical', category: 'bug', line: 2, message: 'Critical 2', suggestion: 'Fix' },
+            {
+              severity: 'critical',
+              category: 'security',
+              line: 1,
+              message: 'Critical',
+              suggestion: 'Fix',
+            },
+            {
+              severity: 'critical',
+              category: 'bug',
+              line: 2,
+              message: 'Critical 2',
+              suggestion: 'Fix',
+            },
             { severity: 'high', category: 'quality', line: 3, message: 'High', suggestion: 'Fix' },
-            { severity: 'medium', category: 'performance', line: 4, message: 'Medium', suggestion: 'Fix' },
-            { severity: 'low', category: 'best-practice', line: 5, message: 'Low', suggestion: 'Fix' },
+            {
+              severity: 'medium',
+              category: 'performance',
+              line: 4,
+              message: 'Medium',
+              suggestion: 'Fix',
+            },
+            {
+              severity: 'low',
+              category: 'best-practice',
+              line: 5,
+              message: 'Low',
+              suggestion: 'Fix',
+            },
             { severity: 'info', category: 'quality', line: 6, message: 'Info', suggestion: 'Fix' },
           ],
           summary: 'Multiple severity levels',
@@ -1213,7 +1298,11 @@ describe('ReviewService', () => {
           timestamp: new Date().toISOString(),
           firstReviewedAt: new Date().toISOString(),
           reviewCount: 1,
-          analysis: { issues: [], summary: 'This was resolved', timestamp: new Date().toISOString() },
+          analysis: {
+            issues: [],
+            summary: 'This was resolved',
+            timestamp: new Date().toISOString(),
+          },
           bookmarked: false,
           resolved: true,
         },
@@ -1231,7 +1320,10 @@ describe('ReviewService', () => {
       ];
 
       vi.mocked(fs.pathExists).mockResolvedValue(true);
-      vi.mocked(fs.readdir).mockResolvedValue(['resolved-id-123.json', 'unresolved-id-456.json'] as any);
+      vi.mocked(fs.readdir).mockResolvedValue([
+        'resolved-id-123.json',
+        'unresolved-id-456.json',
+      ] as any);
       vi.mocked(fs.readFile)
         .mockResolvedValueOnce(JSON.stringify(mockReviews[0]) as any)
         .mockResolvedValueOnce(JSON.stringify(mockReviews[1]) as any);
@@ -1468,7 +1560,11 @@ describe('ReviewService', () => {
           fileName: 'completedfile.ts',
           timestamp: new Date().toISOString(),
           reviewCount: 1,
-          analysis: { issues: [], summary: 'This was resolved', timestamp: new Date().toISOString() },
+          analysis: {
+            issues: [],
+            summary: 'This was resolved',
+            timestamp: new Date().toISOString(),
+          },
           bookmarked: false,
           resolved: true,
         },
@@ -1507,11 +1603,35 @@ describe('ReviewService', () => {
         reviewCount: 1,
         analysis: {
           issues: [
-            { severity: 'critical', category: 'security', line: 1, message: 'Critical', suggestion: 'Fix' },
+            {
+              severity: 'critical',
+              category: 'security',
+              line: 1,
+              message: 'Critical',
+              suggestion: 'Fix',
+            },
             { severity: 'high', category: 'bug', line: 2, message: 'High', suggestion: 'Fix' },
-            { severity: 'medium', category: 'quality', line: 3, message: 'Medium', suggestion: 'Fix' },
-            { severity: 'low', category: 'performance', line: 4, message: 'Low', suggestion: 'Fix' },
-            { severity: 'info', category: 'best-practice', line: 5, message: 'Info', suggestion: 'Fix' },
+            {
+              severity: 'medium',
+              category: 'quality',
+              line: 3,
+              message: 'Medium',
+              suggestion: 'Fix',
+            },
+            {
+              severity: 'low',
+              category: 'performance',
+              line: 4,
+              message: 'Low',
+              suggestion: 'Fix',
+            },
+            {
+              severity: 'info',
+              category: 'best-practice',
+              line: 5,
+              message: 'Info',
+              suggestion: 'Fix',
+            },
           ],
           summary: 'Multiple issues',
           timestamp: new Date().toISOString(),

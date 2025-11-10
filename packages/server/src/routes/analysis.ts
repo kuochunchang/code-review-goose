@@ -44,7 +44,8 @@ analysisRouter.post('/analyze', async (req: Request, res: Response): Promise<voi
       if (!isAnalyzable) {
         res.status(400).json({
           success: false,
-          error: 'This file type cannot be analyzed. Please check your analyzable file extensions configuration.',
+          error:
+            'This file type cannot be analyzed. Please check your analyzable file extensions configuration.',
         });
         return;
       }

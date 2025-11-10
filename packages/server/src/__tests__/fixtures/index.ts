@@ -53,9 +53,6 @@ export {
 } from './project.fixtures.js';
 
 // ==================== Builders ====================
-export {
-  AnalysisResultBuilder,
-  buildAnalysisResult,
-} from './builders/analysisBuilder.js';
+export { AnalysisResultBuilder, buildAnalysisResult } from './builders/analysisBuilder.js';
 
 export { ConfigBuilder, buildConfig } from './builders/configBuilder.js';

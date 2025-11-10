@@ -288,7 +288,9 @@ describe('UMLService', () => {
     it('should handle parsing errors gracefully', async () => {
       const code = 'this is not valid code {{{';
 
-      await expect(umlService.generateDiagram(code, 'class')).rejects.toThrow('Code parsing failed');
+      await expect(umlService.generateDiagram(code, 'class')).rejects.toThrow(
+        'Code parsing failed'
+      );
     });
   });
 

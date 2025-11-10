@@ -13,9 +13,7 @@
           class="ml-2"
         >
           <v-icon>mdi-chevron-left</v-icon>
-          <v-tooltip activator="parent" location="bottom">
-            Hide File Tree (⌘B)
-          </v-tooltip>
+          <v-tooltip activator="parent" location="bottom"> Hide File Tree (⌘B) </v-tooltip>
         </v-btn>
       </v-card-title>
       <v-card-text class="pa-0">
@@ -30,9 +28,7 @@
             :level="0"
             @select-file="handleSelectFile"
           />
-          <v-alert v-else type="info" variant="tonal" class="ma-2">
-            No files found
-          </v-alert>
+          <v-alert v-else type="info" variant="tonal" class="ma-2"> No files found </v-alert>
         </div>
       </v-card-text>
     </v-card>
@@ -51,7 +47,7 @@ const fileTree = ref<any>(null);
 
 const emit = defineEmits<{
   selectFile: [filePath: string];
-  collapse: []
+  collapse: [];
 }>();
 
 onMounted(async () => {

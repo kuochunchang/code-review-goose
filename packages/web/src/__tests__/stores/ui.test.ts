@@ -69,7 +69,7 @@ describe('UI Store', () => {
       store.theme = 'light';
 
       // Wait for the watch effect to trigger
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       expect(localStorageMock.getItem('goose-theme')).toBe('light');
     });

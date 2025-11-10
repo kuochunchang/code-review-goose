@@ -111,9 +111,12 @@ export const analysisApi = {
   },
 
   async isFileAnalyzable(filePath: string): Promise<boolean> {
-    const response = await api.get<ApiResponse<{ isAnalyzable: boolean; filePath: string }>>('/analysis/is-analyzable', {
-      params: { filePath },
-    });
+    const response = await api.get<ApiResponse<{ isAnalyzable: boolean; filePath: string }>>(
+      '/analysis/is-analyzable',
+      {
+        params: { filePath },
+      }
+    );
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || 'Failed to check file analyzability');
     }
@@ -222,13 +225,16 @@ export const reviewApi = {
     return response.data.data;
   },
 
-  async exportReviews(format: 'markdown' | 'html' | 'json', options?: {
-    includeResolved?: boolean;
-    filePath?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    severity?: string[];
-  }): Promise<Blob> {
+  async exportReviews(
+    format: 'markdown' | 'html' | 'json',
+    options?: {
+      includeResolved?: boolean;
+      filePath?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      severity?: string[];
+    }
+  ): Promise<Blob> {
     const params: Record<string, any> = { format };
 
     if (options?.includeResolved !== undefined) params.includeResolved = options.includeResolved;
@@ -262,13 +268,15 @@ export const searchApi = {
     searchTime: number;
     truncated: boolean;
   }> {
-    const response = await api.post<ApiResponse<{
-      files: SearchFileResultWithContext[];
-      totalFiles: number;
-      totalMatches: number;
-      searchTime: number;
-      truncated: boolean;
-    }>>('/search/with-context', options);
+    const response = await api.post<
+      ApiResponse<{
+        files: SearchFileResultWithContext[];
+        totalFiles: number;
+        totalMatches: number;
+        searchTime: number;
+        truncated: boolean;
+      }>
+    >('/search/with-context', options);
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || 'Search failed');
     }

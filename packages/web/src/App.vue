@@ -11,12 +11,7 @@
     >
       {{ uiStore.snackbar.message }}
       <template v-slot:actions>
-        <v-btn
-          variant="text"
-          @click="uiStore.hideSnackbar()"
-        >
-          Close
-        </v-btn>
+        <v-btn variant="text" @click="uiStore.hideSnackbar()"> Close </v-btn>
       </template>
     </v-snackbar>
   </v-app>

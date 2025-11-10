@@ -172,10 +172,7 @@ export class BatchAnalysisService {
   /**
    * Analyze a single file
    */
-  private async analyzeFile(
-    filePath: string,
-    force: boolean
-  ): Promise<FileAnalysisResult> {
+  private async analyzeFile(filePath: string, force: boolean): Promise<FileAnalysisResult> {
     const startTime = Date.now();
 
     try {
@@ -183,10 +180,7 @@ export class BatchAnalysisService {
       const content = await this.fileService.readFile(filePath);
 
       // Use standardized options builder to ensure cache key consistency
-      const analysisOptions = createAnalysisOptions(
-        filePath,
-        this.getLanguageFromPath(filePath)
-      );
+      const analysisOptions = createAnalysisOptions(filePath, this.getLanguageFromPath(filePath));
 
       // Check if file needs analysis (check cache first)
       if (!force) {
@@ -266,8 +260,7 @@ export class BatchAnalysisService {
         const normalizedDir = dir.replace(/^\.?\//, '').replace(/\/$/, '');
 
         // Check if file starts with this directory
-        return normalizedFile === normalizedDir ||
-               normalizedFile.startsWith(normalizedDir + '/');
+        return normalizedFile === normalizedDir || normalizedFile.startsWith(normalizedDir + '/');
       });
     });
   }
@@ -291,10 +284,7 @@ export class BatchAnalysisService {
   /**
    * Filter files to only analyzable ones
    */
-  private async filterAnalyzableFiles(
-    files: string[],
-    extensions?: string[]
-  ): Promise<string[]> {
+  private async filterAnalyzableFiles(files: string[], extensions?: string[]): Promise<string[]> {
     const analyzable: string[] = [];
 
     for (const file of files) {

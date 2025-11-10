@@ -33,9 +33,12 @@ test.describe('File Analysis Flow', () => {
     await expect(page.locator('[data-testid="file-tree"]')).toBeVisible({ timeout: 10000 });
 
     // Find and click on a TypeScript file
-    const tsFile = page.locator('[data-testid="file-tree-item"]').filter({ hasText: '.ts' }).first();
+    const tsFile = page
+      .locator('[data-testid="file-tree-item"]')
+      .filter({ hasText: '.ts' })
+      .first();
 
-    if (await tsFile.count() > 0) {
+    if ((await tsFile.count()) > 0) {
       await tsFile.click();
 
       // Wait for code viewer to load content
@@ -65,7 +68,7 @@ test.describe('File Analysis Flow', () => {
     // Look for the analyze button (if it exists)
     const analyzeButton = page.locator('[data-testid="analyze-button"]');
 
-    if (await analyzeButton.count() > 0) {
+    if ((await analyzeButton.count()) > 0) {
       // Click analyze button
       await analyzeButton.click();
 
@@ -74,8 +77,8 @@ test.describe('File Analysis Flow', () => {
 
       // Check if analysis is running or complete
       // Either loading indicator should be visible, or results should be shown
-      const hasLoading = await page.locator('[data-testid="analysis-loading"]').count() > 0;
-      const hasResults = await page.locator('[data-testid="analysis-results"]').count() > 0;
+      const hasLoading = (await page.locator('[data-testid="analysis-loading"]').count()) > 0;
+      const hasResults = (await page.locator('[data-testid="analysis-results"]').count()) > 0;
 
       // As long as we have the analysis panel and clicked the button, consider it a success
       // The actual analysis functionality may not be fully implemented yet

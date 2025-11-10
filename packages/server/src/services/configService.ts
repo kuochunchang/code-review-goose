@@ -28,10 +28,7 @@ export class ConfigService {
    * Deep merge configuration
    * Properly handle nested objects, avoid shallow merge overwriting entire object
    */
-  private deepMergeConfig(
-    current: ProjectConfig,
-    updates: Partial<ProjectConfig>
-  ): ProjectConfig {
+  private deepMergeConfig(current: ProjectConfig, updates: Partial<ProjectConfig>): ProjectConfig {
     const merged: ProjectConfig = { ...current };
 
     // Handle top-level fields
@@ -87,6 +84,14 @@ export class ConfigService {
       };
     }
 
+    // Handle Custom config
+    if (updates.custom) {
+      merged.custom = {
+        ...merged.custom,
+        ...updates.custom,
+      };
+    }
+
     return merged;
   }
 
@@ -112,13 +117,18 @@ export class ConfigService {
           ...DEFAULT_CONFIG,
           // Merge loaded config (only override defined values)
           ...(loadedConfig.aiProvider !== undefined && { aiProvider: loadedConfig.aiProvider }),
-          ...(loadedConfig.openai && { openai: { ...DEFAULT_CONFIG.openai, ...loadedConfig.openai } }),
+          ...(loadedConfig.openai && {
+            openai: { ...DEFAULT_CONFIG.openai, ...loadedConfig.openai },
+          }),
           ...(loadedConfig.claude && { claude: loadedConfig.claude }),
           ...(loadedConfig.gemini && { gemini: loadedConfig.gemini }),
           ...(loadedConfig.ollama && { ollama: loadedConfig.ollama }),
+          ...(loadedConfig.custom && { custom: loadedConfig.custom }),
           ...(loadedConfig.ignorePatterns && { ignorePatterns: loadedConfig.ignorePatterns }),
           ...(loadedConfig.maxFileSize !== undefined && { maxFileSize: loadedConfig.maxFileSize }),
-          ...(loadedConfig.analyzableFileExtensions && { analyzableFileExtensions: loadedConfig.analyzableFileExtensions }),
+          ...(loadedConfig.analyzableFileExtensions && {
+            analyzableFileExtensions: loadedConfig.analyzableFileExtensions,
+          }),
           ...(loadedConfig.uml && { uml: { ...DEFAULT_CONFIG.uml, ...loadedConfig.uml } }),
         };
       } else {
@@ -140,11 +150,7 @@ export class ConfigService {
   async save(config: ProjectConfig): Promise<void> {
     try {
       await this.ensureConfigDir();
-      await fs.writeFile(
-        this.configPath,
-        JSON.stringify(config, null, 2),
-        'utf-8'
-      );
+      await fs.writeFile(this.configPath, JSON.stringify(config, null, 2), 'utf-8');
       this.config = config;
     } catch (error) {
       console.error('Failed to save config:', error);

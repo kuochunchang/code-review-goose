@@ -46,7 +46,11 @@ export interface AIProviderConfig {
 export interface AIProvider {
   name: string;
   analyze(code: string, options: AnalysisOptions): Promise<AnalysisResult>;
-  generateDiagram?(code: string, diagramType: string, options?: any): Promise<DiagramGenerationResult>;
+  generateDiagram?(
+    code: string,
+    diagramType: string,
+    options?: any
+  ): Promise<DiagramGenerationResult>;
   validateConfig(config: AIProviderConfig): boolean;
 }
 

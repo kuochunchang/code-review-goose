@@ -105,12 +105,7 @@
       <v-divider></v-divider>
 
       <v-card-actions class="pa-4">
-        <v-btn
-          variant="text"
-          @click="testConnection"
-          :loading="testing"
-          :disabled="!hasApiKey"
-        >
+        <v-btn variant="text" @click="testConnection" :loading="testing" :disabled="!hasApiKey">
           Test Connection
         </v-btn>
         <v-spacer></v-spacer>
@@ -141,7 +136,7 @@ interface Props {
 const props = defineProps<Props>();
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  'saved': [];
+  saved: [];
 }>();
 
 const dialog = computed({
@@ -164,7 +159,7 @@ const openaiModels = [
   'gpt-5-codex',
   'gpt-4.1',
   'gpt-4.1-mini',
-  'gpt-4.1-nano'
+  'gpt-4.1-nano',
 ];
 
 const localConfig = ref<ProjectConfig>({
@@ -293,11 +288,15 @@ const close = () => {
 };
 
 // Load config when dialog opens
-watch(() => props.modelValue, (newValue) => {
-  if (newValue) {
-    loadConfig();
-  }
-}, { immediate: true });
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    if (newValue) {
+      loadConfig();
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>
