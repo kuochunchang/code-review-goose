@@ -21,6 +21,13 @@ export interface BatchAnalysisOptions {
   extensions?: string[];
 
   /**
+   * Specific directories to analyze (relative to project root)
+   * e.g., ['src', 'lib'] will only analyze files in src/ and lib/
+   * If not specified, all directories will be analyzed
+   */
+  directories?: string[];
+
+  /**
    * Progress callback
    */
   onProgress?: (progress: BatchProgress) => void;

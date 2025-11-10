@@ -41,6 +41,7 @@ interface BatchOptions {
   force?: boolean;
   concurrency?: string;
   output?: 'json' | 'markdown' | 'text';
+  dir?: string | string[];
 }
 
 export async function batchCommand(projectPath: string, options: BatchOptions) {
@@ -64,8 +65,19 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
     const concurrency = options.concurrency ? parseInt(options.concurrency, 10) : 1;
     const outputFormat = options.output || 'text';
 
+    // Handle directories option (can be string or array)
+    let directories: string[] | undefined;
+    if (options.dir) {
+      directories = Array.isArray(options.dir) ? options.dir : [options.dir];
+    }
+
     if (options.force) {
       console.log(chalk.yellow('⚠ Force mode enabled - re-analyzing all files'));
+      console.log('');
+    }
+
+    if (directories && directories.length > 0) {
+      console.log(chalk.cyan(`📁 Analyzing directories: ${directories.join(', ')}`));
       console.log('');
     }
 
@@ -99,6 +111,7 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
     const result: BatchAnalysisResult = await batchService.analyzeProject({
       force: options.force || false,
       concurrency,
+      directories,
       onProgress,
     });
 

@@ -310,5 +310,85 @@ describe('BatchAnalysisService', () => {
       const tsFiles = result.results.filter((r) => r.filePath.endsWith('.ts'));
       expect(tsFiles.length).toBe(result.analyzableFiles);
     });
+
+    it('should filter by directories when provided', async () => {
+      // Create additional test directory structure
+      await fs.ensureDir(path.join(testProjectPath, 'lib'));
+      await fs.writeFile(
+        path.join(testProjectPath, 'lib', 'helper.js'),
+        'module.exports = {};',
+        'utf-8'
+      );
+
+      const mockAnalyzeCode = vi.fn().mockResolvedValue({
+        issues: [],
+        summary: 'Test analysis',
+        timestamp: new Date().toISOString(),
+      });
+
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath) => ({
+        filePath,
+        analyzed: true,
+        analysis: await mockAnalyzeCode(),
+        duration: 100,
+      }));
+
+      // Only analyze src/ directory
+      const result = await batchService.analyzeProject({
+        force: true,
+        directories: ['src'],
+      });
+
+      // Should only find files in src/
+      const srcFiles = result.results.filter((r) => r.filePath.startsWith('src/'));
+      expect(srcFiles.length).toBe(result.analyzableFiles);
+      expect(result.analyzableFiles).toBeGreaterThan(0);
+    });
+
+    it('should filter by multiple directories when provided', async () => {
+      // Create additional test directories
+      await fs.ensureDir(path.join(testProjectPath, 'lib'));
+      await fs.ensureDir(path.join(testProjectPath, 'utils'));
+
+      await fs.writeFile(
+        path.join(testProjectPath, 'lib', 'helper.js'),
+        'module.exports = {};',
+        'utf-8'
+      );
+
+      await fs.writeFile(
+        path.join(testProjectPath, 'utils', 'formatter.ts'),
+        'export const format = () => {};',
+        'utf-8'
+      );
+
+      const mockAnalyzeCode = vi.fn().mockResolvedValue({
+        issues: [],
+        summary: 'Test analysis',
+        timestamp: new Date().toISOString(),
+      });
+
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath) => ({
+        filePath,
+        analyzed: true,
+        analysis: await mockAnalyzeCode(),
+        duration: 100,
+      }));
+
+      // Only analyze src/ and lib/ directories
+      const result = await batchService.analyzeProject({
+        force: true,
+        directories: ['src', 'lib'],
+      });
+
+      // Should find files in src/ and lib/ but not utils/
+      const validFiles = result.results.filter(
+        (r) => r.filePath.startsWith('src/') || r.filePath.startsWith('lib/')
+      );
+      expect(validFiles.length).toBe(result.analyzableFiles);
+
+      const utilsFiles = result.results.filter((r) => r.filePath.startsWith('utils/'));
+      expect(utilsFiles.length).toBe(0);
+    });
   });
 });

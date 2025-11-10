@@ -37,6 +37,7 @@ async function main() {
       .option('-f, --force', 'Force re-analysis of all files (ignore timestamps)')
       .option('-c, --concurrency <number>', 'Number of concurrent analyses (default: 1)', '1')
       .option('-o, --output <format>', 'Output format: text, json, markdown (default: text)', 'text')
+      .option('-d, --dir <directory...>', 'Specific directories to analyze (e.g., src lib)')
       .action((projectPath, options) => {
         const resolvedPath = projectPath || process.cwd();
         batchCommand(resolvedPath, options);
@@ -55,6 +56,7 @@ async function main() {
       console.log('  $ goose batch --force             # Force re-analysis of all files');
       console.log('  $ goose batch -c 3                # Analyze with 3 concurrent processes');
       console.log('  $ goose batch -o json             # Output results as JSON');
+      console.log('  $ goose batch -d src -d lib       # Only analyze src/ and lib/ directories');
       console.log('');
     });
 

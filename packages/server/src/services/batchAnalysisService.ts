@@ -42,7 +42,12 @@ export class BatchAnalysisService {
 
     // Get all files in project
     const fileTree = await this.projectService.getFileTree();
-    const allFiles = this.flattenFileTree(fileTree);
+    let allFiles = this.flattenFileTree(fileTree);
+
+    // Filter by directories if specified
+    if (options.directories && options.directories.length > 0) {
+      allFiles = this.filterByDirectories(allFiles, options.directories);
+    }
 
     // Filter to only analyzable files
     const analyzableFiles = await this.filterAnalyzableFiles(allFiles, options.extensions);
@@ -198,6 +203,26 @@ export class BatchAnalysisService {
     }
 
     return result;
+  }
+
+  /**
+   * Filter files by specified directories
+   */
+  private filterByDirectories(files: string[], directories: string[]): string[] {
+    return files.filter((file) => {
+      // Normalize the file path (remove leading ./ or /)
+      const normalizedFile = file.replace(/^\.?\//, '');
+
+      // Check if file is in any of the specified directories
+      return directories.some((dir) => {
+        // Normalize the directory path
+        const normalizedDir = dir.replace(/^\.?\//, '').replace(/\/$/, '');
+
+        // Check if file starts with this directory
+        return normalizedFile === normalizedDir ||
+               normalizedFile.startsWith(normalizedDir + '/');
+      });
+    });
   }
 
   /**
