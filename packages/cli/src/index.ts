@@ -19,14 +19,6 @@ async function main() {
     // Default command: start server
     program
       .command('start', { isDefault: true })
-      .description('Start the code review web interface')
-      .name('goose')
-      .description(description)
-      .version(version, '-v, --version', 'Display version number');
-
-    // Default command: start server
-    program
-      .command('start', { isDefault: true })
       .description('Start the code review server and open web interface')
       .argument('[project-path]', 'Project path (defaults to current directory)')
       .option('-p, --port <port>', 'Specify server port', '3456')
@@ -58,6 +50,8 @@ async function main() {
       .action((projectPath, options) => {
         const resolvedPath = projectPath || process.cwd();
         exportJSONCommand(resolvedPath, options);
+      });
+
     // Batch analysis command
     program
       .command('batch')
@@ -87,17 +81,12 @@ async function main() {
       console.log('  $ goose export-json                       # Export to stdout (JSON)');
       console.log('  $ goose export-json -o reviews.json       # Export to file (JSON)');
       console.log('  $ goose export-json --include-resolved    # Include resolved reviews (JSON)');
-      console.log('  $ goose                           # Start server in current directory');
-      console.log('  $ goose start /path/to/project    # Start server in specified directory');
-      console.log('  $ goose -p 8080                   # Start server on port 8080');
-      console.log('  $ goose --no-open                 # Start server without opening browser');
-      console.log('');
-      console.log('  $ goose batch                     # Batch analyze current directory');
-      console.log('  $ goose batch /path/to/project    # Batch analyze specified directory');
-      console.log('  $ goose batch --force             # Force re-analysis of all files');
-      console.log('  $ goose batch -c 3                # Analyze with 3 concurrent processes');
-      console.log('  $ goose batch -o json             # Output results as JSON');
-      console.log('  $ goose batch -d src -d lib       # Only analyze src/ and lib/ directories');
+      console.log('  $ goose batch                             # Batch analyze current directory');
+      console.log('  $ goose batch /path/to/project            # Batch analyze specified directory');
+      console.log('  $ goose batch --force                     # Force re-analysis of all files');
+      console.log('  $ goose batch -c 3                        # Analyze with 3 concurrent processes');
+      console.log('  $ goose batch -o json                     # Output results as JSON');
+      console.log('  $ goose batch -d src -d lib               # Only analyze src/ and lib/ directories');
       console.log('');
     });
 
