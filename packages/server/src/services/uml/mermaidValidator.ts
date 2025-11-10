@@ -97,7 +97,7 @@ export class MermaidValidator {
     const errors: string[] = [];
 
     // Check for node names with invalid characters
-    const invalidCharsRegex = /[^\w\s\-_.[\](){}|<>+=*\\,;"'`~!@#$%^&/]/g;
+    const invalidCharsRegex = /[^\w\s\-_.[\](){}|<>+=*\\,;"'`~!@#$%^&/:]/g;
     const lines = code.split('\n');
 
     lines.forEach((line, index) => {
