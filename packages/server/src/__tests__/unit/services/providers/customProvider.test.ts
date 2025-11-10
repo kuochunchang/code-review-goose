@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { OpenAIProvider } from '../../../../services/providers/openaiProvider.js';
+import { CustomProvider } from '../../../../services/providers/customProvider.js';
 import type { AIProviderConfig, AnalysisOptions } from '../../../../types/ai.js';
 
 // Mock OpenAI module
@@ -16,65 +16,94 @@ vi.mock('openai', () => {
   };
 });
 
-describe('OpenAIProvider', () => {
-  let provider: OpenAIProvider;
-  let mockConfig: AIProviderConfig;
+describe('CustomProvider', () => {
+  let provider: CustomProvider;
+  let mockConfig: AIProviderConfig & { baseUrl: string };
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockConfig = {
+      baseUrl: 'https://llm.webcomm.com.tw/v1',
       apiKey: 'test-api-key',
-      model: 'gpt-4',
+      model: 'instruct',
       timeout: 30000,
     };
   });
 
   describe('Constructor', () => {
     it('should create provider with valid config', () => {
-      provider = new OpenAIProvider(mockConfig);
+      provider = new CustomProvider(mockConfig);
       expect(provider).toBeDefined();
-      expect(provider.name).toBe('openai');
+      expect(provider.name).toBe('custom');
     });
 
     it('should use default model if not specified', () => {
-      provider = new OpenAIProvider({ apiKey: 'test-key' });
+      provider = new CustomProvider({
+        baseUrl: 'https://example.com/v1',
+        apiKey: 'test-key',
+      });
       expect(provider).toBeDefined();
     });
 
     it('should use default timeout if not specified', () => {
-      provider = new OpenAIProvider({ apiKey: 'test-key' });
+      provider = new CustomProvider({
+        baseUrl: 'https://example.com/v1',
+        apiKey: 'test-key',
+      });
       expect(provider).toBeDefined();
     });
 
-    it('should handle config without API key', () => {
-      provider = new OpenAIProvider({});
+    it('should handle config without API key (for local services)', () => {
+      provider = new CustomProvider({
+        baseUrl: 'http://localhost:11434/v1',
+        model: 'llama2',
+      });
       expect(provider).toBeDefined();
+    });
+
+    it('should support various model names', () => {
+      const models = ['small-instruct', 'multimodal', 'instruct', 'think'];
+      models.forEach((model) => {
+        const p = new CustomProvider({
+          baseUrl: 'https://example.com/v1',
+          model,
+        });
+        expect(p).toBeDefined();
+      });
     });
   });
 
   describe('validateConfig', () => {
     beforeEach(() => {
-      provider = new OpenAIProvider(mockConfig);
+      provider = new CustomProvider(mockConfig);
     });
 
-    it('should return true for valid config with API key', () => {
-      const result = provider.validateConfig({ apiKey: 'valid-key' });
+    it('should return true for valid config with base URL', () => {
+      const result = provider.validateConfig({
+        baseUrl: 'https://example.com/v1',
+        apiKey: 'key',
+      });
       expect(result).toBe(true);
     });
 
-    it('should return false for config without API key', () => {
-      const result = provider.validateConfig({});
+    it('should return false for config without base URL', () => {
+      const result = provider.validateConfig({ apiKey: 'key' });
       expect(result).toBe(false);
     });
 
-    it('should return false for empty API key', () => {
-      const result = provider.validateConfig({ apiKey: '' });
+    it('should return false for empty base URL', () => {
+      const result = provider.validateConfig({ baseUrl: '', apiKey: 'key' });
       expect(result).toBe(false);
     });
 
-    it('should return false for whitespace-only API key', () => {
-      const result = provider.validateConfig({ apiKey: '   ' });
+    it('should return false for whitespace-only base URL', () => {
+      const result = provider.validateConfig({ baseUrl: '   ', apiKey: 'key' });
       expect(result).toBe(false);
+    });
+
+    it('should return true even without API key (for local services)', () => {
+      const result = provider.validateConfig({ baseUrl: 'http://localhost:11434/v1' });
+      expect(result).toBe(true);
     });
   });
 
@@ -82,7 +111,7 @@ describe('OpenAIProvider', () => {
     let mockCreate: any;
 
     beforeEach(() => {
-      provider = new OpenAIProvider(mockConfig);
+      provider = new CustomProvider(mockConfig);
       // Access the mocked client through the provider
       mockCreate = (provider as any).client.chat.completions.create;
     });
@@ -132,21 +161,15 @@ describe('OpenAIProvider', () => {
       expect(result.timestamp).toBeDefined();
     });
 
-    it('should throw error when client not initialized', async () => {
-      const providerWithoutKey = new OpenAIProvider({});
+    it('should throw error when no response from provider', async () => {
+      mockCreate.mockResolvedValue({ choices: [] });
 
-      await expect(providerWithoutKey.analyze('code', {})).rejects.toThrow(
-        'OpenAI client not initialized'
+      await expect(provider.analyze('code', {})).rejects.toThrow(
+        'No response from custom AI provider'
       );
     });
 
-    it('should throw error when no response from OpenAI', async () => {
-      mockCreate.mockResolvedValue({ choices: [] });
-
-      await expect(provider.analyze('code', {})).rejects.toThrow('No response from OpenAI');
-    });
-
-    it('should handle OpenAI API errors', async () => {
+    it('should handle API errors', async () => {
       mockCreate.mockRejectedValue(new Error('API rate limit exceeded'));
 
       await expect(provider.analyze('code', {})).rejects.toThrow(
@@ -244,43 +267,7 @@ describe('OpenAIProvider', () => {
       expect(userMessage).toContain('Best Practices');
     });
 
-    it('should use JSON mode for supported models', async () => {
-      const providerWithJsonMode = new OpenAIProvider({
-        apiKey: 'test-key',
-        model: 'gpt-4o',
-      });
-
-      const mockResponse = {
-        choices: [{ message: { content: '{"issues": [], "summary": "ok"}' } }],
-      };
-      (providerWithJsonMode as any).client.chat.completions.create.mockResolvedValue(mockResponse);
-
-      await providerWithJsonMode.analyze('code', {});
-
-      const call = (providerWithJsonMode as any).client.chat.completions.create.mock.calls[0][0];
-      expect(call.response_format).toEqual({ type: 'json_object' });
-    });
-
-    it('should not use JSON mode for unsupported models', async () => {
-      const providerWithoutJsonMode = new OpenAIProvider({
-        apiKey: 'test-key',
-        model: 'gpt-3.5-turbo',
-      });
-
-      const mockResponse = {
-        choices: [{ message: { content: '{"issues": [], "summary": "ok"}' } }],
-      };
-      (providerWithoutJsonMode as any).client.chat.completions.create.mockResolvedValue(
-        mockResponse
-      );
-
-      await providerWithoutJsonMode.analyze('code', {});
-
-      const call = (providerWithoutJsonMode as any).client.chat.completions.create.mock.calls[0][0];
-      expect(call.response_format).toBeUndefined();
-    });
-
-    it('should use custom temperature for supported models', async () => {
+    it('should use temperature 0.3 for analysis', async () => {
       const mockResponse = {
         choices: [{ message: { content: '{"issues": [], "summary": "ok"}' } }],
       };
@@ -292,21 +279,16 @@ describe('OpenAIProvider', () => {
       expect(call.temperature).toBe(0.3);
     });
 
-    it('should not use custom temperature for GPT-5 models', async () => {
-      const providerGpt5 = new OpenAIProvider({
-        apiKey: 'test-key',
-        model: 'gpt-5',
-      });
-
+    it('should send correct model in request', async () => {
       const mockResponse = {
         choices: [{ message: { content: '{"issues": [], "summary": "ok"}' } }],
       };
-      (providerGpt5 as any).client.chat.completions.create.mockResolvedValue(mockResponse);
+      mockCreate.mockResolvedValue(mockResponse);
 
-      await providerGpt5.analyze('code', {});
+      await provider.analyze('code', {});
 
-      const call = (providerGpt5 as any).client.chat.completions.create.mock.calls[0][0];
-      expect(call.temperature).toBeUndefined();
+      const call = mockCreate.mock.calls[0][0];
+      expect(call.model).toBe('instruct');
     });
   });
 
@@ -314,7 +296,7 @@ describe('OpenAIProvider', () => {
     let mockCreate: any;
 
     beforeEach(() => {
-      provider = new OpenAIProvider(mockConfig);
+      provider = new CustomProvider(mockConfig);
       mockCreate = (provider as any).client.chat.completions.create;
     });
 
@@ -388,14 +370,6 @@ describe('OpenAIProvider', () => {
       expect(result.mermaidCode).toBe('');
     });
 
-    it('should throw error when client not initialized', async () => {
-      const providerWithoutKey = new OpenAIProvider({});
-
-      await expect(providerWithoutKey.generateDiagram('code', 'class')).rejects.toThrow(
-        'OpenAI client not initialized'
-      );
-    });
-
     it('should use lower temperature for diagram generation', async () => {
       const mockResponse = {
         choices: [{ message: { content: 'classDiagram\n  class Test' } }],
@@ -407,23 +381,6 @@ describe('OpenAIProvider', () => {
 
       const call = mockCreate.mock.calls[0][0];
       expect(call.temperature).toBe(0.2);
-    });
-
-    it('should not use temperature for GPT-5 models in diagram generation', async () => {
-      const providerGpt5 = new OpenAIProvider({
-        apiKey: 'test-key',
-        model: 'gpt-5-mini',
-      });
-
-      const mockResponse = {
-        choices: [{ message: { content: 'classDiagram\n  class Test' } }],
-      };
-      (providerGpt5 as any).client.chat.completions.create.mockResolvedValue(mockResponse);
-
-      await providerGpt5.generateDiagram('code', 'class');
-
-      const call = (providerGpt5 as any).client.chat.completions.create.mock.calls[0][0];
-      expect(call.temperature).toBeUndefined();
     });
 
     it('should generate sequence diagram', async () => {
@@ -467,40 +424,87 @@ describe('OpenAIProvider', () => {
     });
   });
 
-  describe('Model Support Detection', () => {
-    it('should detect JSON mode support for GPT-4o', () => {
-      const provider = new OpenAIProvider({ apiKey: 'test', model: 'gpt-4o' });
-      expect((provider as any).supportsJsonMode()).toBe(true);
+  describe('Integration with different base URLs', () => {
+    it('should work with webcomm.com.tw URL', () => {
+      const p = new CustomProvider({
+        baseUrl: 'https://llm.webcomm.com.tw/v1',
+        model: 'small-instruct',
+      });
+      expect(p).toBeDefined();
     });
 
-    it('should detect JSON mode support for GPT-4 Turbo', () => {
-      const provider = new OpenAIProvider({ apiKey: 'test', model: 'gpt-4-turbo' });
-      expect((provider as any).supportsJsonMode()).toBe(true);
+    it('should work with localhost URL', () => {
+      const p = new CustomProvider({
+        baseUrl: 'http://localhost:11434/v1',
+        model: 'llama2',
+      });
+      expect(p).toBeDefined();
     });
 
-    it('should detect no JSON mode support for GPT-3.5', () => {
-      const provider = new OpenAIProvider({ apiKey: 'test', model: 'gpt-3.5-turbo' });
-      expect((provider as any).supportsJsonMode()).toBe(false);
+    it('should work with custom port', () => {
+      const p = new CustomProvider({
+        baseUrl: 'http://192.168.1.100:8080/v1',
+        model: 'custom-model',
+      });
+      expect(p).toBeDefined();
+    });
+  });
+
+  describe('Supported models', () => {
+    it('should support small-instruct model', async () => {
+      const p = new CustomProvider({
+        baseUrl: 'https://llm.webcomm.com.tw/v1',
+        model: 'small-instruct',
+      });
+      const mockCreate = (p as any).client.chat.completions.create;
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: '{"issues": [], "summary": "ok"}' } }],
+      });
+
+      await p.analyze('code', {});
+      expect(mockCreate.mock.calls[0][0].model).toBe('small-instruct');
     });
 
-    it('should detect JSON mode support for GPT-5 series', () => {
-      const provider = new OpenAIProvider({ apiKey: 'test', model: 'gpt-5' });
-      expect((provider as any).supportsJsonMode()).toBe(true);
+    it('should support multimodal model', async () => {
+      const p = new CustomProvider({
+        baseUrl: 'https://llm.webcomm.com.tw/v1',
+        model: 'multimodal',
+      });
+      const mockCreate = (p as any).client.chat.completions.create;
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: '{"issues": [], "summary": "ok"}' } }],
+      });
+
+      await p.analyze('code', {});
+      expect(mockCreate.mock.calls[0][0].model).toBe('multimodal');
     });
 
-    it('should detect no custom temperature support for GPT-5', () => {
-      const provider = new OpenAIProvider({ apiKey: 'test', model: 'gpt-5' });
-      expect((provider as any).supportsCustomTemperature()).toBe(false);
+    it('should support instruct model', async () => {
+      const p = new CustomProvider({
+        baseUrl: 'https://llm.webcomm.com.tw/v1',
+        model: 'instruct',
+      });
+      const mockCreate = (p as any).client.chat.completions.create;
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: '{"issues": [], "summary": "ok"}' } }],
+      });
+
+      await p.analyze('code', {});
+      expect(mockCreate.mock.calls[0][0].model).toBe('instruct');
     });
 
-    it('should detect custom temperature support for GPT-4', () => {
-      const provider = new OpenAIProvider({ apiKey: 'test', model: 'gpt-4' });
-      expect((provider as any).supportsCustomTemperature()).toBe(true);
-    });
+    it('should support think model', async () => {
+      const p = new CustomProvider({
+        baseUrl: 'https://llm.webcomm.com.tw/v1',
+        model: 'think',
+      });
+      const mockCreate = (p as any).client.chat.completions.create;
+      mockCreate.mockResolvedValue({
+        choices: [{ message: { content: '{"issues": [], "summary": "ok"}' } }],
+      });
 
-    it('should detect custom temperature support for GPT-4o', () => {
-      const provider = new OpenAIProvider({ apiKey: 'test', model: 'gpt-4o' });
-      expect((provider as any).supportsCustomTemperature()).toBe(true);
+      await p.analyze('code', {});
+      expect(mockCreate.mock.calls[0][0].model).toBe('think');
     });
   });
 });

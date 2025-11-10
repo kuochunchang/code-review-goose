@@ -1,13 +1,7 @@
 <template>
   <v-card class="uml-viewer" elevation="2" data-testid="uml-viewer">
     <v-toolbar :color="toolbarColor" density="compact">
-      <v-btn-toggle
-        v-model="selectedType"
-        mandatory
-        color="primary"
-        density="compact"
-        class="mr-2"
-      >
+      <v-btn-toggle v-model="selectedType" mandatory color="primary" density="compact" class="mr-2">
         <v-btn value="class" size="small">
           <v-icon size="small" class="mr-1">mdi-file-tree</v-icon>
           CLASS
@@ -47,17 +41,8 @@
         <v-icon>mdi-refresh-circle</v-icon>
         <v-tooltip activator="parent" location="bottom">Force Refresh (skip cache)</v-tooltip>
       </v-btn>
-      <v-btn
-        icon="mdi-download"
-        size="small"
-        :disabled="!diagram"
-        @click="exportDiagram"
-      ></v-btn>
-      <v-btn
-        icon="mdi-close"
-        size="small"
-        @click="$emit('close')"
-      ></v-btn>
+      <v-btn icon="mdi-download" size="small" :disabled="!diagram" @click="exportDiagram"></v-btn>
+      <v-btn icon="mdi-close" size="small" @click="$emit('close')"></v-btn>
     </v-toolbar>
 
     <v-card-text class="pa-0 diagram-content">
@@ -81,11 +66,7 @@
       </div>
 
       <div v-else-if="loading" class="loading-container">
-        <v-progress-circular
-          indeterminate
-          color="primary"
-          size="64"
-        ></v-progress-circular>
+        <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
         <p class="mt-4">Generating {{ selectedType }} diagram...</p>
       </div>
 
@@ -97,15 +78,20 @@
         <v-icon size="64" color="grey-lighten-1">mdi-chart-tree</v-icon>
         <p class="mt-4 text-grey">Select code and click refresh to generate UML diagram</p>
 
-        <div v-if="!aiAvailable && (selectedType === 'sequence' || selectedType === 'dependency')" class="mt-4">
+        <div
+          v-if="!aiAvailable && (selectedType === 'sequence' || selectedType === 'dependency')"
+          class="mt-4"
+        >
           <v-alert type="warning" variant="tonal" density="compact">
             <v-alert-title>AI Required</v-alert-title>
-            {{ selectedType }} diagrams require AI configuration. Please configure your AI provider in settings.
+            {{ selectedType }} diagrams require AI configuration. Please configure your AI provider
+            in settings.
           </v-alert>
         </div>
 
         <div v-if="generationMode" class="mt-4 text-caption text-grey">
-          Generation Mode: {{ generationMode }} {{ aiAvailable ? '(AI Available)' : '(Native Only)' }}
+          Generation Mode: {{ generationMode }}
+          {{ aiAvailable ? '(AI Available)' : '(Native Only)' }}
         </div>
       </div>
     </v-card-text>
@@ -176,12 +162,16 @@ async function fetchSupportedTypes() {
 }
 
 // Watch for code changes
-watch(() => props.code, (newCode) => {
-  if (newCode) {
-    currentCode.value = newCode;
-    generateDiagram();
-  }
-}, { immediate: true });
+watch(
+  () => props.code,
+  (newCode) => {
+    if (newCode) {
+      currentCode.value = newCode;
+      generateDiagram();
+    }
+  },
+  { immediate: true }
+);
 
 // Watch for type changes
 watch(selectedType, () => {
@@ -244,14 +234,14 @@ async function renderMermaid() {
   await nextTick();
 
   // Sometimes we need to wait a bit longer for the dialog to fully render
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise((resolve) => setTimeout(resolve, 100));
 
   // Check if container is ready (with retry)
   let retries = 0;
   const maxRetries = 5;
 
   while (!mermaidContainer.value && retries < maxRetries) {
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
     retries++;
   }
 

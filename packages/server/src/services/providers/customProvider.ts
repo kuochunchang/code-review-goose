@@ -8,40 +8,55 @@ import type {
   DiagramGenerationResult,
 } from '../../types/ai.js';
 
-export class OpenAIProvider implements AIProvider {
-  name = 'openai';
+/**
+ * Configuration for Custom AI Provider
+ */
+export interface CustomProviderConfig {
+  baseUrl: string;
+  model: string;
+  apiKey?: string; // Optional for local services
+  timeout?: number;
+}
+
+/**
+ * Custom AI Provider for OpenAI-compatible APIs
+ * Supports custom base URLs and models
+ */
+export class CustomProvider implements AIProvider {
+  name = 'custom';
   private client: OpenAI | null = null;
   private model: string;
   private timeout: number;
+  private baseUrl: string;
 
-  constructor(config: AIProviderConfig) {
-    this.model = config.model || 'gpt-4';
+  constructor(config: CustomProviderConfig) {
+    this.model = config.model || 'instruct';
     this.timeout = config.timeout || 60000; // Default 60 seconds
-    if (config.apiKey) {
-      this.client = new OpenAI({
-        apiKey: config.apiKey,
-        timeout: this.timeout,
-      });
-    }
+    this.baseUrl = config.baseUrl;
+
+    // Initialize OpenAI client with custom base URL
+    // API key is optional for some local services
+    this.client = new OpenAI({
+      apiKey: config.apiKey || 'not-needed',
+      baseURL: this.baseUrl,
+      timeout: this.timeout,
+    });
   }
 
-  validateConfig(config: AIProviderConfig): boolean {
-    return !!config.apiKey && config.apiKey.trim().length > 0;
+  validateConfig(config: AIProviderConfig & { baseUrl?: string }): boolean {
+    // Custom provider requires baseUrl and model
+    return !!config.baseUrl && config.baseUrl.trim().length > 0;
   }
 
   async analyze(code: string, options: AnalysisOptions): Promise<AnalysisResult> {
     if (!this.client) {
-      throw new Error('OpenAI client not initialized. Please configure API key first.');
+      throw new Error('Custom AI client not initialized. Please configure base URL first.');
     }
 
     const prompt = this.buildPrompt(code, options);
 
     try {
-      // Check if the model supports JSON mode and custom temperature
-      const supportsJsonMode = this.supportsJsonMode();
-      const supportsCustomTemp = this.supportsCustomTemperature();
-
-      // Build request parameters
+      // Use standard OpenAI-compatible API format
       const requestParams: any = {
         model: this.model,
         messages: [
@@ -55,23 +70,14 @@ export class OpenAIProvider implements AIProvider {
             content: prompt,
           },
         ],
+        temperature: 0.3,
       };
-
-      // Only add temperature if the model supports custom values
-      if (supportsCustomTemp) {
-        requestParams.temperature = 0.3;
-      }
-
-      // Only add response_format if the model supports it
-      if (supportsJsonMode) {
-        requestParams.response_format = { type: 'json_object' };
-      }
 
       const response = await this.client.chat.completions.create(requestParams);
 
       const content = response.choices[0]?.message?.content;
       if (!content) {
-        throw new Error('No response from OpenAI');
+        throw new Error('No response from custom AI provider');
       }
 
       // Extract JSON from potential markdown code blocks
@@ -79,67 +85,12 @@ export class OpenAIProvider implements AIProvider {
       const result = JSON.parse(jsonContent);
       return this.normalizeResult(result);
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      console.error('Custom AI provider error:', error);
       if (error instanceof Error) {
         throw new Error(`AI analysis failed: ${error.message}`);
       }
       throw new Error('AI analysis failed: Unknown error');
     }
-  }
-
-  private supportsJsonMode(): boolean {
-    // Models that support JSON mode (response_format: { type: 'json_object' })
-    const jsonModeModels = [
-      // GPT-5 series
-      'gpt-5',
-      'gpt-5-mini',
-      'gpt-5-nano',
-      'gpt-5-pro',
-      'gpt-5-codex',
-      // GPT-4.1 series
-      'gpt-4.1',
-      'gpt-4.1-mini',
-      'gpt-4.1-nano',
-      // GPT-4 Turbo and 4o series
-      'gpt-4-turbo',
-      'gpt-4-turbo-preview',
-      'gpt-4-1106-preview',
-      'gpt-4-0125-preview',
-      'gpt-4o',
-      'gpt-4o-mini',
-      'gpt-4o-2024-05-13',
-      'gpt-4o-2024-08-06',
-      // GPT-3.5 Turbo
-      'gpt-3.5-turbo-1106',
-      'gpt-3.5-turbo-0125',
-    ];
-
-    // Check if the current model is in the list or starts with any of these prefixes
-    return jsonModeModels.some(
-      (supportedModel) => this.model === supportedModel || this.model.startsWith(supportedModel)
-    );
-  }
-
-  private supportsCustomTemperature(): boolean {
-    // Models that do NOT support custom temperature (only default value 1)
-    const noCustomTempModels = [
-      // GPT-5 series - these models only support temperature: 1
-      'gpt-5',
-      'gpt-5-mini',
-      'gpt-5-nano',
-      'gpt-5-pro',
-      'gpt-5-codex',
-      // ChatGPT-5 alias
-      'chatgpt-5',
-    ];
-
-    // Check if the current model is in the restricted list
-    const isRestricted = noCustomTempModels.some(
-      (restrictedModel) => this.model === restrictedModel || this.model.startsWith(restrictedModel)
-    );
-
-    // Return true if NOT restricted (i.e., supports custom temperature)
-    return !isRestricted;
   }
 
   private buildPrompt(code: string, options: AnalysisOptions): string {
@@ -220,16 +171,12 @@ Provide specific, actionable feedback. Focus on the most important issues.`;
     options?: any
   ): Promise<DiagramGenerationResult> {
     if (!this.client) {
-      throw new Error('OpenAI client not initialized. Please configure API key first.');
+      throw new Error('Custom AI client not initialized. Please configure base URL first.');
     }
 
     const prompt = this.buildDiagramPrompt(code, diagramType, options);
 
     try {
-      // Check if the model supports custom temperature
-      const supportsCustomTemp = this.supportsCustomTemperature();
-
-      // Build request parameters
       const requestParams: any = {
         model: this.model,
         messages: [
@@ -243,18 +190,14 @@ Provide specific, actionable feedback. Focus on the most important issues.`;
             content: prompt,
           },
         ],
+        temperature: 0.2, // Lower temperature for more deterministic output
       };
-
-      // Only add temperature if the model supports custom values
-      if (supportsCustomTemp) {
-        requestParams.temperature = 0.2; // Lower temperature for more deterministic output
-      }
 
       const response = await this.client.chat.completions.create(requestParams);
 
       const content = response.choices[0]?.message?.content;
       if (!content) {
-        throw new Error('No response from OpenAI');
+        throw new Error('No response from custom AI provider');
       }
 
       // Extract mermaid code from response
@@ -269,7 +212,7 @@ Provide specific, actionable feedback. Focus on the most important issues.`;
         },
       };
     } catch (error) {
-      console.error('OpenAI diagram generation error:', error);
+      console.error('Custom AI diagram generation error:', error);
       return {
         mermaidCode: '',
         success: false,

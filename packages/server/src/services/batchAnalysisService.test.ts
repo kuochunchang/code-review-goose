@@ -43,11 +43,7 @@ describe('BatchAnalysisService', () => {
       'utf-8'
     );
 
-    await fs.writeFile(
-      path.join(testProjectPath, 'README.md'),
-      '# Test Project',
-      'utf-8'
-    );
+    await fs.writeFile(path.join(testProjectPath, 'README.md'), '# Test Project', 'utf-8');
 
     batchService = new BatchAnalysisService(testProjectPath);
   });
@@ -63,9 +59,7 @@ describe('BatchAnalysisService', () => {
       // Remove config file
       await fs.remove(path.join(testProjectPath, '.code-review', 'config.json'));
 
-      await expect(batchService.analyzeProject()).rejects.toThrow(
-        'AI provider not configured'
-      );
+      await expect(batchService.analyzeProject()).rejects.toThrow('AI provider not configured');
     });
 
     it('should find all analyzable files', async () => {
@@ -426,12 +420,14 @@ describe('BatchAnalysisService', () => {
       await fs.writeFile(path.join(testProjectPath, 'src', '__mocks__', 'mock.ts'), 'mock');
 
       // Mock analyzeFile to return success
-      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(async (filePath: unknown) => ({
-        filePath: filePath as string,
-        analyzed: true,
-        analysis: { issues: [], summary: 'OK', timestamp: new Date().toISOString() },
-        duration: 100,
-      }));
+      vi.spyOn(batchService as any, 'analyzeFile').mockImplementation(
+        async (filePath: unknown) => ({
+          filePath: filePath as string,
+          analyzed: true,
+          analysis: { issues: [], summary: 'OK', timestamp: new Date().toISOString() },
+          duration: 100,
+        })
+      );
 
       // Exclude test files and __mocks__ directory
       const result = await batchService.analyzeProject({
@@ -440,7 +436,7 @@ describe('BatchAnalysisService', () => {
       });
 
       // Should analyze app.ts but not app.test.ts or mock.ts
-      const analyzedFiles = result.results.map(r => r.filePath);
+      const analyzedFiles = result.results.map((r) => r.filePath);
       expect(analyzedFiles).toContain('src/app.ts');
       expect(analyzedFiles).not.toContain('src/app.test.ts');
       expect(analyzedFiles).not.toContain('src/__mocks__/mock.ts');

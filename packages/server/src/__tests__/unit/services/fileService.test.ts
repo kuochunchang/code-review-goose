@@ -30,10 +30,7 @@ describe('FileService', () => {
       const content = await fileService.readFile(relativePath);
 
       expect(content).toBe(mockContent);
-      expect(fs.readFile).toHaveBeenCalledWith(
-        path.join(mockProjectPath, relativePath),
-        'utf-8'
-      );
+      expect(fs.readFile).toHaveBeenCalledWith(path.join(mockProjectPath, relativePath), 'utf-8');
     });
 
     it('should throw error for path traversal attack (..)', async () => {

@@ -180,13 +180,23 @@
                     <template v-if="showContext && isMatchWithContext(match)">
                       <v-list-item-subtitle class="mt-2">
                         <div v-if="match.contextBefore.length > 0" class="context-lines">
-                          <div v-for="(line, i) in match.contextBefore" :key="`before-${i}`" class="context-line">
-                            <span class="line-number">{{ match.line - match.contextBefore.length + i }}:</span>
+                          <div
+                            v-for="(line, i) in match.contextBefore"
+                            :key="`before-${i}`"
+                            class="context-line"
+                          >
+                            <span class="line-number"
+                              >{{ match.line - match.contextBefore.length + i }}:</span
+                            >
                             <code>{{ line }}</code>
                           </div>
                         </div>
                         <div v-if="match.contextAfter.length > 0" class="context-lines mt-1">
-                          <div v-for="(line, i) in match.contextAfter" :key="`after-${i}`" class="context-line">
+                          <div
+                            v-for="(line, i) in match.contextAfter"
+                            :key="`after-${i}`"
+                            class="context-line"
+                          >
                             <span class="line-number">{{ match.line + i + 1 }}:</span>
                             <code>{{ line }}</code>
                           </div>
@@ -234,7 +244,17 @@ const maxResults = ref(1000);
 // UI state
 const searching = ref(false);
 const searchError = ref<string | null>(null);
-const searchResult = ref<SearchResult | { files: any[]; totalFiles: number; totalMatches: number; searchTime: number; truncated: boolean } | null>(null);
+const searchResult = ref<
+  | SearchResult
+  | {
+      files: any[];
+      totalFiles: number;
+      totalMatches: number;
+      searchTime: number;
+      truncated: boolean;
+    }
+  | null
+>(null);
 const advancedPanelOpen = ref<number | undefined>(undefined);
 const expandedFiles = ref<number[]>([]);
 

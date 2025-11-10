@@ -5,10 +5,7 @@
         <v-icon icon="mdi-brain" size="small" class="mr-2"></v-icon>
         <span class="flex-grow-1">AI Analysis</span>
         <!-- Auto-save status indicator -->
-        <span
-          v-if="autoSaved"
-          class="text-caption text-success mr-2"
-        >
+        <span v-if="autoSaved" class="text-caption text-success mr-2">
           <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-1"></v-icon>
           Auto-saved
         </span>
@@ -48,11 +45,10 @@
 
         <div v-else-if="currentFile && !isFileAnalyzable" class="empty-state">
           <v-icon icon="mdi-file-cancel-outline" size="48" color="warning"></v-icon>
-          <p class="text-grey mt-4 text-center px-4">
-            This file type cannot be analyzed
-          </p>
+          <p class="text-grey mt-4 text-center px-4">This file type cannot be analyzed</p>
           <p class="text-caption text-grey-darken-1 text-center px-4">
-            Only source code files can be analyzed. You can configure analyzable file extensions in settings.
+            Only source code files can be analyzed. You can configure analyzable file extensions in
+            settings.
           </p>
         </div>
 
@@ -74,7 +70,10 @@
           <!-- Summary -->
           <div class="summary-section pa-3">
             <h3 class="text-subtitle-2 mb-2">Summary</h3>
-            <div class="text-body-2 markdown-content" v-html="renderMarkdown(analysisResult.summary)"></div>
+            <div
+              class="text-body-2 markdown-content"
+              v-html="renderMarkdown(analysisResult.summary)"
+            ></div>
           </div>
 
           <v-divider></v-divider>
@@ -82,9 +81,7 @@
           <!-- Issues List -->
           <div class="issues-section">
             <div class="pa-3 d-flex align-center">
-              <h3 class="text-subtitle-2 flex-grow-1">
-                Issues ({{ filteredIssues.length }})
-              </h3>
+              <h3 class="text-subtitle-2 flex-grow-1">Issues ({{ filteredIssues.length }})</h3>
               <!-- Severity Filter -->
               <v-btn-toggle v-model="severityFilter" multiple size="small" density="compact">
                 <v-btn value="critical" size="x-small">
@@ -104,10 +101,7 @@
 
             <v-list v-if="filteredIssues.length > 0" class="py-0">
               <template v-for="(issue, index) in filteredIssues" :key="index">
-                <v-list-item
-                  class="issue-item"
-                  @click="toggleIssue(index)"
-                >
+                <v-list-item class="issue-item" @click="toggleIssue(index)">
                   <template #prepend>
                     <v-icon
                       :icon="getSeverityIcon(issue.severity)"
@@ -119,7 +113,8 @@
                     {{ issue.message }}
                   </v-list-item-title>
                   <v-list-item-subtitle class="text-caption">
-                    Line {{ issue.line }}{{ issue.column ? `:${issue.column}` : '' }} · {{ issue.category }}
+                    Line {{ issue.line }}{{ issue.column ? `:${issue.column}` : '' }} ·
+                    {{ issue.category }}
                   </v-list-item-subtitle>
 
                   <!-- Expanded Details -->
@@ -127,7 +122,10 @@
                     <div v-if="expandedIssues.includes(index)" class="issue-details mt-2">
                       <div class="suggestion-box pa-2 bg-blue-lighten-5 rounded">
                         <p class="text-caption font-weight-bold mb-1">Suggestion:</p>
-                        <div class="text-caption markdown-content" v-html="renderMarkdown(issue.suggestion)"></div>
+                        <div
+                          class="text-caption markdown-content"
+                          v-html="renderMarkdown(issue.suggestion)"
+                        ></div>
                       </div>
 
                       <!-- Code Example -->
@@ -186,8 +184,8 @@ interface Props {
 
 const props = defineProps<Props>();
 const emit = defineEmits<{
-  jumpToLine: [line: number],
-  reviewSaved: []
+  jumpToLine: [line: number];
+  reviewSaved: [];
 }>();
 
 const projectStore = useProjectStore();
@@ -209,20 +207,20 @@ const isFileAnalyzable = ref(true);
 const createAnalysisOptions = (filePath: string) => {
   const ext = filePath.split('.').pop()?.toLowerCase() || '';
   const languageMap: Record<string, string> = {
-    'ts': 'typescript',
-    'tsx': 'typescript',
-    'js': 'javascript',
-    'jsx': 'javascript',
-    'vue': 'javascript',
-    'py': 'python',
-    'java': 'java',
-    'go': 'go',
-    'rs': 'rust',
-    'c': 'c',
-    'cpp': 'cpp',
-    'cs': 'csharp',
-    'php': 'php',
-    'rb': 'ruby',
+    ts: 'typescript',
+    tsx: 'typescript',
+    js: 'javascript',
+    jsx: 'javascript',
+    vue: 'javascript',
+    py: 'python',
+    java: 'java',
+    go: 'go',
+    rs: 'rust',
+    c: 'c',
+    cpp: 'cpp',
+    cs: 'csharp',
+    php: 'php',
+    rb: 'ruby',
   };
   const language = languageMap[ext] || 'unknown';
 
@@ -281,7 +279,7 @@ watch(currentFile, async (newFilePath, oldFilePath) => {
 
 const filteredIssues = computed(() => {
   if (!analysisResult.value) return [];
-  return analysisResult.value.issues.filter(issue =>
+  return analysisResult.value.issues.filter((issue) =>
     severityFilter.value.includes(issue.severity)
   );
 });
@@ -304,10 +302,7 @@ const runAnalysis = async () => {
     const content = await projectStore.fetchFileContent(currentFile.value);
 
     // Call AI analysis API using standardized options
-    const result = await analysisApi.analyzeCode(
-      content,
-      createAnalysisOptions(currentFile.value)
-    );
+    const result = await analysisApi.analyzeCode(content, createAnalysisOptions(currentFile.value));
 
     analysisResult.value = result;
 
@@ -361,7 +356,7 @@ const getSeverityIcon = (severity: string): string => {
     high: 'mdi-alert',
     medium: 'mdi-information',
     low: 'mdi-minus-circle',
-    info: 'mdi-information-outline'
+    info: 'mdi-information-outline',
   };
   return icons[severity] || 'mdi-information';
 };
@@ -372,7 +367,7 @@ const getSeverityColor = (severity: string): string => {
     high: 'warning',
     medium: 'info',
     low: 'grey',
-    info: 'blue-grey'
+    info: 'blue-grey',
   };
   return colors[severity] || 'grey';
 };
@@ -389,20 +384,22 @@ const copyToClipboard = async () => {
       summary: analysisResult.value.summary,
       timestamp: analysisResult.value.timestamp,
       totalIssues: analysisResult.value.issues.length,
-      issues: analysisResult.value.issues.map(issue => ({
+      issues: analysisResult.value.issues.map((issue) => ({
         severity: issue.severity,
         category: issue.category,
         message: issue.message,
         location: {
           line: issue.line,
-          column: issue.column || null
+          column: issue.column || null,
         },
         suggestion: issue.suggestion,
-        codeExample: issue.codeExample ? {
-          before: issue.codeExample.before,
-          after: issue.codeExample.after
-        } : null
-      }))
+        codeExample: issue.codeExample
+          ? {
+              before: issue.codeExample.before,
+              after: issue.codeExample.after,
+            }
+          : null,
+      })),
     };
 
     // Convert to formatted JSON string
@@ -466,7 +463,7 @@ const copyToClipboard = async () => {
 }
 
 .suggestion-box {
-  border-left: 3px solid #2196F3;
+  border-left: 3px solid #2196f3;
 }
 
 .code-example pre {
@@ -559,7 +556,7 @@ const copyToClipboard = async () => {
 }
 
 .markdown-content a {
-  color: #2196F3;
+  color: #2196f3;
   text-decoration: none;
 }
 

@@ -4,12 +4,14 @@
       <v-col cols="12" md="8" lg="6">
         <v-card class="text-center pa-8">
           <v-card-title class="mb-4">
-            <pre class="ascii-art">  _____  ____   ____   _____ ______
+            <pre class="ascii-art">
+  _____  ____   ____   _____ ______
  / ____|/ __ \ / __ \ / ____|  ____|
 | |  __| |  | | |  | | (___ | |__
 | | |_ | |  | | |  | |\___ \|  __|
 | |__| | |__| | |__| |____) | |____
- \_____|\____/ \____/|_____/|______|</pre>
+ \_____|\____/ \____/|_____/|______|</pre
+            >
           </v-card-title>
           <v-card-text>
             <p class="text-body-1 text-grey">
@@ -17,9 +19,7 @@
             </p>
           </v-card-text>
           <v-card-actions class="justify-center">
-            <v-btn color="primary" size="large" @click="loadProject">
-              Start Review
-            </v-btn>
+            <v-btn color="primary" size="large" @click="loadProject"> Start Review </v-btn>
           </v-card-actions>
         </v-card>
       </v-col>

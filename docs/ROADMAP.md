@@ -35,24 +35,28 @@
 #### Key Features
 
 **1. Dependency Analysis**
+
 - Automatically detect what files depend on each other
 - Understand import/export relationships across languages
 - Show reverse dependencies (who uses this file)
 - Works with JS/TS, Python, Go, Java, Ruby, and more
 
 **2. SonarQube Integration** (Optional)
+
 - Leverage enterprise-grade static analysis
 - Merge SonarQube findings with AI insights
 - Support both self-hosted and cloud versions
 - AI focuses on architecture, SonarQube on syntax
 
 **3. Semantic Code Search**
+
 - Find files with similar functionality
 - Discover hidden relationships
 - Suggest related code for review
 - Powered by embeddings
 
 **4. Code Explan**
+
 - AI-powered code explanations
 - Step-by-step code breakdowns
 - Best practices and design pattern identification
@@ -78,4 +82,3 @@
 - Advanced Analytics: Code quality trends, technical debt, and team metrics
 - Dashboard: Project overview, metrics dashboard, and review management
 - IDE Extensions: VS Code and JetBrains plugins
-

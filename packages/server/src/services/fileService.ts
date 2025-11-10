@@ -41,7 +41,9 @@ export class FileService {
 
     // Check file size
     if (stats.size > MAX_FILE_SIZE) {
-      throw new Error(`File too large (exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB), please use chunked loading`);
+      throw new Error(
+        `File too large (exceeds ${MAX_FILE_SIZE / 1024 / 1024}MB), please use chunked loading`
+      );
     }
 
     // Read file content

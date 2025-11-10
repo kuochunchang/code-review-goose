@@ -128,9 +128,7 @@ describe('CacheService', () => {
 
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      await expect(
-        cacheService.set(mockCode, mockOptions, mockResult)
-      ).resolves.not.toThrow();
+      await expect(cacheService.set(mockCode, mockOptions, mockResult)).resolves.not.toThrow();
 
       expect(consoleErrorSpy).toHaveBeenCalledWith('Cache write error:', expect.any(Error));
 

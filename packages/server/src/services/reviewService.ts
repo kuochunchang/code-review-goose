@@ -326,8 +326,7 @@ export class ReviewService {
 
       switch (sort.field) {
         case 'timestamp':
-          comparison =
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+          comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
           break;
 
         case 'filePath':
@@ -338,9 +337,7 @@ export class ReviewService {
           const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
           const getMaxSeverity = (review: ReviewRecord) => {
             if (review.analysis.issues.length === 0) return 4;
-            return Math.min(
-              ...review.analysis.issues.map((i) => severityOrder[i.severity])
-            );
+            return Math.min(...review.analysis.issues.map((i) => severityOrder[i.severity]));
           };
           comparison = getMaxSeverity(a) - getMaxSeverity(b);
           break;
@@ -399,9 +396,7 @@ export class ReviewService {
       filter: options.filter,
     });
 
-    const filtered = options.includeResolved
-      ? reviews
-      : reviews.filter((r) => !r.resolved);
+    const filtered = options.includeResolved ? reviews : reviews.filter((r) => !r.resolved);
 
     let markdown = '# Code Review Report\n\n';
     markdown += `Generated: ${new Date().toISOString()}\n\n`;
@@ -462,9 +457,7 @@ export class ReviewService {
       filter: options.filter,
     });
 
-    const filtered = options.includeResolved
-      ? reviews
-      : reviews.filter((r) => !r.resolved);
+    const filtered = options.includeResolved ? reviews : reviews.filter((r) => !r.resolved);
 
     let html = `<!DOCTYPE html>
 <html lang="en">
@@ -615,9 +608,7 @@ export class ReviewService {
       filter: options.filter,
     });
 
-    const filtered = options.includeResolved
-      ? reviews
-      : reviews.filter((r) => !r.resolved);
+    const filtered = options.includeResolved ? reviews : reviews.filter((r) => !r.resolved);
 
     // CSV header
     const headers = [
@@ -731,9 +722,7 @@ export class ReviewService {
       filter: options.filter,
     });
 
-    const filtered = options.includeResolved
-      ? reviews
-      : reviews.filter((r) => !r.resolved);
+    const filtered = options.includeResolved ? reviews : reviews.filter((r) => !r.resolved);
 
     return JSON.stringify(filtered, null, 2);
   }

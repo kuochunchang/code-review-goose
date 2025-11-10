@@ -76,9 +76,15 @@ reviewRouter.get('/', async (req: Request, res: Response): Promise<void> => {
     const query: ReviewQuery = {};
 
     // Filter conditions
-    if (req.query.filePath || req.query.dateFrom || req.query.dateTo ||
-        req.query.severity || req.query.bookmarked || req.query.resolved ||
-        req.query.searchText) {
+    if (
+      req.query.filePath ||
+      req.query.dateFrom ||
+      req.query.dateTo ||
+      req.query.severity ||
+      req.query.bookmarked ||
+      req.query.resolved ||
+      req.query.searchText
+    ) {
       query.filter = {} as ReviewFilter;
 
       if (req.query.filePath) {
@@ -222,9 +228,7 @@ reviewRouter.get('/export', async (req: Request, res: Response): Promise<void> =
 
       case 'json': {
         const { reviews } = await reviewService.list({ filter: options.filter });
-        const filtered = options.includeResolved
-          ? reviews
-          : reviews.filter((r) => !r.resolved);
+        const filtered = options.includeResolved ? reviews : reviews.filter((r) => !r.resolved);
         content = JSON.stringify(filtered, null, 2);
         contentType = 'application/json';
         filename = `code-review-${Date.now()}.json`;

@@ -125,12 +125,7 @@ export class AnalysisResultBuilder {
    * @param before - 修改前代码
    * @param after - 修改后代码
    */
-  addIssueWithExample(
-    message: string,
-    line: number,
-    before: string,
-    after: string
-  ): this {
+  addIssueWithExample(message: string, line: number, before: string, after: string): this {
     return this.addIssue({
       severity: 'medium',
       category: 'quality',
@@ -198,7 +193,8 @@ export class AnalysisResultBuilder {
   build(): AnalysisResult {
     return {
       issues: this.issues,
-      summary: this.summary || `Found ${this.issues.length} issue${this.issues.length !== 1 ? 's' : ''}`,
+      summary:
+        this.summary || `Found ${this.issues.length} issue${this.issues.length !== 1 ? 's' : ''}`,
       timestamp: this.timestamp,
     };
   }

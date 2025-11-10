@@ -27,7 +27,7 @@ async function globalSetup() {
     console.log('\n=== Backend server ready ===\n');
 
     // Give servers a moment to stabilize
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   } catch (error) {
     console.error('Failed to start backend server:', error);
     throw error;

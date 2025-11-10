@@ -62,11 +62,7 @@
             >
               Refresh
             </v-btn>
-            <v-btn
-              color="secondary"
-              prepend-icon="mdi-download"
-              @click="exportDialog = true"
-            >
+            <v-btn color="secondary" prepend-icon="mdi-download" @click="exportDialog = true">
               Export
             </v-btn>
           </v-col>
@@ -165,10 +161,7 @@
 
         <v-list v-else>
           <template v-for="(review, index) in reviews" :key="review.id">
-            <v-list-item
-              class="review-item"
-              @click="selectReview(review)"
-            >
+            <v-list-item class="review-item" @click="selectReview(review)">
               <template v-slot:prepend>
                 <v-icon
                   :icon="review.bookmarked ? 'mdi-star' : 'mdi-star-outline'"
@@ -193,12 +186,7 @@
                 <div class="d-flex align-center mt-1">
                   <v-icon size="small" class="mr-1">mdi-clock</v-icon>
                   <span class="text-caption">{{ formatDate(review.timestamp) }}</span>
-                  <v-chip
-                    v-if="review.resolved"
-                    size="x-small"
-                    color="success"
-                    class="ml-2"
-                  >
+                  <v-chip v-if="review.resolved" size="x-small" color="success" class="ml-2">
                     Resolved
                   </v-chip>
                 </div>
@@ -240,10 +228,7 @@
             <v-radio label="JSON (.json)" value="json"></v-radio>
           </v-radio-group>
 
-          <v-checkbox
-            v-model="exportIncludeResolved"
-            label="Include resolved reviews"
-          ></v-checkbox>
+          <v-checkbox v-model="exportIncludeResolved" label="Include resolved reviews"></v-checkbox>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>

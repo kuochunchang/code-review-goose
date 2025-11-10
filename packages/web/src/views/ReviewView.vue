@@ -13,9 +13,7 @@
         elevation="2"
       >
         <v-icon>mdi-menu</v-icon>
-        <v-tooltip activator="parent" location="right">
-          Show File Tree (⌘B)
-        </v-tooltip>
+        <v-tooltip activator="parent" location="right"> Show File Tree (⌘B) </v-tooltip>
       </v-btn>
 
       <Splitpanes :dbl-click-splitter="false">
@@ -45,12 +43,7 @@
     <!-- Mobile/Tablet Layout: Drawer + Tabs -->
     <div v-else class="mobile-layout">
       <!-- Mobile Navigation Drawer for File Tree -->
-      <v-navigation-drawer
-        v-model="mobileDrawer"
-        location="left"
-        temporary
-        width="300"
-      >
+      <v-navigation-drawer v-model="mobileDrawer" location="left" temporary width="300">
         <FileTree @select-file="handleMobileSelectFile" />
       </v-navigation-drawer>
 
@@ -199,43 +192,57 @@ const keyboardShortcuts: KeyboardShortcut[] = [
     key: 'b',
     ctrl: true,
     description: 'Toggle File Tree',
-    handler: () => { toggleFileTree(); },
+    handler: () => {
+      toggleFileTree();
+    },
   },
   {
     key: 'k',
     ctrl: true,
     description: 'Open Search',
-    handler: () => { searchDialog.value = true; },
+    handler: () => {
+      searchDialog.value = true;
+    },
   },
   {
     key: 'u',
     ctrl: true,
     description: 'Open UML Diagram',
-    handler: () => { openUMLViewer(); },
+    handler: () => {
+      openUMLViewer();
+    },
   },
   {
     key: 'h',
     ctrl: true,
     description: 'Open Review History',
-    handler: () => { reviewHistoryDialog.value = true; },
+    handler: () => {
+      reviewHistoryDialog.value = true;
+    },
   },
   {
     key: ',',
     ctrl: true,
     description: 'Open Settings',
-    handler: () => { settingsDialog.value = true; },
+    handler: () => {
+      settingsDialog.value = true;
+    },
   },
   {
     key: 'd',
     ctrl: true,
     description: 'Toggle Theme (Light/Dark)',
-    handler: () => { uiStore.toggleTheme(); },
+    handler: () => {
+      uiStore.toggleTheme();
+    },
   },
   {
     key: '/',
     ctrl: true,
     description: 'Show Keyboard Shortcuts',
-    handler: () => { shortcutsDialog.value = true; },
+    handler: () => {
+      shortcutsDialog.value = true;
+    },
   },
 ];
 
@@ -256,14 +263,17 @@ watch(selectedFile, async (newFile) => {
 });
 
 // Watch for line count changes in CodeViewer
-watch(() => codeViewerRef.value?.lineCount, (newLineCount) => {
-  if (currentFileInfo.value.path) {
-    currentFileInfo.value = {
-      ...currentFileInfo.value,
-      lineCount: newLineCount,
-    };
+watch(
+  () => codeViewerRef.value?.lineCount,
+  (newLineCount) => {
+    if (currentFileInfo.value.path) {
+      currentFileInfo.value = {
+        ...currentFileInfo.value,
+        lineCount: newLineCount,
+      };
+    }
   }
-});
+);
 
 const handleSelectFile = async (filePath: string) => {
   selectedFile.value = filePath;
@@ -324,11 +334,7 @@ const openUMLViewer = () => {
   const height = 900;
   const left = window.screenX + (window.outerWidth - width) / 2;
   const top = window.screenY + (window.outerHeight - height) / 2;
-  window.open(
-    '/uml',
-    'UML_Viewer',
-    `width=${width},height=${height},left=${left},top=${top}`
-  );
+  window.open('/uml', 'UML_Viewer', `width=${width},height=${height},left=${left},top=${top}`);
 };
 
 const handleSelectReview = (review: ReviewRecord) => {

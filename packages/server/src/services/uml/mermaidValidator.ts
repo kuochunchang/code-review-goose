@@ -25,7 +25,9 @@ export class MermaidValidator {
 
     // Check for valid diagram type declaration
     if (!this.hasValidHeader(trimmed)) {
-      errors.push('Missing or invalid diagram type header (e.g., classDiagram, flowchart TD, sequenceDiagram, graph TD)');
+      errors.push(
+        'Missing or invalid diagram type header (e.g., classDiagram, flowchart TD, sequenceDiagram, graph TD)'
+      );
     }
 
     // Check node definitions
@@ -90,7 +92,7 @@ export class MermaidValidator {
       /^\s*pie/i,
     ];
 
-    return validHeaders.some(regex => regex.test(code));
+    return validHeaders.some((regex) => regex.test(code));
   }
 
   private findInvalidNodes(code: string): string[] {
@@ -123,23 +125,23 @@ export class MermaidValidator {
 
     // Class diagram relationship syntax
     const classRelations = [
-      '<|--',  // Inheritance
-      '<|..',  // Implementation
-      '--*',   // Composition
-      '--o',   // Aggregation
-      '-->',   // Association
-      '..',    // Dependency
-      '--',    // Link
+      '<|--', // Inheritance
+      '<|..', // Implementation
+      '--*', // Composition
+      '--o', // Aggregation
+      '-->', // Association
+      '..', // Dependency
+      '--', // Link
     ];
 
     // Graph/Flowchart relationship syntax
     const graphRelations = [
-      '-->',   // Arrow
-      '---',   // Connection
-      '-.->',  // Dashed arrow
-      '-.-',   // Dashed line
-      '==>',   // Thick arrow
-      '===',   // Thick line
+      '-->', // Arrow
+      '---', // Connection
+      '-.->', // Dashed arrow
+      '-.-', // Dashed line
+      '==>', // Thick arrow
+      '===', // Thick line
     ];
 
     const lines = code.split('\n');
@@ -151,7 +153,7 @@ export class MermaidValidator {
       }
 
       // Check if contains relationship symbols
-      const hasRelation = [...classRelations, ...graphRelations].some(rel => line.includes(rel));
+      const hasRelation = [...classRelations, ...graphRelations].some((rel) => line.includes(rel));
 
       if (hasRelation) {
         // Simple check if relationship syntax is complete (nodes on both sides)
@@ -204,7 +206,7 @@ export class MermaidValidator {
     // Remove some invalid characters from node names
     // Note: this is a simplified version, actual situation may be more complex
     const lines = fixed.split('\n');
-    const fixedLines = lines.map(line => {
+    const fixedLines = lines.map((line) => {
       // Keep comments and diagram type declarations
       if (line.trim().startsWith('%%') || this.hasValidHeader(line)) {
         return line;
@@ -252,7 +254,7 @@ export class MermaidValidator {
     }
 
     const lines = fixed.split('\n');
-    const fixedLines = lines.map(line => {
+    const fixedLines = lines.map((line) => {
       // Skip comments and diagram type declarations
       if (line.trim().startsWith('%%') || this.hasValidHeader(line)) {
         return line;

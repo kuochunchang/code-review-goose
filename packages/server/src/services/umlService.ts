@@ -519,12 +519,14 @@ export class UMLService {
         const visibility = this.getVisibilitySymbol(method.visibility);
         // Mermaid doesn't support TypeScript-style "name: type" in parameters
         // Use "type name" format instead
-        const params = method.parameters.map(p => {
-          if (p.type) {
-            return `${p.type} ${p.name}`;
-          }
-          return p.name;
-        }).join(', ');
+        const params = method.parameters
+          .map((p) => {
+            if (p.type) {
+              return `${p.type} ${p.name}`;
+            }
+            return p.name;
+          })
+          .join(', ');
         const returnType = method.returnType ? ` ${method.returnType}` : '';
         mermaid += `  ${classInfo.name} : ${visibility}${method.name}(${params})${returnType}\n`;
       });

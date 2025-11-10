@@ -24,10 +24,7 @@ export default defineConfig({
   globalTeardown: './e2e/setup/global-teardown.ts',
 
   // Reporter configuration
-  reporter: [
-    ['html'],
-    ['list'],
-  ],
+  reporter: [['html'], ['list']],
 
   // Shared settings for all tests
   use: {

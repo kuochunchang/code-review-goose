@@ -81,8 +81,6 @@ export async function startCommand(projectPath: string, options: StartOptions) {
     process.on('SIGINT', shutdown);
     process.on('SIGTERM', shutdown);
   } catch (error) {
-    throw new Error(
-      `Startup failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
+    throw new Error(`Startup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

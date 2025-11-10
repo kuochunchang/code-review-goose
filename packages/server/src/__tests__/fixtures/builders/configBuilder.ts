@@ -145,18 +145,14 @@ export class ConfigBuilder {
    * 设置为GPT-4 Turbo配置
    */
   asGPT4Turbo(): this {
-    return this.withModel('gpt-4-turbo')
-      .withApiKey('sk-gpt4-turbo-test-key')
-      .withTimeout(120000);
+    return this.withModel('gpt-4-turbo').withApiKey('sk-gpt4-turbo-test-key').withTimeout(120000);
   }
 
   /**
    * 设置为GPT-3.5配置
    */
   asGPT35(): this {
-    return this.withModel('gpt-3.5-turbo')
-      .withApiKey('sk-gpt35-test-key')
-      .withTimeout(30000);
+    return this.withModel('gpt-3.5-turbo').withApiKey('sk-gpt35-test-key').withTimeout(30000);
   }
 
   /**
@@ -179,12 +175,7 @@ export class ConfigBuilder {
    * 设置为TypeScript/JavaScript项目配置
    */
   forTypeScriptProject(): this {
-    return this.withCommonNodeIgnores().withAnalyzableExtensions([
-      '.ts',
-      '.tsx',
-      '.js',
-      '.jsx',
-    ]);
+    return this.withCommonNodeIgnores().withAnalyzableExtensions(['.ts', '.tsx', '.js', '.jsx']);
   }
 
   /**
