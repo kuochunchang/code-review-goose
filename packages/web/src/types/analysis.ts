@@ -44,7 +44,7 @@ export interface AnalysisStatus {
 }
 
 export interface ProjectConfig {
-  aiProvider?: 'openai' | 'claude' | 'gemini' | 'ollama';
+  aiProvider?: 'openai' | 'claude' | 'gemini' | 'ollama' | 'custom';
   openai?: {
     apiKey: string;
     model: string;
@@ -63,6 +63,12 @@ export interface ProjectConfig {
   ollama?: {
     baseUrl: string;
     model: string;
+    timeout?: number;
+  };
+  custom?: {
+    baseUrl: string;
+    model: string;
+    apiKey?: string;
     timeout?: number;
   };
   ignorePatterns?: string[];

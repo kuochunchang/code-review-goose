@@ -71,6 +71,63 @@
           </v-alert>
         </div>
 
+        <!-- Custom Provider Configuration -->
+        <div v-if="localConfig.aiProvider === 'custom' && localConfig.custom">
+          <v-text-field
+            v-model="localConfig.custom.baseUrl"
+            label="Base URL"
+            variant="outlined"
+            density="comfortable"
+            hint="OpenAI-compatible API endpoint (e.g., https://llm.example.com/v1)"
+            persistent-hint
+            placeholder="https://llm.example.com/v1"
+            class="mb-3"
+          ></v-text-field>
+
+          <v-text-field
+            v-model="localConfig.custom.model"
+            label="Model Name"
+            variant="outlined"
+            density="comfortable"
+            hint="Model identifier (e.g., instruct, small-instruct, multimodal)"
+            persistent-hint
+            placeholder="instruct"
+            class="mb-3"
+          ></v-text-field>
+
+          <v-text-field
+            v-model="localConfig.custom.apiKey"
+            label="API Key (Optional)"
+            :type="showApiKey ? 'text' : 'password'"
+            :append-inner-icon="showApiKey ? 'mdi-eye-off' : 'mdi-eye'"
+            @click:append-inner="showApiKey = !showApiKey"
+            variant="outlined"
+            density="comfortable"
+            hint="Optional for local services. Your API key will be stored locally"
+            persistent-hint
+            class="mb-3"
+          ></v-text-field>
+
+          <v-text-field
+            v-model.number="localConfig.custom.timeout"
+            label="Request Timeout (ms)"
+            type="number"
+            variant="outlined"
+            density="comfortable"
+            hint="Request timeout in milliseconds. Default: 60000"
+            persistent-hint
+            :min="10000"
+            :max="300000"
+            :step="1000"
+            class="mb-4"
+          ></v-text-field>
+
+          <v-alert type="info" variant="tonal" density="compact" class="mb-4">
+            Custom provider supports any OpenAI-compatible API. Make sure your endpoint implements
+            the OpenAI chat completions format.
+          </v-alert>
+        </div>
+
         <!-- Claude Configuration (Placeholder) -->
         <div v-if="localConfig.aiProvider === 'claude'">
           <v-alert type="warning" variant="tonal" class="mb-4">
@@ -146,6 +203,7 @@ const dialog = computed({
 
 const providers = [
   { title: 'OpenAI', value: 'openai' },
+  { title: 'Custom (OpenAI-compatible)', value: 'custom' },
   { title: 'Claude (Coming Soon)', value: 'claude', disabled: true },
   { title: 'Gemini (Coming Soon)', value: 'gemini', disabled: true },
   { title: 'Ollama (Coming Soon)', value: 'ollama', disabled: true },
@@ -183,6 +241,9 @@ const hasApiKey = computed(() => {
   if (localConfig.value.aiProvider === 'openai') {
     return !!localConfig.value.openai?.apiKey;
   }
+  if (localConfig.value.aiProvider === 'custom') {
+    return !!localConfig.value.custom?.baseUrl && !!localConfig.value.custom?.model;
+  }
   return false;
 });
 
@@ -200,6 +261,12 @@ const loadConfig = async () => {
         apiKey: config.openai?.apiKey || '',
         model: config.openai?.model || 'gpt-4',
         timeout: config.openai?.timeout || 60000,
+      },
+      custom: {
+        baseUrl: config.custom?.baseUrl || '',
+        model: config.custom?.model || '',
+        apiKey: config.custom?.apiKey || '',
+        timeout: config.custom?.timeout || 60000,
       },
     };
     originalConfig.value = JSON.parse(JSON.stringify(localConfig.value));
