@@ -204,6 +204,39 @@ const severityFilter = ref<string[]>(['critical', 'high', 'medium', 'low', 'info
 const loadingCache = ref(false);
 const isFileAnalyzable = ref(true);
 
+// Unified function to create analysis options
+// This must match the backend createAnalysisOptions to ensure cache key consistency
+const createAnalysisOptions = (filePath: string) => {
+  const ext = filePath.split('.').pop()?.toLowerCase() || '';
+  const languageMap: Record<string, string> = {
+    'ts': 'typescript',
+    'tsx': 'typescript',
+    'js': 'javascript',
+    'jsx': 'javascript',
+    'vue': 'javascript',
+    'py': 'python',
+    'java': 'java',
+    'go': 'go',
+    'rs': 'rust',
+    'c': 'c',
+    'cpp': 'cpp',
+    'cs': 'csharp',
+    'php': 'php',
+    'rb': 'ruby',
+  };
+  const language = languageMap[ext] || 'unknown';
+
+  return {
+    language,
+    filePath,
+    checkQuality: true,
+    checkSecurity: true,
+    checkPerformance: true,
+    checkBestPractices: true,
+    checkBugs: true,
+  };
+};
+
 // Watch for file changes and auto-load cached analysis
 watch(currentFile, async (newFilePath, oldFilePath) => {
   if (!newFilePath || newFilePath === oldFilePath) return;
@@ -229,36 +262,11 @@ watch(currentFile, async (newFilePath, oldFilePath) => {
     // Fetch file content
     const content = await projectStore.fetchFileContent(newFilePath);
 
-    // Detect language from file extension
-    const ext = newFilePath.split('.').pop()?.toLowerCase() || '';
-    const languageMap: Record<string, string> = {
-      'ts': 'typescript',
-      'tsx': 'typescript',
-      'js': 'javascript',
-      'jsx': 'javascript',
-      'vue': 'javascript',
-      'py': 'python',
-      'java': 'java',
-      'go': 'go',
-      'rs': 'rust',
-      'c': 'c',
-      'cpp': 'cpp',
-      'cs': 'csharp',
-      'php': 'php',
-      'rb': 'ruby',
-    };
-    const language = languageMap[ext] || 'unknown';
-
-    // Try to load cached analysis
-    const cachedResult = await analysisApi.getCachedAnalysis(content, {
-      language,
-      filePath: newFilePath,
-      checkQuality: true,
-      checkSecurity: true,
-      checkPerformance: true,
-      checkBestPractices: true,
-      checkBugs: true,
-    });
+    // Try to load cached analysis using standardized options
+    const cachedResult = await analysisApi.getCachedAnalysis(
+      content,
+      createAnalysisOptions(newFilePath)
+    );
 
     if (cachedResult) {
       analysisResult.value = cachedResult;
@@ -295,36 +303,11 @@ const runAnalysis = async () => {
     // Fetch file content
     const content = await projectStore.fetchFileContent(currentFile.value);
 
-    // Detect language from file extension
-    const ext = currentFile.value.split('.').pop()?.toLowerCase() || '';
-    const languageMap: Record<string, string> = {
-      'ts': 'typescript',
-      'tsx': 'typescript',
-      'js': 'javascript',
-      'jsx': 'javascript',
-      'vue': 'javascript',
-      'py': 'python',
-      'java': 'java',
-      'go': 'go',
-      'rs': 'rust',
-      'c': 'c',
-      'cpp': 'cpp',
-      'cs': 'csharp',
-      'php': 'php',
-      'rb': 'ruby',
-    };
-    const language = languageMap[ext] || 'unknown';
-
-    // Call AI analysis API
-    const result = await analysisApi.analyzeCode(content, {
-      language,
-      filePath: currentFile.value,
-      checkQuality: true,
-      checkSecurity: true,
-      checkPerformance: true,
-      checkBestPractices: true,
-      checkBugs: true,
-    });
+    // Call AI analysis API using standardized options
+    const result = await analysisApi.analyzeCode(
+      content,
+      createAnalysisOptions(currentFile.value)
+    );
 
     analysisResult.value = result;
 
