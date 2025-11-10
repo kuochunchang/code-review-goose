@@ -91,41 +91,23 @@ describe('BatchAnalysisService', () => {
       expect(result.totalFiles).toBeGreaterThanOrEqual(2);
     });
 
-    it('should skip files that have not been modified since last review', async () => {
+    it('should skip files that are already cached', async () => {
       const filePath = 'src/index.ts';
+      const content = 'console.log("hello world");';
 
-      // Create a review record with recent timestamp
-      const reviewsDir = path.join(testProjectPath, '.code-review', 'reviews');
-      await fs.ensureDir(reviewsDir);
-
-      const review = {
-        id: 'test-review-id',
-        timestamp: new Date().toISOString(), // Current timestamp
-        firstReviewedAt: new Date().toISOString(),
-        reviewCount: 1,
-        filePath,
-        fileName: 'index.ts',
-        analysis: {
-          issues: [],
-          summary: 'Previous review',
-          timestamp: new Date().toISOString(),
-        },
-        bookmarked: false,
-        resolved: false,
-      };
-
-      await fs.writeJson(path.join(reviewsDir, 'test-review-id.json'), review);
-
-      // Mock analyzeFile to check skip behavior
+      // Mock analyzeFile to check skip behavior based on cache
       const analyzeFileSpy = vi.spyOn(batchService as any, 'analyzeFile');
       analyzeFileSpy.mockImplementation(async (fp: unknown, force: unknown) => {
         const filePathArg = fp as string;
         const forceArg = force as boolean;
+
+        // Simulate cache hit for specific file
         if (!forceArg && filePathArg === filePath) {
           return {
             filePath: filePathArg,
             analyzed: false,
-            skipReason: 'File not modified since last review',
+            skipReason: 'Already cached (file not modified)',
+            duration: 10,
           };
         }
         return {
@@ -142,7 +124,7 @@ describe('BatchAnalysisService', () => {
 
       const result = await batchService.analyzeProject({ force: false });
 
-      // Should skip at least one file
+      // Should skip at least one file (the cached one)
       expect(result.skippedCount).toBeGreaterThan(0);
     });
 

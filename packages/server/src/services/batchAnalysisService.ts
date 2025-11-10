@@ -10,7 +10,7 @@ import type {
 import { AIService } from './aiService.js';
 import { FileService } from './fileService.js';
 import { ProjectService } from './projectService.js';
-import { ReviewService } from './reviewService.js';
+import { CacheService } from './cacheService.js';
 import type { FileNode } from './projectService.js';
 
 export class BatchAnalysisService {
@@ -18,14 +18,14 @@ export class BatchAnalysisService {
   private aiService: AIService;
   private fileService: FileService;
   private projectService: ProjectService;
-  private reviewService: ReviewService;
+  private cacheService: CacheService;
 
   constructor(projectPath: string) {
     this.projectPath = projectPath;
     this.aiService = new AIService(projectPath);
     this.fileService = new FileService(projectPath);
     this.projectService = new ProjectService(projectPath);
-    this.reviewService = new ReviewService(projectPath);
+    this.cacheService = new CacheService(projectPath);
   }
 
   /**
@@ -134,43 +134,34 @@ export class BatchAnalysisService {
     const startTime = Date.now();
 
     try {
-      // Get file stats
-      const fullPath = path.join(this.projectPath, filePath);
-      const stats = await fs.stat(fullPath);
-      const fileModifiedTime = stats.mtime.getTime();
-
-      // Check if file needs analysis
-      if (!force) {
-        const existingReview = await this.reviewService.findByFilePath(filePath);
-
-        if (existingReview) {
-          const reviewTime = new Date(existingReview.timestamp).getTime();
-
-          // Skip if file hasn't been modified since last review
-          if (fileModifiedTime <= reviewTime) {
-            return {
-              filePath,
-              analyzed: false,
-              skipReason: 'File not modified since last review',
-            };
-          }
-        }
-      }
-
       // Read file content
       const content = await this.fileService.readFile(filePath);
 
-      // Analyze the file
-      const analysis = await this.aiService.analyzeCode(content, {
+      const analysisOptions = {
         filePath,
         language: this.getLanguageFromPath(filePath),
-      });
+      };
 
-      // Save the review
-      await this.reviewService.createOrUpdate({
-        filePath,
-        analysis,
-      });
+      // Check if file needs analysis (check cache first)
+      if (!force) {
+        const cached = await this.cacheService.get(content, analysisOptions);
+
+        if (cached) {
+          const duration = Date.now() - startTime;
+          return {
+            filePath,
+            analyzed: false,
+            skipReason: 'Already cached (file not modified)',
+            duration,
+          };
+        }
+      }
+
+      // Analyze the file
+      const analysis = await this.aiService.analyzeCode(content, analysisOptions);
+
+      // Save to cache
+      await this.cacheService.set(content, analysisOptions, analysis);
 
       const duration = Date.now() - startTime;
 
