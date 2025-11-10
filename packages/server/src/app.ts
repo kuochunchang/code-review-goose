@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { errorHandler } from './middleware/errorHandler.js';
 import { analysisRouter } from './routes/analysis.js';
+import { batchRouter } from './routes/batch.js';
 import { configRouter } from './routes/config.js';
 import { fileRouter } from './routes/file.js';
 import { projectRouter } from './routes/project.js';
@@ -33,6 +34,7 @@ export async function createServer(config: ServerConfig): Promise<ServerInstance
   app.use('/api/project', projectRouter);
   app.use('/api/file', fileRouter);
   app.use('/api/analysis', analysisRouter);
+  app.use('/api/batch', batchRouter);
   app.use('/api/config', configRouter);
   app.use('/api/reviews', reviewRouter);
   app.use('/api/search', searchRouter);
