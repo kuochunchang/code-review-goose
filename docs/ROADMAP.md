@@ -16,7 +16,19 @@
 
 ## Next Phases
 
-### 1. Context-Aware Analysis
+### 1. More AI Providers
+
+**Goal**: Support multiple AI providers.
+
+- **Claude** (Anthropic) - Advanced reasoning
+- **Gemini** (Google) - Cost-effective alternative
+- **Ollama** (Local) - Privacy-first, zero API costs
+- Easy switching between providers
+- Side-by-side comparison
+
+---
+
+### 2. Context-Aware Analysis
 
 **Goal**: Enable analysis that understands file relationships and architectural roles.
 
@@ -40,18 +52,12 @@
 - Suggest related code for review
 - Powered by embeddings
 
-
----
-
-### 2. More AI Providers
-
-**Goal**: Support multiple AI providers.
-
-- **Claude** (Anthropic) - Advanced reasoning
-- **Gemini** (Google) - Cost-effective alternative
-- **Ollama** (Local) - Privacy-first, zero API costs
-- Easy switching between providers
-- Side-by-side comparison
+**4. Code Explan**
+- AI-powered code explanations
+- Step-by-step code breakdowns
+- Best practices and design pattern identification
+- Learning mode for complex code understanding
+- Context-aware documentation generation
 
 ---
 
@@ -69,6 +75,7 @@
 
 ## Future Direction
 
-- Advanced Analytics: ？
+- Advanced Analytics: Code quality trends, technical debt, and team metrics
+- Dashboard: Project overview, metrics dashboard, and review management
 - IDE Extensions: VS Code and JetBrains plugins
 
