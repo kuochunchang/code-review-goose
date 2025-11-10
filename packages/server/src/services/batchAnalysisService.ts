@@ -6,6 +6,7 @@ import type {
   BatchProgress,
   FileAnalysisResult,
 } from '../types/batch.js';
+import { createAnalysisOptions } from '../utils/analysisOptions.js';
 import { AIService } from './aiService.js';
 import { FileService } from './fileService.js';
 import { ProjectService } from './projectService.js';
@@ -144,10 +145,11 @@ export class BatchAnalysisService {
       // Read file content
       const content = await this.fileService.readFile(filePath);
 
-      const analysisOptions = {
+      // Use standardized options builder to ensure cache key consistency
+      const analysisOptions = createAnalysisOptions(
         filePath,
-        language: this.getLanguageFromPath(filePath),
-      };
+        this.getLanguageFromPath(filePath)
+      );
 
       // Check if file needs analysis (check cache first)
       if (!force) {
