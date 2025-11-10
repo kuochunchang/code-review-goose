@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import * as readline from 'readline';
 
 // Define types locally to avoid cross-package import issues
 interface BatchProgress {
@@ -43,6 +44,23 @@ interface BatchOptions {
   output?: 'json' | 'markdown' | 'text';
   dir?: string | string[];
   exclude?: string | string[];
+  yes?: boolean;
+}
+
+// Helper function to prompt user for confirmation
+function promptConfirmation(message: string): Promise<boolean> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  return new Promise((resolve) => {
+    rl.question(message, (answer) => {
+      rl.close();
+      const normalized = answer.trim().toLowerCase();
+      resolve(normalized === 'y' || normalized === 'yes' || normalized === '');
+    });
+  });
 }
 
 export async function batchCommand(projectPath: string, options: BatchOptions) {
@@ -100,6 +118,66 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
     // Create batch analysis service
     const batchService = new BatchAnalysisService(absolutePath);
 
+    // Get list of files that will be analyzed
+    console.log(chalk.cyan('🔍 Scanning files...'));
+    const { totalFiles, analyzableFiles } = await batchService.getAnalyzableFiles({
+      directories,
+      excludePatterns,
+    });
+
+    console.log('');
+    console.log(chalk.bold(`Found ${analyzableFiles.length} files to analyze (${totalFiles} total)`));
+    console.log('');
+
+    // Group files by directory for better display
+    const filesByDir: Record<string, string[]> = {};
+    for (const file of analyzableFiles) {
+      const dir = path.dirname(file);
+      if (!filesByDir[dir]) {
+        filesByDir[dir] = [];
+      }
+      filesByDir[dir].push(path.basename(file));
+    }
+
+    // Display files grouped by directory
+    const dirs = Object.keys(filesByDir).sort();
+    const MAX_DISPLAY = 50; // Limit display to prevent overwhelming output
+
+    if (analyzableFiles.length <= MAX_DISPLAY) {
+      // Show all files if not too many
+      for (const dir of dirs) {
+        console.log(chalk.gray(`  ${dir}/`));
+        for (const file of filesByDir[dir].sort()) {
+          console.log(chalk.gray(`    ${file}`));
+        }
+      }
+    } else {
+      // Show summary if too many files
+      const displayCount = Math.min(dirs.length, 10);
+      for (let i = 0; i < displayCount; i++) {
+        const dir = dirs[i];
+        console.log(chalk.gray(`  ${dir}/ (${filesByDir[dir].length} files)`));
+      }
+      if (dirs.length > displayCount) {
+        console.log(chalk.gray(`  ... and ${dirs.length - displayCount} more directories`));
+      }
+    }
+
+    console.log('');
+
+    // Ask for confirmation unless --yes flag is provided
+    if (!options.yes) {
+      const confirmed = await promptConfirmation(
+        chalk.yellow(`Proceed with analysis? [Y/n] `)
+      );
+
+      if (!confirmed) {
+        console.log(chalk.yellow('Analysis cancelled.'));
+        return;
+      }
+      console.log('');
+    }
+
     // Track start time
     const startTime = Date.now();
 
@@ -116,7 +194,7 @@ export async function batchCommand(projectPath: string, options: BatchOptions) {
       );
     };
 
-    console.log(chalk.cyan('Starting batch analysis...'));
+    console.log(chalk.cyan('🚀 Starting batch analysis...'));
     console.log('');
 
     // Run batch analysis

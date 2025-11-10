@@ -33,6 +33,37 @@ export class BatchAnalysisService {
   }
 
   /**
+   * Get list of files that will be analyzed (without actually analyzing)
+   * Useful for preview before running batch analysis
+   */
+  async getAnalyzableFiles(options: BatchAnalysisOptions = {}): Promise<{
+    totalFiles: number;
+    analyzableFiles: string[];
+  }> {
+    // Get all files in project
+    const fileTree = await this.projectService.getFileTree();
+    let allFiles = this.flattenFileTree(fileTree);
+
+    // Filter by directories if specified
+    if (options.directories && options.directories.length > 0) {
+      allFiles = this.filterByDirectories(allFiles, options.directories);
+    }
+
+    // Exclude files matching exclude patterns
+    if (options.excludePatterns && options.excludePatterns.length > 0) {
+      allFiles = this.filterByExcludePatterns(allFiles, options.excludePatterns);
+    }
+
+    // Filter to only analyzable files
+    const analyzableFiles = await this.filterAnalyzableFiles(allFiles, options.extensions);
+
+    return {
+      totalFiles: allFiles.length,
+      analyzableFiles,
+    };
+  }
+
+  /**
    * Analyze entire project with batch processing
    */
   async analyzeProject(options: BatchAnalysisOptions = {}): Promise<BatchAnalysisResult> {

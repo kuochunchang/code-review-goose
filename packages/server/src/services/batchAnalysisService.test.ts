@@ -91,6 +91,34 @@ describe('BatchAnalysisService', () => {
       expect(result.totalFiles).toBeGreaterThanOrEqual(2);
     });
 
+    it('should return list of analyzable files without analyzing', async () => {
+      const { totalFiles, analyzableFiles } = await batchService.getAnalyzableFiles();
+
+      // Should find 2 analyzable files (.ts and .js)
+      expect(analyzableFiles.length).toBe(2);
+      expect(totalFiles).toBeGreaterThanOrEqual(2);
+      expect(analyzableFiles).toContain('src/index.ts');
+      expect(analyzableFiles).toContain('src/utils.js');
+      expect(analyzableFiles).not.toContain('README.md');
+    });
+
+    it('should respect directory and exclude filters in getAnalyzableFiles', async () => {
+      // Create additional test files
+      await fs.ensureDir(path.join(testProjectPath, 'lib'));
+      await fs.writeFile(path.join(testProjectPath, 'lib', 'helper.ts'), 'code');
+      await fs.writeFile(path.join(testProjectPath, 'src', 'test.spec.ts'), 'test');
+
+      const { analyzableFiles } = await batchService.getAnalyzableFiles({
+        directories: ['src'],
+        excludePatterns: ['**/*.spec.ts'],
+      });
+
+      // Should find only src files, excluding spec files
+      expect(analyzableFiles).toContain('src/index.ts');
+      expect(analyzableFiles).not.toContain('lib/helper.ts');
+      expect(analyzableFiles).not.toContain('src/test.spec.ts');
+    });
+
     it('should skip files that are already cached', async () => {
       const filePath = 'src/index.ts';
 

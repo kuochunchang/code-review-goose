@@ -39,6 +39,7 @@ async function main() {
       .option('-o, --output <format>', 'Output format: text, json, markdown (default: text)', 'text')
       .option('-d, --dir <directory...>', 'Specific directories to analyze (e.g., src lib)')
       .option('-e, --exclude <pattern...>', 'Exclude patterns (e.g., "**/*.test.ts" "**/__mocks__/**")')
+      .option('-y, --yes', 'Skip confirmation prompt and start analysis immediately')
       .action((projectPath, options) => {
         const resolvedPath = projectPath || process.cwd();
         batchCommand(resolvedPath, options);
