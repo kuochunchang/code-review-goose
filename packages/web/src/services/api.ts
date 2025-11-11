@@ -21,6 +21,7 @@ import type {
   SearchHistoryItem,
   SearchStats,
 } from '../types/search';
+import type { InsightRecord, InsightCheckResult, InsightStats } from '../types/insight';
 
 const api = axios.create({
   baseURL: '/api',
@@ -304,6 +305,76 @@ export const searchApi = {
     const response = await api.get<ApiResponse<SearchStats>>('/search/stats');
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || 'Failed to get search stats');
+    }
+    return response.data.data;
+  },
+};
+
+export const insightsApi = {
+  async checkInsight(filePath: string, hash: string): Promise<InsightCheckResult> {
+    const response = await api.get<ApiResponse<InsightCheckResult>>('/insights/check', {
+      params: { filePath, hash },
+    });
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || 'Failed to check insight');
+    }
+    return response.data.data;
+  },
+
+  async getInsight(filePath: string): Promise<InsightRecord | null> {
+    try {
+      const response = await api.get<ApiResponse<InsightRecord>>('/insights', {
+        params: { filePath },
+      });
+      if (!response.data.success || !response.data.data) {
+        return null;
+      }
+      return response.data.data;
+    } catch (error) {
+      // Return null if insight not found (404)
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
+
+  async saveInsight(
+    filePath: string,
+    codeHash: string,
+    analysis: AnalysisResult
+  ): Promise<InsightRecord> {
+    const response = await api.post<ApiResponse<InsightRecord>>('/insights', {
+      filePath,
+      codeHash,
+      analysis,
+    });
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || 'Failed to save insight');
+    }
+    return response.data.data;
+  },
+
+  async deleteInsight(filePath: string): Promise<void> {
+    const response = await api.delete<ApiResponse<any>>('/insights', {
+      params: { filePath },
+    });
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to delete insight');
+    }
+  },
+
+  async clearInsights(): Promise<void> {
+    const response = await api.delete<ApiResponse<any>>('/insights/clear');
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to clear insights');
+    }
+  },
+
+  async getStats(): Promise<InsightStats> {
+    const response = await api.get<ApiResponse<InsightStats>>('/insights/stats');
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || 'Failed to get insights stats');
     }
     return response.data.data;
   },
