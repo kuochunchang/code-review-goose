@@ -272,15 +272,15 @@
 
               <v-divider></v-divider>
 
-              <!-- Member Variables -->
-              <div v-if="explainResult.memberVariables && explainResult.memberVariables.length > 0" class="pa-3">
+              <!-- Fields -->
+              <div v-if="explainResult.fields && explainResult.fields.length > 0" class="pa-3">
                 <h3 class="text-subtitle-2 mb-3 d-flex align-center">
                   <v-icon icon="mdi-variable" size="small" class="mr-2"></v-icon>
-                  Member Variables ({{ explainResult.memberVariables.length }})
+                  Fields ({{ explainResult.fields.length }})
                 </h3>
                 <v-list density="compact" class="pa-0">
                   <v-list-item
-                    v-for="(variable, index) in explainResult.memberVariables"
+                    v-for="(field, index) in explainResult.fields"
                     :key="index"
                     class="px-0"
                   >
@@ -288,35 +288,35 @@
                       <div class="flex-grow-1">
                         <div class="d-flex align-center mb-1">
                           <v-chip
-                            v-if="variable.visibility"
+                            v-if="field.visibility"
                             size="x-small"
-                            :color="getVisibilityColor(variable.visibility)"
+                            :color="getVisibilityColor(field.visibility)"
                             class="mr-2"
                           >
-                            {{ variable.visibility }}
+                            {{ field.visibility }}
                           </v-chip>
-                          <span class="text-subtitle-2 font-weight-bold">{{ variable.name }}</span>
-                          <span class="text-caption text-medium-emphasis ml-2">: {{ variable.type }}</span>
+                          <span class="text-subtitle-2 font-weight-bold">{{ field.name }}</span>
+                          <span class="text-caption text-medium-emphasis ml-2">: {{ field.type }}</span>
                         </div>
-                        <p class="text-caption text-medium-emphasis">{{ variable.description }}</p>
+                        <p class="text-caption text-medium-emphasis">{{ field.description }}</p>
                       </div>
                       <v-btn
-                        v-if="variable.line"
+                        v-if="field.line"
                         size="x-small"
                         variant="text"
                         color="primary"
                         prepend-icon="mdi-cursor-default-click"
-                        @click="emit('jumpToLine', variable.line)"
+                        @click="emit('jumpToLine', field.line)"
                         class="ml-2"
                       >
-                        Line {{ variable.line }}
+                        Line {{ field.line }}
                       </v-btn>
                     </div>
                   </v-list-item>
                 </v-list>
               </div>
 
-              <v-divider v-if="explainResult.memberVariables && explainResult.memberVariables.length > 0"></v-divider>
+              <v-divider v-if="explainResult.fields && explainResult.fields.length > 0"></v-divider>
 
               <!-- Main Components -->
               <div v-if="explainResult.mainComponents.length > 0" class="pa-3">
@@ -363,6 +363,61 @@
               </div>
 
               <v-divider></v-divider>
+
+              <!-- Method Dependencies -->
+              <div v-if="explainResult.methodDependencies && explainResult.methodDependencies.length > 0" class="pa-3">
+                <h3 class="text-subtitle-2 mb-3 d-flex align-center">
+                  <v-icon icon="mdi-call-split" size="small" class="mr-2"></v-icon>
+                  Method Dependencies ({{ explainResult.methodDependencies.length }})
+                </h3>
+                <v-list density="compact">
+                  <v-list-item
+                    v-for="(dep, index) in explainResult.methodDependencies"
+                    :key="index"
+                  >
+                    <div class="d-flex align-center w-100">
+                      <div class="flex-grow-1">
+                        <div class="d-flex align-center mb-1">
+                          <v-chip size="x-small" color="blue" class="mr-2">
+                            {{ dep.caller }}
+                          </v-chip>
+                          <v-icon size="small" icon="mdi-arrow-right" class="mx-1"></v-icon>
+                          <v-chip size="x-small" color="green" class="ml-2">
+                            {{ dep.callee }}
+                          </v-chip>
+                        </div>
+                        <p v-if="dep.description" class="text-caption text-medium-emphasis">
+                          {{ dep.description }}
+                        </p>
+                      </div>
+                      <div class="d-flex gap-1">
+                        <v-btn
+                          v-if="dep.callerLine"
+                          size="x-small"
+                          variant="text"
+                          color="blue"
+                          prepend-icon="mdi-cursor-default-click"
+                          @click="emit('jumpToLine', dep.callerLine)"
+                        >
+                          {{ dep.caller.substring(0, 10) }}{{ dep.caller.length > 10 ? '...' : '' }}:{{ dep.callerLine }}
+                        </v-btn>
+                        <v-btn
+                          v-if="dep.calleeLine"
+                          size="x-small"
+                          variant="text"
+                          color="green"
+                          prepend-icon="mdi-cursor-default-click"
+                          @click="emit('jumpToLine', dep.calleeLine)"
+                        >
+                          {{ dep.callee.substring(0, 10) }}{{ dep.callee.length > 10 ? '...' : '' }}:{{ dep.calleeLine }}
+                        </v-btn>
+                      </div>
+                    </div>
+                  </v-list-item>
+                </v-list>
+              </div>
+
+              <v-divider v-if="explainResult.methodDependencies && explainResult.methodDependencies.length > 0"></v-divider>
 
               <!-- How It Works -->
               <div v-if="explainResult.howItWorks.length > 0" class="pa-3">

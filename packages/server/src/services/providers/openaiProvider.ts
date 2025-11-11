@@ -139,8 +139,9 @@ export class OpenAIProvider implements AIProvider {
 
       return {
         overview: result.overview || '',
-        memberVariables: result.memberVariables || [],
+        fields: result.fields || [],
         mainComponents: result.mainComponents || [],
+        methodDependencies: result.methodDependencies || [],
         howItWorks: result.howItWorks || [],
         keyConcepts: result.keyConcepts || [],
         dependencies: result.dependencies || [],
@@ -165,11 +166,11 @@ export class OpenAIProvider implements AIProvider {
 Return the explanation in the following JSON format:
 {
   "overview": "Brief 2-3 sentence summary of what the code does",
-  "memberVariables": [
+  "fields": [
     {
-      "name": "variableName",
+      "name": "fieldName",
       "type": "string|number|boolean|object|ClassName",
-      "description": "What this variable stores or represents",
+      "description": "What this field stores or represents",
       "line": 5,
       "visibility": "public|private|protected"
     }
@@ -181,6 +182,15 @@ Return the explanation in the following JSON format:
       "type": "class|function|module|interface|constant|type|variable",
       "codeSnippet": "Optional: key code snippet",
       "line": 10
+    }
+  ],
+  "methodDependencies": [
+    {
+      "caller": "methodA",
+      "callee": "methodB",
+      "callerLine": 20,
+      "calleeLine": 35,
+      "description": "methodA calls methodB to process data"
     }
   ],
   "howItWorks": [
@@ -224,11 +234,11 @@ Guidelines:
 - Keep descriptions clear and concise
 - Focus on the most important aspects
 - Order steps logically in howItWorks
-- **IMPORTANT**: Include line numbers for memberVariables, mainComponents, and howItWorks to enable code navigation
-- Line numbers should correspond to where the variable/component is defined or where the step occurs in the code
+- **IMPORTANT**: Include line numbers for fields, mainComponents, methodDependencies, and howItWorks to enable code navigation
+- Line numbers should correspond to where the item is defined or where the action occurs in the code
 
-**For memberVariables** (class/module-level data fields ONLY):
-- List class or module-level member variables (fields, properties, state variables)
+**For fields** (class/module-level data fields ONLY):
+- List class or module-level data fields (properties, state variables, instance variables)
 - Examples: class properties, instance variables, module-level state
 - Do NOT include: local variables, function parameters, constants, or methods
 - Include visibility (public/private/protected) when it's clear from the code
@@ -238,7 +248,14 @@ Guidelines:
 - For methods: List all important methods/functions (both class methods and standalone functions)
 - For constants: List all important constant declarations (const, final, readonly values)
 - For classes: List all class definitions
-- This is where methods and constants should appear - NOT in memberVariables`;
+- This is where methods and constants should appear - NOT in fields
+
+**For methodDependencies** (method call relationships within this file):
+- Analyze which methods/functions call other methods/functions in THIS file
+- Only include internal dependencies (within the same file)
+- Provide line numbers for both caller and callee
+- Add brief description of why the dependency exists
+- This helps visualize the code flow and structure`;
   }
 
   private supportsJsonMode(): boolean {

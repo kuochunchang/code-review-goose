@@ -64,12 +64,20 @@ export interface Dependency {
   isExternal: boolean;
 }
 
-export interface MemberVariable {
+export interface Field {
   name: string;
   type: string; // Data type (e.g., string, number, User, etc.)
   description: string;
-  line?: number; // Line number where this variable is defined
+  line?: number; // Line number where this field is defined
   visibility?: 'public' | 'private' | 'protected'; // Optional visibility modifier
+}
+
+export interface MethodDependency {
+  caller: string; // The method that calls another method
+  callee: string; // The method being called
+  callerLine?: number; // Line number where the caller is defined
+  calleeLine?: number; // Line number where the callee is defined
+  description?: string; // Optional description of why this dependency exists
 }
 
 /**
@@ -77,8 +85,9 @@ export interface MemberVariable {
  */
 export interface ExplainResult {
   overview: string; // Brief summary
-  memberVariables?: MemberVariable[]; // Class/module member variables
-  mainComponents: ComponentInfo[]; // Key components
+  fields?: Field[]; // Class/module data fields
+  mainComponents: ComponentInfo[]; // Key components (methods, functions, constants, classes, etc.)
+  methodDependencies?: MethodDependency[]; // Dependencies between methods in this file
   howItWorks: WorkflowStep[]; // Step-by-step flow
   keyConcepts: KeyConcept[]; // Important concepts
   dependencies: Dependency[]; // External/internal dependencies
