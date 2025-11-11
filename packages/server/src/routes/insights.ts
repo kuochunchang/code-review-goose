@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { InsightService } from '../services/insightService.js';
-import type { AnalysisResult } from '../types/ai.js';
+import type { AnalysisResult, ExplainResult } from '../types/ai.js';
 
 export const insightsRouter = Router();
 
@@ -137,6 +137,59 @@ insightsRouter.post('/', async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to save insight',
+    });
+  }
+});
+
+/**
+ * PUT /api/insights/explain
+ * Save or update code explanation
+ */
+insightsRouter.put('/explain', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const projectPath = req.app.locals.projectPath;
+    const { filePath, codeHash, explain } = req.body as {
+      filePath?: string;
+      codeHash?: string;
+      explain?: ExplainResult;
+    };
+
+    if (!filePath || typeof filePath !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: 'File path is required',
+      });
+      return;
+    }
+
+    if (!codeHash || typeof codeHash !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: 'Code hash is required',
+      });
+      return;
+    }
+
+    if (!explain) {
+      res.status(400).json({
+        success: false,
+        error: 'Explanation is required',
+      });
+      return;
+    }
+
+    const insightService = new InsightService(projectPath);
+    const insight = await insightService.setExplain(filePath, codeHash, explain);
+
+    res.json({
+      success: true,
+      data: insight,
+    });
+  } catch (error) {
+    console.error('Save explain error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to save explanation',
     });
   }
 });

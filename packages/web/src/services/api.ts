@@ -20,6 +20,7 @@ import type {
   UMLResult,
   DiagramType,
   UMLDiagrams,
+  ExplainResult,
 } from '../types/insight';
 
 const api = axios.create({
@@ -95,6 +96,17 @@ export const analysisApi = {
       throw new Error(response.data.error || 'Failed to check file analyzability');
     }
     return response.data.data.isAnalyzable;
+  },
+
+  async explainCode(code: string, options?: AnalysisOptions): Promise<ExplainResult> {
+    const response = await api.post<ApiResponse<ExplainResult>>('/analysis/explain', {
+      code,
+      options,
+    });
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || 'Code explanation failed');
+    }
+    return response.data.data;
   },
 };
 
@@ -279,6 +291,22 @@ export const insightsApi = {
   async getAllUML(filePath: string): Promise<UMLDiagrams | null> {
     const insight = await this.getInsight(filePath);
     return insight?.uml || null;
+  },
+
+  async saveExplain(
+    filePath: string,
+    codeHash: string,
+    explain: ExplainResult
+  ): Promise<InsightRecord> {
+    const response = await api.put<ApiResponse<InsightRecord>>('/insights/explain', {
+      filePath,
+      codeHash,
+      explain,
+    });
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || 'Failed to save explanation');
+    }
+    return response.data.data;
   },
 };
 

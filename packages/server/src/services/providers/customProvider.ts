@@ -6,6 +6,7 @@ import type {
   AnalysisResult,
   Issue,
   DiagramGenerationResult,
+  ExplainResult,
 } from '../../types/ai.js';
 
 /**
@@ -91,6 +92,162 @@ export class CustomProvider implements AIProvider {
       }
       throw new Error('AI analysis failed: Unknown error');
     }
+  }
+
+  async explain(code: string, options: AnalysisOptions): Promise<ExplainResult> {
+    if (!this.client) {
+      throw new Error('Custom AI client not initialized. Please configure base URL first.');
+    }
+
+    const prompt = this.buildExplainPrompt(code, options);
+
+    try {
+      const requestParams: any = {
+        model: this.model,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are an expert code explainer. Provide clear, comprehensive explanations of code in structured JSON format.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.4,
+      };
+
+      const response = await this.client.chat.completions.create(requestParams);
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No response from custom AI provider');
+      }
+
+      // Extract JSON from potential markdown code blocks
+      const jsonContent = this.extractJSON(content);
+      const result = JSON.parse(jsonContent);
+
+      return {
+        overview: result.overview || '',
+        fields: result.fields || [],
+        mainComponents: result.mainComponents || [],
+        methodDependencies: result.methodDependencies || [],
+        howItWorks: result.howItWorks || [],
+        keyConcepts: result.keyConcepts || [],
+        dependencies: result.dependencies || [],
+        notableFeatures: result.notableFeatures || [],
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Custom AI provider error:', error);
+      if (error instanceof Error) {
+        throw new Error(`Code explanation failed: ${error.message}`);
+      }
+      throw new Error('Code explanation failed: Unknown error');
+    }
+  }
+
+  private buildExplainPrompt(code: string, options: AnalysisOptions): string {
+    const language = options.language || 'unknown';
+    const filePath = options.filePath || 'unknown';
+
+    return `Explain the following ${language} code from ${filePath}.
+
+Return the explanation in the following JSON format:
+{
+  "overview": "Brief 2-3 sentence summary of what the code does",
+  "fields": [
+    {
+      "name": "fieldName",
+      "type": "string|number|boolean|object|ClassName",
+      "description": "What this field stores or represents",
+      "line": 5,
+      "visibility": "public|private|protected"
+    }
+  ],
+  "mainComponents": [
+    {
+      "name": "ComponentName",
+      "description": "What this component does",
+      "type": "class|function|module|interface|constant|type|variable",
+      "codeSnippet": "Optional: key code snippet",
+      "line": 10
+    }
+  ],
+  "methodDependencies": [
+    {
+      "caller": "methodA",
+      "callee": "methodB",
+      "callerLine": 20,
+      "calleeLine": 35,
+      "description": "methodA calls methodB to process data"
+    }
+  ],
+  "howItWorks": [
+    {
+      "step": 1,
+      "title": "Short title of this step",
+      "description": "Detailed explanation of what happens in this step",
+      "line": 15
+    }
+  ],
+  "keyConcepts": [
+    {
+      "concept": "Concept name (e.g., 'Dependency Injection')",
+      "explanation": "Clear explanation of this concept and how it's used"
+    }
+  ],
+  "dependencies": [
+    {
+      "name": "Module or library name",
+      "purpose": "What it's used for in this code",
+      "isExternal": true
+    }
+  ],
+  "notableFeatures": [
+    "Highlight 1: Description",
+    "Highlight 2: Description"
+  ]
+}
+
+Code (with line numbers):
+\`\`\`${language}
+${code
+  .split('\n')
+  .map((line, i) => `${i + 1}: ${line}`)
+  .join('\n')}
+\`\`\`
+
+Guidelines:
+- Be specific and educational
+- Include actual names from the code
+- Keep descriptions clear and concise
+- Focus on the most important aspects
+- Order steps logically in howItWorks
+- **IMPORTANT**: Include line numbers for fields, mainComponents, methodDependencies, and howItWorks to enable code navigation
+- Line numbers should correspond to where the item is defined or where the action occurs in the code
+
+**For fields** (class/module-level data fields ONLY):
+- List class or module-level data fields (properties, state variables, instance variables)
+- Examples: class properties, instance variables, module-level state
+- Do NOT include: local variables, function parameters, constants, or methods
+- Include visibility (public/private/protected) when it's clear from the code
+
+**For mainComponents** (all major code structures):
+- **MUST include ALL**: classes, methods/functions, constants, interfaces, types, modules
+- For methods: List all important methods/functions (both class methods and standalone functions)
+- For constants: List all important constant declarations (const, final, readonly values)
+- For classes: List all class definitions
+- This is where methods and constants should appear - NOT in fields
+
+**For methodDependencies** (method call relationships within this file):
+- Analyze which methods/functions call other methods/functions in THIS file
+- Only include internal dependencies (within the same file)
+- Provide line numbers for both caller and callee
+- Add brief description of why the dependency exists
+- This helps visualize the code flow and structure`;
   }
 
   private buildPrompt(code: string, options: AnalysisOptions): string {
