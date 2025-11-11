@@ -101,12 +101,6 @@
         </template>
       </v-tooltip>
 
-      <v-tooltip text="Review History" location="bottom">
-        <template v-slot:activator="{ props }">
-          <v-btn icon="mdi-history" @click="openReviewHistory" v-bind="props" class="mr-2"></v-btn>
-        </template>
-      </v-tooltip>
-
       <v-tooltip :text="uiStore.theme === 'light' ? 'Dark Mode' : 'Light Mode'" location="bottom">
         <template v-slot:activator="{ props }">
           <v-btn
@@ -134,9 +128,6 @@
     <!-- Settings Dialog -->
     <SettingsDialog v-model="settingsDialog" @saved="handleSettingsSaved" />
 
-    <!-- Review History Dialog -->
-    <ReviewHistoryDialog v-model="reviewHistoryDialog" @select-review="handleSelectReview" />
-
     <!-- Search Dialog -->
     <SearchDialog v-model="searchDialog" @select-match="handleSelectMatch" />
 
@@ -155,14 +146,12 @@ import FileTree from '../components/FileTree.vue';
 import CodeViewer from '../components/CodeViewer.vue';
 import AnalysisPanel from '../components/AnalysisPanel.vue';
 import SettingsDialog from '../components/SettingsDialog.vue';
-import ReviewHistoryDialog from '../components/ReviewHistoryDialog.vue';
 import SearchDialog from '../components/SearchDialog.vue';
 import KeyboardShortcutsDialog from '../components/KeyboardShortcutsDialog.vue';
 import AppFooter from '../components/AppFooter.vue';
 import { useUIStore } from '../stores/ui';
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts';
 import type { KeyboardShortcut } from '../composables/useKeyboardShortcuts';
-import type { ReviewRecord } from '../types/review';
 import axios from 'axios';
 import { useDisplay } from 'vuetify';
 
@@ -172,7 +161,6 @@ const { mdAndUp } = useDisplay();
 const selectedFile = ref<string | undefined>(undefined);
 const codeViewerRef = ref<InstanceType<typeof CodeViewer> | null>(null);
 const settingsDialog = ref(false);
-const reviewHistoryDialog = ref(false);
 const searchDialog = ref(false);
 const shortcutsDialog = ref(false);
 const currentCode = ref<string>('');
@@ -210,14 +198,6 @@ const keyboardShortcuts: KeyboardShortcut[] = [
     description: 'Open UML Diagram',
     handler: () => {
       openUMLViewer();
-    },
-  },
-  {
-    key: 'h',
-    ctrl: true,
-    description: 'Open Review History',
-    handler: () => {
-      reviewHistoryDialog.value = true;
     },
   },
   {
@@ -314,10 +294,6 @@ const openSettings = () => {
   settingsDialog.value = true;
 };
 
-const openReviewHistory = () => {
-  reviewHistoryDialog.value = true;
-};
-
 const openSearch = () => {
   searchDialog.value = true;
 };
@@ -335,15 +311,6 @@ const openUMLViewer = () => {
   const left = window.screenX + (window.outerWidth - width) / 2;
   const top = window.screenY + (window.outerHeight - height) / 2;
   window.open('/uml', 'UML_Viewer', `width=${width},height=${height},left=${left},top=${top}`);
-};
-
-const handleSelectReview = (review: ReviewRecord) => {
-  // Load the file from the review
-  selectedFile.value = review.filePath;
-  // Close the dialog
-  reviewHistoryDialog.value = false;
-  // Optionally show the review's analysis results
-  console.log('Selected review:', review);
 };
 
 const handleSelectMatch = (filePath: string, line: number) => {
