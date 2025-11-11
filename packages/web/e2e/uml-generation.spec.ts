@@ -104,4 +104,115 @@ test.describe('UML Generation', () => {
       }
     }
   });
+
+  test('should display sequence diagram in Explain tab when method dependencies exist', async ({
+    page,
+  }) => {
+    // Wait for file tree and select a TypeScript/JavaScript file
+    await expect(page.locator('[data-testid="file-tree"]')).toBeVisible({ timeout: 10000 });
+
+    const codeFile = page
+      .locator('[data-testid="file-tree-item"]')
+      .filter({ hasText: /\.(ts|js)$/ })
+      .first();
+
+    if ((await codeFile.count()) > 0) {
+      await codeFile.click();
+
+      // Wait for code to load
+      await page.waitForTimeout(1000);
+
+      // Switch to Explain tab if not already there
+      const explainTab = page.locator('button:has-text("Explain"), [role="tab"]:has-text("Explain")').first();
+
+      if ((await explainTab.count()) > 0) {
+        await explainTab.click();
+        await page.waitForTimeout(500);
+      }
+
+      // Click Explain button
+      const explainButton = page.locator('button:has-text("Explain")').last();
+
+      if ((await explainButton.count()) > 0 && !(await explainButton.isDisabled())) {
+        await explainButton.click();
+
+        // Wait for explanation to be generated
+        await page.waitForTimeout(5000);
+
+        // Check if sequence diagram preview exists
+        const sequenceDiagram = page.locator('.sequence-diagram-preview');
+
+        if ((await sequenceDiagram.count()) > 0) {
+          await expect(sequenceDiagram).toBeVisible({ timeout: 5000 });
+
+          // Check that mermaid container exists inside preview
+          const mermaidContainer = sequenceDiagram.locator('.mermaid-container');
+          await expect(mermaidContainer).toBeVisible();
+        }
+      }
+    }
+  });
+
+  test('should open enlarged sequence diagram modal when Enlarge button is clicked', async ({
+    page,
+  }) => {
+    // Wait for file tree and select a code file
+    await expect(page.locator('[data-testid="file-tree"]')).toBeVisible({ timeout: 10000 });
+
+    const codeFile = page
+      .locator('[data-testid="file-tree-item"]')
+      .filter({ hasText: /\.(ts|js)$/ })
+      .first();
+
+    if ((await codeFile.count()) > 0) {
+      await codeFile.click();
+      await page.waitForTimeout(1000);
+
+      // Switch to Explain tab
+      const explainTab = page.locator('button:has-text("Explain"), [role="tab"]:has-text("Explain")').first();
+
+      if ((await explainTab.count()) > 0) {
+        await explainTab.click();
+        await page.waitForTimeout(500);
+
+        // Click Explain button to generate explanation
+        const explainButton = page.locator('button:has-text("Explain")').last();
+
+        if ((await explainButton.count()) > 0 && !(await explainButton.isDisabled())) {
+          await explainButton.click();
+          await page.waitForTimeout(5000);
+
+          // Look for Enlarge button
+          const enlargeButton = page.locator('button:has-text("Enlarge")');
+
+          if ((await enlargeButton.count()) > 0) {
+            await enlargeButton.click();
+
+            // Wait for modal to open
+            await page.waitForTimeout(500);
+
+            // Check that modal dialog is visible
+            const modal = page.locator('[role="dialog"], .v-dialog').last();
+            await expect(modal).toBeVisible({ timeout: 3000 });
+
+            // Check for large mermaid container
+            const largeMermaidContainer = page.locator('.mermaid-large-container');
+            await expect(largeMermaidContainer).toBeVisible();
+
+            // Close modal
+            const closeButton = page.locator('button[icon="mdi-close"], button:has-text("Close")').last();
+
+            if ((await closeButton.count()) > 0) {
+              await closeButton.click();
+              await page.waitForTimeout(500);
+
+              // Modal should be closed
+              const isModalVisible = await modal.isVisible().catch(() => false);
+              expect(isModalVisible).toBe(false);
+            }
+          }
+        }
+      }
+    }
+  });
 });

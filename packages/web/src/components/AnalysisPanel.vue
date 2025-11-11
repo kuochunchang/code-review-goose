@@ -369,7 +369,23 @@
                 <h3 class="text-subtitle-2 mb-3 d-flex align-center">
                   <v-icon icon="mdi-call-split" size="small" class="mr-2"></v-icon>
                   Method Dependencies ({{ explainResult.methodDependencies.length }})
+                  <v-spacer></v-spacer>
+                  <v-btn
+                    size="x-small"
+                    variant="text"
+                    prepend-icon="mdi-arrow-expand-all"
+                    @click="openSequenceDiagramModal"
+                  >
+                    Enlarge
+                  </v-btn>
                 </h3>
+
+                <!-- Sequence Diagram Preview -->
+                <div class="sequence-diagram-preview mb-3">
+                  <div ref="sequenceContainer" class="mermaid-container"></div>
+                </div>
+
+                <!-- Original List View -->
                 <v-list density="compact">
                   <v-list-item
                     v-for="(dep, index) in explainResult.methodDependencies"
@@ -529,17 +545,34 @@
         </v-window>
       </v-card-text>
     </v-card>
+
+    <!-- Sequence Diagram Modal -->
+    <v-dialog v-model="showSequenceDiagram" max-width="90vw" scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon icon="mdi-chart-gantt" class="mr-2"></v-icon>
+          Sequence Diagram - Method Dependencies
+          <v-spacer></v-spacer>
+          <v-btn icon="mdi-close" variant="text" @click="showSequenceDiagram = false"></v-btn>
+        </v-card-title>
+        <v-divider></v-divider>
+        <v-card-text class="pa-4">
+          <div ref="sequenceModalContainer" class="mermaid-large-container"></div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { analysisApi, insightsApi } from '../services/api';
 import { useProjectStore } from '../stores/project';
 import { useMarkdown } from '../composables/useMarkdown';
 import { computeHash } from '../utils/hash';
 import type { AnalysisResult } from '../types/analysis';
 import type { ExplainResult } from '../types/insight';
+import mermaid from 'mermaid';
 
 interface Props {
   filePath?: string;
@@ -577,6 +610,11 @@ const explainResult = ref<ExplainResult | null>(null);
 const explainError = ref<string | null>(null);
 const explainAutoSaved = ref(false);
 const explainStatus = ref<'none' | 'up-to-date' | 'outdated'>('none');
+
+// Sequence diagram feature
+const showSequenceDiagram = ref(false);
+const sequenceContainer = ref<HTMLElement | null>(null);
+const sequenceModalContainer = ref<HTMLElement | null>(null);
 
 // Unified function to create analysis options
 // This must match the backend createAnalysisOptions to ensure cache key consistency
@@ -916,6 +954,62 @@ const getVisibilityColor = (visibility: 'public' | 'private' | 'protected'): str
   };
   return colorMap[visibility] || 'grey';
 };
+
+// Initialize Mermaid
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'default',
+  securityLevel: 'loose',
+  fontFamily: 'monospace',
+});
+
+// Generate Mermaid sequence diagram syntax from methodDependencies
+const generateSequenceDiagram = (): string | null => {
+  if (!explainResult.value?.methodDependencies || explainResult.value.methodDependencies.length === 0) {
+    return null;
+  }
+
+  let mermaidCode = 'sequenceDiagram\n';
+
+  explainResult.value.methodDependencies.forEach(dep => {
+    const description = dep.description || 'calls';
+    mermaidCode += `    ${dep.caller}->>${dep.callee}: ${description}\n`;
+  });
+
+  return mermaidCode;
+};
+
+// Render sequence diagram in a container
+const renderSequenceDiagram = async (container: HTMLElement | null, enlarged: boolean = false) => {
+  if (!container) return;
+
+  const mermaidCode = generateSequenceDiagram();
+  if (!mermaidCode) return;
+
+  try {
+    const id = `sequence-${Date.now()}-${enlarged ? 'modal' : 'preview'}`;
+    const { svg } = await mermaid.render(id, mermaidCode);
+    container.innerHTML = svg;
+  } catch (err) {
+    console.error('Failed to render sequence diagram:', err);
+    container.innerHTML = '<p class="text-error text-caption">Failed to render sequence diagram</p>';
+  }
+};
+
+// Open sequence diagram in modal
+const openSequenceDiagramModal = async () => {
+  showSequenceDiagram.value = true;
+  await nextTick();
+  renderSequenceDiagram(sequenceModalContainer.value, true);
+};
+
+// Watch for explainResult changes to render preview
+watch(explainResult, async (newResult) => {
+  if (newResult?.methodDependencies && newResult.methodDependencies.length > 0) {
+    await nextTick();
+    renderSequenceDiagram(sequenceContainer.value, false);
+  }
+}, { immediate: true });
 </script>
 
 <style scoped>
@@ -1057,5 +1151,31 @@ const getVisibilityColor = (visibility: 'public' | 'private' | 'protected'): str
 
 .markdown-content a:hover {
   text-decoration: underline;
+}
+
+/* Sequence diagram styles */
+.sequence-diagram-preview {
+  max-height: 300px;
+  overflow: auto;
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.mermaid-container {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mermaid-large-container {
+  min-height: 500px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
