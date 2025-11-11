@@ -290,7 +290,19 @@
                           <v-chip size="small" :color="getComponentColor(component.type)" class="mr-2">
                             {{ component.type }}
                           </v-chip>
-                          <span class="text-subtitle-2 font-weight-bold">{{ component.name }}</span>
+                          <span class="text-subtitle-2 font-weight-bold flex-grow-1">{{
+                            component.name
+                          }}</span>
+                          <v-btn
+                            v-if="component.line"
+                            size="x-small"
+                            variant="text"
+                            color="primary"
+                            prepend-icon="mdi-cursor-default-click"
+                            @click="emit('jumpToLine', component.line)"
+                          >
+                            Line {{ component.line }}
+                          </v-btn>
                         </div>
                         <p class="text-caption text-grey-darken-1">{{ component.description }}</p>
                         <pre
@@ -322,7 +334,19 @@
                       <span class="text-caption font-weight-bold">Step {{ step.step }}</span>
                     </template>
                     <div>
-                      <div class="text-subtitle-2 mb-1">{{ step.title }}</div>
+                      <div class="d-flex align-center mb-1">
+                        <div class="text-subtitle-2 flex-grow-1">{{ step.title }}</div>
+                        <v-btn
+                          v-if="step.line"
+                          size="x-small"
+                          variant="text"
+                          color="primary"
+                          prepend-icon="mdi-cursor-default-click"
+                          @click="emit('jumpToLine', step.line)"
+                        >
+                          Line {{ step.line }}
+                        </v-btn>
+                      </div>
                       <p class="text-caption text-grey-darken-1">{{ step.description }}</p>
                     </div>
                   </v-timeline-item>

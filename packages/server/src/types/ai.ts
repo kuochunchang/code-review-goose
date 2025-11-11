@@ -67,12 +67,14 @@ export interface ComponentInfo {
   description: string;
   type: 'class' | 'function' | 'module' | 'interface' | 'constant' | 'type' | 'variable';
   codeSnippet?: string;
+  line?: number; // Line number where this component is defined
 }
 
 export interface WorkflowStep {
   step: number;
   title: string;
   description: string;
+  line?: number; // Line number related to this step
 }
 
 export interface KeyConcept {

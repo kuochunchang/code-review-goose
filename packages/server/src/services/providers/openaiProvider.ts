@@ -169,14 +169,16 @@ Return the explanation in the following JSON format:
       "name": "ComponentName",
       "description": "What this component does",
       "type": "class|function|module|interface|constant|type|variable",
-      "codeSnippet": "Optional: key code snippet"
+      "codeSnippet": "Optional: key code snippet",
+      "line": 10
     }
   ],
   "howItWorks": [
     {
       "step": 1,
       "title": "Short title of this step",
-      "description": "Detailed explanation of what happens in this step"
+      "description": "Detailed explanation of what happens in this step",
+      "line": 15
     }
   ],
   "keyConcepts": [
@@ -198,9 +200,12 @@ Return the explanation in the following JSON format:
   ]
 }
 
-Code:
+Code (with line numbers):
 \`\`\`${language}
-${code}
+${code
+  .split('\n')
+  .map((line, i) => `${i + 1}: ${line}`)
+  .join('\n')}
 \`\`\`
 
 Guidelines:
@@ -208,7 +213,9 @@ Guidelines:
 - Include actual names from the code
 - Keep descriptions clear and concise
 - Focus on the most important aspects
-- Order steps logically in howItWorks`;
+- Order steps logically in howItWorks
+- **IMPORTANT**: Include line numbers for mainComponents and howItWorks to enable code navigation
+- Line numbers should correspond to where the component is defined or where the step occurs in the code`;
   }
 
   private supportsJsonMode(): boolean {
