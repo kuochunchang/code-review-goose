@@ -131,6 +131,7 @@ export class CustomProvider implements AIProvider {
 
       return {
         overview: result.overview || '',
+        memberVariables: result.memberVariables || [],
         mainComponents: result.mainComponents || [],
         howItWorks: result.howItWorks || [],
         keyConcepts: result.keyConcepts || [],
