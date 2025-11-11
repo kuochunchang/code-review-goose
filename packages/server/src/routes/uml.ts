@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { UMLService, DiagramType, UMLResult } from '../services/umlService.js';
+import { UMLService, DiagramType } from '../services/umlService.js';
 import { AIService } from '../services/aiService.js';
 import { ConfigService } from '../services/configService.js';
 import { InsightService } from '../services/insightService.js';
