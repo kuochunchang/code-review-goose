@@ -4,10 +4,19 @@
       <v-card-title class="text-subtitle-1 py-2 px-3 d-flex align-center">
         <v-icon icon="mdi-brain" size="small" class="mr-2"></v-icon>
         <span class="flex-grow-1">AI Analysis</span>
+        <!-- Insight status indicator -->
+        <span v-if="insightStatus === 'up-to-date'" class="text-caption text-success mr-2">
+          <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-1"></v-icon>
+          Up to date
+        </span>
+        <span v-else-if="insightStatus === 'outdated'" class="text-caption text-warning mr-2">
+          <v-icon icon="mdi-alert" size="small" color="warning" class="mr-1"></v-icon>
+          Code changed
+        </span>
         <!-- Auto-save status indicator -->
         <span v-if="autoSaved" class="text-caption text-success mr-2">
           <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-1"></v-icon>
-          Auto-saved
+          Saved
         </span>
         <v-btn
           v-if="analysisResult && currentFile"
@@ -67,6 +76,22 @@
         </v-alert>
 
         <div v-else-if="analysisResult" class="analysis-content" data-testid="analysis-results">
+          <!-- Outdated warning banner -->
+          <v-alert
+            v-if="insightStatus === 'outdated'"
+            type="warning"
+            variant="tonal"
+            density="compact"
+            class="ma-2 mb-0"
+          >
+            <template #prepend>
+              <v-icon icon="mdi-alert"></v-icon>
+            </template>
+            <span class="text-body-2">
+              Code has changed since last analysis. Click "Analyze" to refresh insights.
+            </span>
+          </v-alert>
+
           <!-- Summary -->
           <div class="summary-section pa-3">
             <h3 class="text-subtitle-2 mb-2">Summary</h3>
@@ -173,9 +198,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { analysisApi, reviewApi } from '../services/api';
+import { analysisApi, insightsApi } from '../services/api';
 import { useProjectStore } from '../stores/project';
 import { useMarkdown } from '../composables/useMarkdown';
+import { computeHash } from '../utils/hash';
 import type { AnalysisResult } from '../types/analysis';
 
 interface Props {
@@ -201,6 +227,11 @@ const expandedIssues = ref<number[]>([]);
 const severityFilter = ref<string[]>(['critical', 'high', 'medium', 'low', 'info']);
 const loadingCache = ref(false);
 const isFileAnalyzable = ref(true);
+
+// Insight status tracking
+const insightStatus = ref<'none' | 'up-to-date' | 'outdated'>('none');
+const currentCodeHash = ref<string>('');
+const insightTimestamp = ref<string>('');
 
 // Unified function to create analysis options
 // This must match the backend createAnalysisOptions to ensure cache key consistency
@@ -235,7 +266,7 @@ const createAnalysisOptions = (filePath: string) => {
   };
 };
 
-// Watch for file changes and auto-load cached analysis
+// Watch for file changes and auto-load insights
 watch(currentFile, async (newFilePath, oldFilePath) => {
   if (!newFilePath || newFilePath === oldFilePath) return;
 
@@ -246,12 +277,15 @@ watch(currentFile, async (newFilePath, oldFilePath) => {
   autoSaved.value = false;
   loadingCache.value = true;
   isFileAnalyzable.value = true;
+  insightStatus.value = 'none';
+  currentCodeHash.value = '';
+  insightTimestamp.value = '';
 
   try {
     // Check if file is analyzable
     isFileAnalyzable.value = await analysisApi.isFileAnalyzable(newFilePath);
 
-    // If file is not analyzable, don't try to load cached analysis
+    // If file is not analyzable, don't try to load insights
     if (!isFileAnalyzable.value) {
       loadingCache.value = false;
       return;
@@ -260,18 +294,31 @@ watch(currentFile, async (newFilePath, oldFilePath) => {
     // Fetch file content
     const content = await projectStore.fetchFileContent(newFilePath);
 
-    // Try to load cached analysis using standardized options
-    const cachedResult = await analysisApi.getCachedAnalysis(
-      content,
-      createAnalysisOptions(newFilePath)
-    );
+    // Compute hash of current code
+    const hash = await computeHash(content);
+    currentCodeHash.value = hash;
 
-    if (cachedResult) {
-      analysisResult.value = cachedResult;
+    // Check if insight exists and whether hash matches
+    const checkResult = await insightsApi.checkInsight(newFilePath, hash);
+
+    if (checkResult.hasRecord && checkResult.insight) {
+      // Display the insight
+      analysisResult.value = checkResult.insight.analysis;
+      insightTimestamp.value = checkResult.insight.timestamp;
+
+      // Set status based on hash match
+      if (checkResult.hashMatched) {
+        insightStatus.value = 'up-to-date';
+      } else {
+        insightStatus.value = 'outdated';
+      }
+    } else {
+      insightStatus.value = 'none';
     }
   } catch (err) {
-    console.error('Failed to load cached analysis:', err);
-    // Don't show error to user, just no cached result available
+    console.error('Failed to load insight:', err);
+    // Don't show error to user, just no insight available
+    insightStatus.value = 'none';
   } finally {
     loadingCache.value = false;
   }
@@ -301,6 +348,10 @@ const runAnalysis = async () => {
     // Fetch file content
     const content = await projectStore.fetchFileContent(currentFile.value);
 
+    // Compute hash of current code
+    const hash = await computeHash(content);
+    currentCodeHash.value = hash;
+
     // Call AI analysis API using standardized options
     const result = await analysisApi.analyzeCode(content, createAnalysisOptions(currentFile.value));
 
@@ -309,13 +360,13 @@ const runAnalysis = async () => {
     // Reset expanded issues when new analysis is done
     expandedIssues.value = [];
 
-    // Auto-save the review result
+    // Save insight with hash
     try {
-      await reviewApi.createReview({
-        filePath: currentFile.value,
-        analysis: result,
-        notes: '',
-      });
+      await insightsApi.saveInsight(currentFile.value, hash, result);
+
+      // Update insight status
+      insightStatus.value = 'up-to-date';
+      insightTimestamp.value = new Date().toISOString();
 
       // Show auto-saved indicator
       autoSaved.value = true;
@@ -326,8 +377,8 @@ const runAnalysis = async () => {
         autoSaved.value = false;
       }, 3000);
     } catch (saveErr) {
-      console.error('Failed to auto-save review:', saveErr);
-      // Don't show error to user, auto-save failure is not critical
+      console.error('Failed to save insight:', saveErr);
+      // Don't show error to user, save failure is not critical
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Analysis failed';

@@ -11,8 +11,6 @@ import { createAnalysisOptions } from '../utils/analysisOptions.js';
 import { AIService } from './aiService.js';
 import { FileService } from './fileService.js';
 import { ProjectService } from './projectService.js';
-import { CacheService } from './cacheService.js';
-import { ReviewService } from './reviewService.js';
 import type { FileNode } from './projectService.js';
 
 export class BatchAnalysisService {
@@ -20,16 +18,12 @@ export class BatchAnalysisService {
   private aiService: AIService;
   private fileService: FileService;
   private projectService: ProjectService;
-  private cacheService: CacheService;
-  private reviewService: ReviewService;
 
   constructor(projectPath: string) {
     this.projectPath = projectPath;
     this.aiService = new AIService(projectPath);
     this.fileService = new FileService(projectPath);
     this.projectService = new ProjectService(projectPath);
-    this.cacheService = new CacheService(projectPath);
-    this.reviewService = new ReviewService(projectPath);
   }
 
   /**
@@ -172,7 +166,7 @@ export class BatchAnalysisService {
   /**
    * Analyze a single file
    */
-  private async analyzeFile(filePath: string, force: boolean): Promise<FileAnalysisResult> {
+  private async analyzeFile(filePath: string, _force: boolean): Promise<FileAnalysisResult> {
     const startTime = Date.now();
 
     try {
@@ -182,32 +176,8 @@ export class BatchAnalysisService {
       // Use standardized options builder to ensure cache key consistency
       const analysisOptions = createAnalysisOptions(filePath, this.getLanguageFromPath(filePath));
 
-      // Check if file needs analysis (check cache first)
-      if (!force) {
-        const cached = await this.cacheService.get(content, analysisOptions);
-
-        if (cached) {
-          const duration = Date.now() - startTime;
-          return {
-            filePath,
-            analyzed: false,
-            skipReason: 'Already cached (file not modified)',
-            duration,
-          };
-        }
-      }
-
       // Analyze the file
       const analysis = await this.aiService.analyzeCode(content, analysisOptions);
-
-      // Save to cache (for fast access when opening files in UI)
-      await this.cacheService.set(content, analysisOptions, analysis);
-
-      // Save to reviews (for UI to display in Reviews page)
-      await this.reviewService.createOrUpdate({
-        filePath,
-        analysis,
-      });
 
       const duration = Date.now() - startTime;
 

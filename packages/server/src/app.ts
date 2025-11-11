@@ -9,8 +9,8 @@ import { analysisRouter } from './routes/analysis.js';
 import { batchRouter } from './routes/batch.js';
 import { configRouter } from './routes/config.js';
 import { fileRouter } from './routes/file.js';
+import { insightsRouter } from './routes/insights.js';
 import { projectRouter } from './routes/project.js';
-import { reviewRouter } from './routes/review.js';
 import { searchRouter } from './routes/search.js';
 import { umlRouter } from './routes/uml.js';
 import type { ServerConfig, ServerInstance } from './types/server.js';
@@ -36,7 +36,7 @@ export async function createServer(config: ServerConfig): Promise<ServerInstance
   app.use('/api/analysis', analysisRouter);
   app.use('/api/batch', batchRouter);
   app.use('/api/config', configRouter);
-  app.use('/api/reviews', reviewRouter);
+  app.use('/api/insights', insightsRouter);
   app.use('/api/search', searchRouter);
   app.use('/api/uml', umlRouter);
 
