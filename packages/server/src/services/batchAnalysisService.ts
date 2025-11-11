@@ -176,21 +176,6 @@ export class BatchAnalysisService {
       // Use standardized options builder to ensure cache key consistency
       const analysisOptions = createAnalysisOptions(filePath, this.getLanguageFromPath(filePath));
 
-      // Check if file needs analysis (check cache first)
-      if (!force) {
-        const cached = await this.cacheService.get(content, analysisOptions);
-
-        if (cached) {
-          const duration = Date.now() - startTime;
-          return {
-            filePath,
-            analyzed: false,
-            skipReason: 'Already cached (file not modified)',
-            duration,
-          };
-        }
-      }
-
       // Analyze the file
       const analysis = await this.aiService.analyzeCode(content, analysisOptions);
 
