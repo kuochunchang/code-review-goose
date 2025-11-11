@@ -5,14 +5,14 @@ import { umlRouter } from '../../../routes/uml.js';
 import { UMLService } from '../../../services/umlService.js';
 import { AIService } from '../../../services/aiService.js';
 import { ConfigService } from '../../../services/configService.js';
-import { CacheService } from '../../../services/cacheService.js';
+import { InsightService } from '../../../services/insightService.js';
 import type { UMLResult } from '../../../services/umlService.js';
 
 // Mock services
 vi.mock('../../../services/umlService.js');
 vi.mock('../../../services/aiService.js');
 vi.mock('../../../services/configService.js');
-vi.mock('../../../services/cacheService.js');
+vi.mock('../../../services/insightService.js');
 
 describe('UML API', () => {
   let app: express.Application;
@@ -27,27 +27,22 @@ describe('UML API', () => {
 
   describe('POST /api/uml/generate', () => {
     const mockUMLResult: UMLResult = {
-      diagram: 'classDiagram\n  class Test',
+      type: 'class',
+      mermaidCode: 'classDiagram\n  class Test',
+      generationMode: 'native',
       metadata: {
-        generatedAt: new Date().toISOString(),
-        version: '1.0',
-        type: 'class',
-        elements: {
-          classes: 1,
-          interfaces: 0,
-          relationships: 0,
-        },
+        classes: [{ name: 'Test', type: 'class', properties: [], methods: [] }],
       },
     };
 
     it('should generate UML diagram successfully', async () => {
       const mockGenerateDiagram = vi.fn().mockResolvedValue(mockUMLResult);
 
-      vi.mocked(CacheService).mockImplementation(
+      vi.mocked(InsightService).mockImplementation(
         () =>
           ({
-            get: vi.fn().mockResolvedValue(null),
-            set: vi.fn().mockResolvedValue(undefined),
+            check: vi.fn().mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
+            setUML: vi.fn().mockResolvedValue(undefined),
           }) as any
       );
 
@@ -74,12 +69,12 @@ describe('UML API', () => {
 
       const response = await request(app)
         .post('/api/uml/generate')
-        .send({ code: 'class Test {}', type: 'class' });
+        .send({ code: 'class Test {}', type: 'class', filePath: '/test/file.ts' });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.diagram).toBeDefined();
-      expect(response.body.data.fromCache).toBe(false);
+      expect(response.body.data.mermaidCode).toBeDefined();
+      expect(response.body.data.fromInsights).toBe(false);
     });
 
     it('should return cached result when available', async () => {

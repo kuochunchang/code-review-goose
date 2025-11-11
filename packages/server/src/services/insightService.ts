@@ -1,8 +1,9 @@
 import fs from 'fs-extra';
 import path from 'path';
 import crypto from 'crypto';
-import type { InsightRecord, InsightCheckResult } from '../types/insight.js';
+import type { InsightRecord, InsightCheckResult, DiagramType, UMLDiagrams } from '../types/insight.js';
 import type { AnalysisResult } from '../types/ai.js';
+import type { UMLResult } from './umlService.js';
 
 const INSIGHTS_DIR = '.code-review/insights';
 
@@ -83,10 +84,14 @@ export class InsightService {
   async set(filePath: string, codeHash: string, analysis: AnalysisResult): Promise<InsightRecord> {
     await this.ensureInsightsDir();
 
+    // Get existing insight to preserve UML if it exists
+    const existing = await this.get(filePath);
+
     const insight: InsightRecord = {
       filePath,
       codeHash,
       analysis,
+      uml: existing?.uml, // Preserve existing UML diagrams
       timestamp: new Date().toISOString(),
     };
 
@@ -94,6 +99,114 @@ export class InsightService {
     await fs.writeFile(insightPath, JSON.stringify(insight, null, 2), 'utf-8');
 
     return insight;
+  }
+
+  /**
+   * Set UML diagram for a specific type
+   */
+  async setUML(
+    filePath: string,
+    codeHash: string,
+    diagramType: DiagramType,
+    umlResult: UMLResult
+  ): Promise<InsightRecord> {
+    await this.ensureInsightsDir();
+
+    // Get existing insight or create new one
+    const existing = await this.get(filePath);
+
+    const insight: InsightRecord = {
+      filePath,
+      codeHash,
+      analysis: existing?.analysis, // Preserve existing analysis
+      uml: {
+        ...(existing?.uml || {}),
+        [diagramType]: umlResult,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    const insightPath = this.getInsightPath(filePath);
+    await fs.writeFile(insightPath, JSON.stringify(insight, null, 2), 'utf-8');
+
+    return insight;
+  }
+
+  /**
+   * Set multiple UML diagrams at once
+   */
+  async setUMLDiagrams(
+    filePath: string,
+    codeHash: string,
+    umlDiagrams: UMLDiagrams
+  ): Promise<InsightRecord> {
+    await this.ensureInsightsDir();
+
+    // Get existing insight or create new one
+    const existing = await this.get(filePath);
+
+    const insight: InsightRecord = {
+      filePath,
+      codeHash,
+      analysis: existing?.analysis, // Preserve existing analysis
+      uml: {
+        ...(existing?.uml || {}),
+        ...umlDiagrams,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    const insightPath = this.getInsightPath(filePath);
+    await fs.writeFile(insightPath, JSON.stringify(insight, null, 2), 'utf-8');
+
+    return insight;
+  }
+
+  /**
+   * Get UML diagram for a specific type
+   */
+  async getUML(filePath: string, diagramType: DiagramType): Promise<UMLResult | null> {
+    const insight = await this.get(filePath);
+    return insight?.uml?.[diagramType] || null;
+  }
+
+  /**
+   * Get all UML diagrams for a file
+   */
+  async getAllUML(filePath: string): Promise<UMLDiagrams | null> {
+    const insight = await this.get(filePath);
+    return insight?.uml || null;
+  }
+
+  /**
+   * Delete UML diagram for a specific type
+   */
+  async deleteUML(filePath: string, diagramType: DiagramType): Promise<boolean> {
+    try {
+      const insight = await this.get(filePath);
+
+      if (!insight || !insight.uml?.[diagramType]) {
+        return false;
+      }
+
+      // Remove the specific diagram type
+      delete insight.uml[diagramType];
+
+      // If no UML diagrams left, remove the uml property
+      if (Object.keys(insight.uml).length === 0) {
+        delete insight.uml;
+      }
+
+      insight.timestamp = new Date().toISOString();
+
+      const insightPath = this.getInsightPath(filePath);
+      await fs.writeFile(insightPath, JSON.stringify(insight, null, 2), 'utf-8');
+
+      return true;
+    } catch (error) {
+      console.error(`Error deleting UML diagram for ${filePath}:`, error);
+      return false;
+    }
   }
 
   /**
