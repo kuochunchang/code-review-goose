@@ -180,6 +180,17 @@
                     Line {{ issue.line }}{{ issue.column ? `:${issue.column}` : '' }} ·
                     {{ issue.category }}
                   </v-list-item-subtitle>
+                  <template #append>
+                    <v-btn
+                      size="x-small"
+                      variant="text"
+                      color="primary"
+                      prepend-icon="mdi-cursor-default-click"
+                      @click.stop="emit('jumpToLine', issue.line)"
+                    >
+                      Line {{ issue.line }}
+                    </v-btn>
+                  </template>
 
                   <!-- Expanded Details -->
                   <v-expand-transition>
@@ -203,16 +214,6 @@
                           <pre class="text-caption">{{ issue.codeExample.after }}</pre>
                         </div>
                       </div>
-
-                      <v-btn
-                        size="small"
-                        variant="text"
-                        prepend-icon="mdi-arrow-right"
-                        @click.stop="jumpToLine(issue.line)"
-                        class="mt-2"
-                      >
-                        Jump to line
-                      </v-btn>
                     </div>
                   </v-expand-transition>
                 </v-list-item>
@@ -662,10 +663,6 @@ const toggleIssue = (index: number) => {
   } else {
     expandedIssues.value.push(index);
   }
-};
-
-const jumpToLine = (line: number) => {
-  emit('jumpToLine', line);
 };
 
 const getSeverityIcon = (severity: string): string => {
