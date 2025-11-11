@@ -51,6 +51,14 @@ export const projectApi = {
     }
     return response.data.data;
   },
+
+  async findReadme(): Promise<string | null> {
+    const response = await api.get<ApiResponse<{ readmePath: string | null }>>('/project/readme');
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || 'Failed to find README');
+    }
+    return response.data.data.readmePath;
+  },
 };
 
 export const fileApi = {

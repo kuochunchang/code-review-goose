@@ -140,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, onMounted } from 'vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import FileTree from '../components/FileTree.vue';
 import CodeViewer from '../components/CodeViewer.vue';
@@ -154,6 +154,7 @@ import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts';
 import type { KeyboardShortcut } from '../composables/useKeyboardShortcuts';
 import axios from 'axios';
 import { useDisplay } from 'vuetify';
+import { projectApi } from '../services/api';
 
 const uiStore = useUIStore();
 const { mdAndUp } = useDisplay();
@@ -324,6 +325,20 @@ const handleSelectMatch = (filePath: string, line: number) => {
 const handleSettingsSaved = () => {
   console.log('Settings saved successfully');
 };
+
+// Auto-open README file on mount if it exists
+onMounted(async () => {
+  try {
+    const readmePath = await projectApi.findReadme();
+    if (readmePath) {
+      // Automatically select and open the README file
+      await handleSelectFile(readmePath);
+    }
+  } catch (error) {
+    // Silently fail if README detection fails, user can still browse files manually
+    console.log('No README file found or error detecting README:', error);
+  }
+});
 </script>
 
 <style scoped>
