@@ -62,7 +62,36 @@ export interface DiagramGenerationResult {
   metadata?: any;
 }
 
+export interface ComponentInfo {
+  name: string;
+  description: string;
+  type: 'class' | 'function' | 'module' | 'interface' | 'constant' | 'type' | 'variable';
+  codeSnippet?: string;
+}
+
+export interface WorkflowStep {
+  step: number;
+  title: string;
+  description: string;
+}
+
+export interface KeyConcept {
+  concept: string;
+  explanation: string;
+}
+
+export interface Dependency {
+  name: string;
+  purpose: string;
+  isExternal: boolean;
+}
+
 export interface ExplainResult {
-  explanation: string; // Markdown formatted explanation
+  overview: string; // Brief summary
+  mainComponents: ComponentInfo[]; // Key components
+  howItWorks: WorkflowStep[]; // Step-by-step flow
+  keyConcepts: KeyConcept[]; // Important concepts
+  dependencies: Dependency[]; // External/internal dependencies
+  notableFeatures: string[]; // Highlights
   timestamp: string;
 }

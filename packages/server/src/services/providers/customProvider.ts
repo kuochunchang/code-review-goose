@@ -108,7 +108,7 @@ export class CustomProvider implements AIProvider {
           {
             role: 'system',
             content:
-              'You are an expert code explainer. Provide clear, comprehensive explanations of code in Markdown format.',
+              'You are an expert code explainer. Provide clear, comprehensive explanations of code in structured JSON format.',
           },
           {
             role: 'user',
@@ -125,8 +125,17 @@ export class CustomProvider implements AIProvider {
         throw new Error('No response from custom AI provider');
       }
 
+      // Extract JSON from potential markdown code blocks
+      const jsonContent = this.extractJSON(content);
+      const result = JSON.parse(jsonContent);
+
       return {
-        explanation: content.trim(),
+        overview: result.overview || '',
+        mainComponents: result.mainComponents || [],
+        howItWorks: result.howItWorks || [],
+        keyConcepts: result.keyConcepts || [],
+        dependencies: result.dependencies || [],
+        notableFeatures: result.notableFeatures || [],
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
@@ -144,27 +153,54 @@ export class CustomProvider implements AIProvider {
 
     return `Explain the following ${language} code from ${filePath}.
 
-Provide a comprehensive explanation in Markdown format that includes:
-
-1. **Overview**: A brief summary of what the code does
-2. **Main Components**: Describe the key classes, functions, or modules
-3. **How It Works**: Step-by-step explanation of the code's logic and flow
-4. **Key Concepts**: Explain important patterns, algorithms, or techniques used
-5. **Dependencies**: Mention any external libraries or modules being used
-6. **Notable Features**: Highlight interesting or important aspects of the code
-
-Format your response in clear, well-structured Markdown with:
-- Headers (##, ###) for different sections
-- Code snippets with syntax highlighting when referencing specific parts
-- Bullet points or numbered lists for clarity
-- **Bold** text for emphasis on key terms
+Return the explanation in the following JSON format:
+{
+  "overview": "Brief 2-3 sentence summary of what the code does",
+  "mainComponents": [
+    {
+      "name": "ComponentName",
+      "description": "What this component does",
+      "type": "class|function|module|interface|constant|type|variable",
+      "codeSnippet": "Optional: key code snippet"
+    }
+  ],
+  "howItWorks": [
+    {
+      "step": 1,
+      "title": "Short title of this step",
+      "description": "Detailed explanation of what happens in this step"
+    }
+  ],
+  "keyConcepts": [
+    {
+      "concept": "Concept name (e.g., 'Dependency Injection')",
+      "explanation": "Clear explanation of this concept and how it's used"
+    }
+  ],
+  "dependencies": [
+    {
+      "name": "Module or library name",
+      "purpose": "What it's used for in this code",
+      "isExternal": true
+    }
+  ],
+  "notableFeatures": [
+    "Highlight 1: Description",
+    "Highlight 2: Description"
+  ]
+}
 
 Code:
 \`\`\`${language}
 ${code}
 \`\`\`
 
-Make the explanation clear, educational, and suitable for developers who want to understand this code thoroughly.`;
+Guidelines:
+- Be specific and educational
+- Include actual names from the code
+- Keep descriptions clear and concise
+- Focus on the most important aspects
+- Order steps logically in howItWorks`;
   }
 
   private buildPrompt(code: string, options: AnalysisOptions): string {

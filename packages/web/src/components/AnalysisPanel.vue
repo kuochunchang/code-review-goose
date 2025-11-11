@@ -260,12 +260,135 @@
                 </span>
               </v-alert>
 
-              <!-- Explanation content -->
+              <!-- Overview -->
               <div class="pa-3">
-                <div
-                  class="text-body-2 markdown-content"
-                  v-html="renderMarkdown(explainResult.explanation)"
-                ></div>
+                <h3 class="text-subtitle-2 mb-2 d-flex align-center">
+                  <v-icon icon="mdi-text-box-outline" size="small" class="mr-2"></v-icon>
+                  Overview
+                </h3>
+                <p class="text-body-2 text-grey-darken-2">{{ explainResult.overview }}</p>
+              </div>
+
+              <v-divider></v-divider>
+
+              <!-- Main Components -->
+              <div v-if="explainResult.mainComponents.length > 0" class="pa-3">
+                <h3 class="text-subtitle-2 mb-3 d-flex align-center">
+                  <v-icon icon="mdi-puzzle-outline" size="small" class="mr-2"></v-icon>
+                  Main Components ({{ explainResult.mainComponents.length }})
+                </h3>
+                <v-row>
+                  <v-col
+                    v-for="(component, index) in explainResult.mainComponents"
+                    :key="index"
+                    cols="12"
+                    md="6"
+                  >
+                    <v-card variant="outlined" class="h-100">
+                      <v-card-text>
+                        <div class="d-flex align-center mb-2">
+                          <v-chip size="small" :color="getComponentColor(component.type)" class="mr-2">
+                            {{ component.type }}
+                          </v-chip>
+                          <span class="text-subtitle-2 font-weight-bold">{{ component.name }}</span>
+                        </div>
+                        <p class="text-caption text-grey-darken-1">{{ component.description }}</p>
+                        <pre
+                          v-if="component.codeSnippet"
+                          class="code-snippet mt-2 pa-2 rounded text-caption"
+                        >{{ component.codeSnippet }}</pre>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </div>
+
+              <v-divider></v-divider>
+
+              <!-- How It Works -->
+              <div v-if="explainResult.howItWorks.length > 0" class="pa-3">
+                <h3 class="text-subtitle-2 mb-3 d-flex align-center">
+                  <v-icon icon="mdi-cog-outline" size="small" class="mr-2"></v-icon>
+                  How It Works
+                </h3>
+                <v-timeline side="end" density="compact">
+                  <v-timeline-item
+                    v-for="step in explainResult.howItWorks"
+                    :key="step.step"
+                    dot-color="primary"
+                    size="small"
+                  >
+                    <template #opposite>
+                      <span class="text-caption font-weight-bold">Step {{ step.step }}</span>
+                    </template>
+                    <div>
+                      <div class="text-subtitle-2 mb-1">{{ step.title }}</div>
+                      <p class="text-caption text-grey-darken-1">{{ step.description }}</p>
+                    </div>
+                  </v-timeline-item>
+                </v-timeline>
+              </div>
+
+              <v-divider></v-divider>
+
+              <!-- Key Concepts -->
+              <div v-if="explainResult.keyConcepts.length > 0" class="pa-3">
+                <h3 class="text-subtitle-2 mb-3 d-flex align-center">
+                  <v-icon icon="mdi-lightbulb-on-outline" size="small" class="mr-2"></v-icon>
+                  Key Concepts
+                </h3>
+                <v-expansion-panels variant="accordion">
+                  <v-expansion-panel
+                    v-for="(concept, index) in explainResult.keyConcepts"
+                    :key="index"
+                  >
+                    <v-expansion-panel-title>
+                      <span class="font-weight-medium">{{ concept.concept }}</span>
+                    </v-expansion-panel-title>
+                    <v-expansion-panel-text>
+                      <p class="text-body-2">{{ concept.explanation }}</p>
+                    </v-expansion-panel-text>
+                  </v-expansion-panel>
+                </v-expansion-panels>
+              </div>
+
+              <v-divider></v-divider>
+
+              <!-- Dependencies -->
+              <div v-if="explainResult.dependencies.length > 0" class="pa-3">
+                <h3 class="text-subtitle-2 mb-3 d-flex align-center">
+                  <v-icon icon="mdi-package-variant" size="small" class="mr-2"></v-icon>
+                  Dependencies
+                </h3>
+                <v-list density="compact">
+                  <v-list-item
+                    v-for="(dep, index) in explainResult.dependencies"
+                    :key="index"
+                    :prepend-icon="dep.isExternal ? 'mdi-cloud-download' : 'mdi-folder'"
+                  >
+                    <v-list-item-title class="text-body-2">{{ dep.name }}</v-list-item-title>
+                    <v-list-item-subtitle class="text-caption">{{ dep.purpose }}</v-list-item-subtitle>
+                  </v-list-item>
+                </v-list>
+              </div>
+
+              <v-divider></v-divider>
+
+              <!-- Notable Features -->
+              <div v-if="explainResult.notableFeatures.length > 0" class="pa-3">
+                <h3 class="text-subtitle-2 mb-3 d-flex align-center">
+                  <v-icon icon="mdi-star-outline" size="small" class="mr-2"></v-icon>
+                  Notable Features
+                </h3>
+                <v-list density="compact">
+                  <v-list-item
+                    v-for="(feature, index) in explainResult.notableFeatures"
+                    :key="index"
+                    prepend-icon="mdi-check-circle"
+                  >
+                    <v-list-item-title class="text-body-2">{{ feature }}</v-list-item-title>
+                  </v-list-item>
+                </v-list>
               </div>
             </div>
 
@@ -644,6 +767,22 @@ const runExplain = async () => {
   } finally {
     explaining.value = false;
   }
+};
+
+// Helper function to get color for component type chips
+const getComponentColor = (
+  type: 'class' | 'function' | 'module' | 'interface' | 'constant' | 'type' | 'variable'
+): string => {
+  const colorMap: Record<string, string> = {
+    class: 'blue',
+    function: 'green',
+    module: 'purple',
+    interface: 'orange',
+    constant: 'teal',
+    type: 'indigo',
+    variable: 'cyan',
+  };
+  return colorMap[type] || 'grey';
 };
 </script>
 
