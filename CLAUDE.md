@@ -228,10 +228,22 @@ Default ignore patterns:
   - Unit tests for all new service functions
   - E2E tests for all user-facing features
   - Test both success and error scenarios
+  - **MANDATORY**: Achieve minimum 80% code coverage for new code
 - ✅ **Modified features MUST have updated tests**
   - Update existing tests to reflect changes
   - Add new test cases for new behavior
   - Ensure no regression in existing functionality
+  - **MANDATORY**: Strengthen tests to maintain or exceed 80% coverage
+- ✅ **UI/UX changes REQUIRE E2E tests**
+  - ANY modification to Vue components, views, or user interactions MUST include E2E tests
+  - Test user workflows end-to-end, not just component rendering
+  - Verify UI changes work correctly in actual browser environment
+  - Cover edge cases and error states in the UI
+- ✅ **Coverage verification is MANDATORY after every change**
+  - Run `npm run test:coverage` after implementing ANY feature or fix
+  - Check both overall coverage and individual file/function coverage
+  - If ANY function has less than 80% coverage, add more tests immediately
+  - If overall project coverage drops below 80%, strengthen tests before committing
 - ✅ **All tests AND lint checks MUST pass before pushing**
   - Run `npm test` - all unit tests must pass
   - Run `npm run test:e2e` - all E2E tests must pass
@@ -241,21 +253,38 @@ Default ignore patterns:
 - ❌ **DO NOT skip writing tests to save time**
 - ❌ **DO NOT commit code without running the full test suite**
 - ❌ **DO NOT ignore linting errors - fix them before committing**
+- ❌ **DO NOT push code with coverage below 80% - NO EXCEPTIONS**
 
 **Pre-commit checklist (run in this order):**
 
 1. `npm run lint` - Fix all ESLint and Prettier errors
 2. `npm test` - Ensure all unit tests pass
-3. `npm run build` - Verify build succeeds
-4. `npm run test:e2e` - Run E2E tests for user-facing changes
-5. Only then commit and push
+3. `npm run test:coverage` - **MANDATORY**: Check coverage report
+   - Verify overall coverage ≥ 80%
+   - Verify each modified/new file has ≥ 80% coverage
+   - If below 80%, write additional tests immediately
+4. `npm run build` - Verify build succeeds
+5. `npm run test:e2e` - Run E2E tests for user-facing changes
+6. Review coverage report one final time
+7. Only then commit and push
 
-**Test coverage expectations:**
+**Test coverage expectations (STRICT ENFORCEMENT):**
 
-- Services: Minimum 80% coverage for business logic
-- API routes: Test all endpoints (success + error cases)
-- Vue components: Test user interactions and state changes
-- E2E: Cover critical user workflows end-to-end
+- **Overall project coverage**: Minimum 80% - NO EXCEPTIONS
+- **Individual functions**: Each function must have ≥ 80% coverage
+- **Services**: Minimum 80% coverage for ALL business logic
+- **API routes**: Test ALL endpoints (success + error cases) - 100% coverage expected
+- **Vue components**: Test user interactions and state changes - minimum 80% coverage
+- **E2E tests**: Cover ALL critical user workflows end-to-end
+- **New/modified files**: Must meet or exceed 80% coverage before committing
+
+**Coverage enforcement rules:**
+
+- If any function falls below 80% coverage → Write more test cases
+- If overall coverage falls below 80% → Strengthen tests across the board
+- If UI components lack E2E tests → Add E2E tests immediately
+- Coverage reports must be checked after EVERY code change
+- Pull requests with <80% coverage will be REJECTED
 
 ### Common Development Tasks
 
@@ -264,9 +293,15 @@ Default ignore patterns:
 1. Define route in `packages/server/src/routes/`
 2. Implement service logic in `packages/server/src/services/`
 3. Add types in `packages/server/src/types/`
-4. Create unit tests in `__tests__/`
-5. Update frontend service in `packages/web/src/services/`
-6. Add E2E test if user-facing
+4. **Create comprehensive unit tests in `__tests__/`**
+   - Test success cases
+   - Test error cases
+   - Test edge cases
+   - Mock external dependencies
+5. **Run `npm run test:coverage` and verify ≥80% coverage**
+6. Update frontend service in `packages/web/src/services/`
+7. **Add E2E test if user-facing (MANDATORY for UI-exposed endpoints)**
+8. **Run full test suite and verify all tests pass**
 
 **Adding a new Vue component**:
 
@@ -274,7 +309,28 @@ Default ignore patterns:
 2. Use Composition API with `<script setup lang="ts">`
 3. Import Vuetify components as needed
 4. Add props/emits with TypeScript types
-5. Write unit tests with `@vue/test-utils`
+5. **Write comprehensive unit tests with `@vue/test-utils`**
+   - Test component rendering
+   - Test user interactions (clicks, input, etc.)
+   - Test props and emits
+   - Test computed properties and state changes
+6. **MANDATORY: Add E2E tests for user-facing components**
+   - Test component in real browser environment
+   - Test integration with other components
+   - Test user workflows that involve this component
+7. **Run `npm run test:coverage` and verify ≥80% coverage**
+8. **Run `npm run test:e2e` to verify E2E tests pass**
+
+**Modifying existing functionality**:
+
+1. Read and understand existing code and tests
+2. Make your changes to the code
+3. **Update ALL existing tests to reflect changes**
+4. **Add new tests for new behavior**
+5. **If UI is modified, update or add E2E tests**
+6. **Run `npm run test:coverage` - coverage must not decrease**
+7. **If coverage drops below 80%, add more tests immediately**
+8. Verify all tests pass before committing
 
 **Debugging issues**:
 
