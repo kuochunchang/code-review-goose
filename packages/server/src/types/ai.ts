@@ -88,8 +88,17 @@ export interface Dependency {
   isExternal: boolean;
 }
 
+export interface MemberVariable {
+  name: string;
+  type: string; // Data type (e.g., string, number, User, etc.)
+  description: string;
+  line?: number; // Line number where this variable is defined
+  visibility?: 'public' | 'private' | 'protected'; // Optional visibility modifier
+}
+
 export interface ExplainResult {
   overview: string; // Brief summary
+  memberVariables?: MemberVariable[]; // Class/module member variables
   mainComponents: ComponentInfo[]; // Key components
   howItWorks: WorkflowStep[]; // Step-by-step flow
   keyConcepts: KeyConcept[]; // Important concepts

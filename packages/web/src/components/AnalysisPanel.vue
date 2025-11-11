@@ -272,6 +272,52 @@
 
               <v-divider></v-divider>
 
+              <!-- Member Variables -->
+              <div v-if="explainResult.memberVariables && explainResult.memberVariables.length > 0" class="pa-3">
+                <h3 class="text-subtitle-2 mb-3 d-flex align-center">
+                  <v-icon icon="mdi-variable" size="small" class="mr-2"></v-icon>
+                  Member Variables ({{ explainResult.memberVariables.length }})
+                </h3>
+                <v-list density="compact" class="pa-0">
+                  <v-list-item
+                    v-for="(variable, index) in explainResult.memberVariables"
+                    :key="index"
+                    class="px-0"
+                  >
+                    <div class="d-flex align-center w-100">
+                      <div class="flex-grow-1">
+                        <div class="d-flex align-center mb-1">
+                          <v-chip
+                            v-if="variable.visibility"
+                            size="x-small"
+                            :color="getVisibilityColor(variable.visibility)"
+                            class="mr-2"
+                          >
+                            {{ variable.visibility }}
+                          </v-chip>
+                          <span class="text-subtitle-2 font-weight-bold">{{ variable.name }}</span>
+                          <span class="text-caption text-medium-emphasis ml-2">: {{ variable.type }}</span>
+                        </div>
+                        <p class="text-caption text-medium-emphasis">{{ variable.description }}</p>
+                      </div>
+                      <v-btn
+                        v-if="variable.line"
+                        size="x-small"
+                        variant="text"
+                        color="primary"
+                        prepend-icon="mdi-cursor-default-click"
+                        @click="emit('jumpToLine', variable.line)"
+                        class="ml-2"
+                      >
+                        Line {{ variable.line }}
+                      </v-btn>
+                    </div>
+                  </v-list-item>
+                </v-list>
+              </div>
+
+              <v-divider v-if="explainResult.memberVariables && explainResult.memberVariables.length > 0"></v-divider>
+
               <!-- Main Components -->
               <div v-if="explainResult.mainComponents.length > 0" class="pa-3">
                 <h3 class="text-subtitle-2 mb-3 d-flex align-center">
@@ -804,6 +850,16 @@ const getComponentColor = (
     variable: 'cyan',
   };
   return colorMap[type] || 'grey';
+};
+
+// Helper function to get color for visibility modifiers
+const getVisibilityColor = (visibility: 'public' | 'private' | 'protected'): string => {
+  const colorMap: Record<string, string> = {
+    public: 'success',
+    private: 'error',
+    protected: 'warning',
+  };
+  return colorMap[visibility] || 'grey';
 };
 </script>
 

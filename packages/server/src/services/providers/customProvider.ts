@@ -156,6 +156,15 @@ export class CustomProvider implements AIProvider {
 Return the explanation in the following JSON format:
 {
   "overview": "Brief 2-3 sentence summary of what the code does",
+  "memberVariables": [
+    {
+      "name": "variableName",
+      "type": "string|number|boolean|object|ClassName",
+      "description": "What this variable stores or represents",
+      "line": 5,
+      "visibility": "public|private|protected"
+    }
+  ],
   "mainComponents": [
     {
       "name": "ComponentName",
@@ -206,8 +215,11 @@ Guidelines:
 - Keep descriptions clear and concise
 - Focus on the most important aspects
 - Order steps logically in howItWorks
-- **IMPORTANT**: Include line numbers for mainComponents and howItWorks to enable code navigation
-- Line numbers should correspond to where the component is defined or where the step occurs in the code`;
+- **IMPORTANT**: Include line numbers for memberVariables, mainComponents, and howItWorks to enable code navigation
+- Line numbers should correspond to where the variable/component is defined or where the step occurs in the code
+- For memberVariables: List class or module-level member variables (fields, properties, state variables)
+- For memberVariables: Do NOT include local variables or function parameters - only member variables
+- For memberVariables: Include visibility (public/private/protected) when it's clear from the code`;
   }
 
   private buildPrompt(code: string, options: AnalysisOptions): string {
