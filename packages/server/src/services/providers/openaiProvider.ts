@@ -226,9 +226,19 @@ Guidelines:
 - Order steps logically in howItWorks
 - **IMPORTANT**: Include line numbers for memberVariables, mainComponents, and howItWorks to enable code navigation
 - Line numbers should correspond to where the variable/component is defined or where the step occurs in the code
-- For memberVariables: List class or module-level member variables (fields, properties, state variables)
-- For memberVariables: Do NOT include local variables or function parameters - only member variables
-- For memberVariables: Include visibility (public/private/protected) when it's clear from the code`;
+
+**For memberVariables** (class/module-level data fields ONLY):
+- List class or module-level member variables (fields, properties, state variables)
+- Examples: class properties, instance variables, module-level state
+- Do NOT include: local variables, function parameters, constants, or methods
+- Include visibility (public/private/protected) when it's clear from the code
+
+**For mainComponents** (all major code structures):
+- **MUST include ALL**: classes, methods/functions, constants, interfaces, types, modules
+- For methods: List all important methods/functions (both class methods and standalone functions)
+- For constants: List all important constant declarations (const, final, readonly values)
+- For classes: List all class definitions
+- This is where methods and constants should appear - NOT in memberVariables`;
   }
 
   private supportsJsonMode(): boolean {
