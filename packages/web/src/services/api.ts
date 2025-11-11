@@ -5,7 +5,6 @@ import type {
   AnalysisOptions,
   AnalysisStatus,
   ProjectConfig,
-  CacheStats,
 } from '../types/analysis';
 import type {
   SearchOptions,
@@ -70,36 +69,10 @@ export const analysisApi = {
     return response.data.data;
   },
 
-  async getCachedAnalysis(code: string, options?: AnalysisOptions): Promise<AnalysisResult | null> {
-    const response = await api.post<ApiResponse<AnalysisResult | null>>('/analysis/cached', {
-      code,
-      options,
-    });
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to query cached analysis');
-    }
-    return response.data.data || null;
-  },
-
   async getStatus(): Promise<AnalysisStatus> {
     const response = await api.get<ApiResponse<AnalysisStatus>>('/analysis/status');
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || 'Failed to get analysis status');
-    }
-    return response.data.data;
-  },
-
-  async clearCache(): Promise<void> {
-    const response = await api.delete<ApiResponse<any>>('/analysis/cache');
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to clear cache');
-    }
-  },
-
-  async getCacheStats(): Promise<CacheStats> {
-    const response = await api.get<ApiResponse<CacheStats>>('/analysis/cache/stats');
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.error || 'Failed to get cache stats');
     }
     return response.data.data;
   },

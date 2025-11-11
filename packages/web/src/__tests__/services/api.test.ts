@@ -164,63 +164,6 @@ describe('API Services', () => {
       });
     });
 
-    describe('getCachedAnalysis', () => {
-      it('should return cached analysis if available', async () => {
-        const mockAnalysis = { issues: [], summary: 'Cached' };
-
-        mockApi.post.mockResolvedValue({
-          data: { success: true, data: mockAnalysis },
-        });
-
-        const result = await analysisApi.getCachedAnalysis('code');
-
-        expect(result).toEqual(mockAnalysis);
-      });
-
-      it('should return null if no cache', async () => {
-        mockApi.post.mockResolvedValue({
-          data: { success: true, data: null },
-        });
-
-        const result = await analysisApi.getCachedAnalysis('code');
-
-        expect(result).toBeNull();
-      });
-    });
-
-    describe('clearCache', () => {
-      it('should clear cache successfully', async () => {
-        mockApi.delete.mockResolvedValue({
-          data: { success: true },
-        });
-
-        await expect(analysisApi.clearCache()).resolves.not.toThrow();
-        expect(mockApi.delete).toHaveBeenCalledWith('/analysis/cache');
-      });
-
-      it('should throw error if clear cache fails', async () => {
-        mockApi.delete.mockResolvedValue({
-          data: { success: false, error: 'Clear failed' },
-        });
-
-        await expect(analysisApi.clearCache()).rejects.toThrow('Clear failed');
-      });
-    });
-
-    describe('getCacheStats', () => {
-      it('should get cache stats', async () => {
-        const mockStats = { count: 10, size: 1024 };
-
-        mockApi.get.mockResolvedValue({
-          data: { success: true, data: mockStats },
-        });
-
-        const result = await analysisApi.getCacheStats();
-
-        expect(result).toEqual(mockStats);
-      });
-    });
-
     describe('getStatus', () => {
       it('should get analysis status', async () => {
         const mockStatus = { analyzing: false, queue: 0 };

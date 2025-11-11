@@ -11,7 +11,6 @@ import { createAnalysisOptions } from '../utils/analysisOptions.js';
 import { AIService } from './aiService.js';
 import { FileService } from './fileService.js';
 import { ProjectService } from './projectService.js';
-import { CacheService } from './cacheService.js';
 import type { FileNode } from './projectService.js';
 
 export class BatchAnalysisService {
@@ -19,14 +18,12 @@ export class BatchAnalysisService {
   private aiService: AIService;
   private fileService: FileService;
   private projectService: ProjectService;
-  private cacheService: CacheService;
 
   constructor(projectPath: string) {
     this.projectPath = projectPath;
     this.aiService = new AIService(projectPath);
     this.fileService = new FileService(projectPath);
     this.projectService = new ProjectService(projectPath);
-    this.cacheService = new CacheService(projectPath);
   }
 
   /**
@@ -196,9 +193,6 @@ export class BatchAnalysisService {
 
       // Analyze the file
       const analysis = await this.aiService.analyzeCode(content, analysisOptions);
-
-      // Save to cache (for fast access when opening files in UI)
-      await this.cacheService.set(content, analysisOptions, analysis);
 
       const duration = Date.now() - startTime;
 

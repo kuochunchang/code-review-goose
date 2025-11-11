@@ -8,6 +8,8 @@ export const analysisRouter = Router();
 /**
  * POST /api/analysis/analyze
  * Analyze code
+ * Note: Cache/insights management is now handled by the frontend.
+ * This endpoint only performs the analysis.
  */
 analysisRouter.post('/analyze', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -26,7 +28,6 @@ analysisRouter.post('/analyze', async (req: Request, res: Response): Promise<voi
     }
 
     const aiService = new AIService(projectPath);
-    const cacheService = new CacheService(projectPath);
 
     // Check if configured
     const isConfigured = await aiService.isConfigured();
@@ -51,31 +52,12 @@ analysisRouter.post('/analyze', async (req: Request, res: Response): Promise<voi
       }
     }
 
-    // Try to get from cache
-    const cached = await cacheService.get(code, options || {});
-    if (cached) {
-      res.json({
-        success: true,
-        data: {
-          ...cached,
-          fromCache: true,
-        },
-      });
-      return;
-    }
-
-    // Execute analysis
+    // Execute analysis (insights management is handled by frontend)
     const result = await aiService.analyzeCode(code, options || {});
-
-    // Save to cache
-    await cacheService.set(code, options || {}, result);
 
     res.json({
       success: true,
-      data: {
-        ...result,
-        fromCache: false,
-      },
+      data: result,
     });
   } catch (error) {
     console.error('Analysis error:', error);
@@ -201,50 +183,3 @@ analysisRouter.get('/is-analyzable', async (req: Request, res: Response): Promis
   }
 });
 
-/**
- * POST /api/analysis/cached
- * Query cached analysis results only (do not trigger new analysis)
- */
-analysisRouter.post('/cached', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const projectPath = req.app.locals.projectPath;
-    const { code, options } = req.body as {
-      code: string;
-      options?: AnalysisOptions;
-    };
-
-    if (!code || typeof code !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: 'Code is required and must be a string',
-      });
-      return;
-    }
-
-    const cacheService = new CacheService(projectPath);
-
-    // Only get from cache, do not execute analysis
-    const cached = await cacheService.get(code, options || {});
-
-    if (cached) {
-      res.json({
-        success: true,
-        data: {
-          ...cached,
-          fromCache: true,
-        },
-      });
-    } else {
-      res.json({
-        success: true,
-        data: null,
-      });
-    }
-  } catch (error) {
-    console.error('Cache query error:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to query cache',
-    });
-  }
-});
