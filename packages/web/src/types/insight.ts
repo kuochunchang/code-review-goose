@@ -39,12 +39,21 @@ export interface UMLDiagrams {
 }
 
 /**
+ * Code explanation result
+ */
+export interface ExplainResult {
+  explanation: string; // Markdown formatted explanation
+  timestamp: string;
+}
+
+/**
  * Insight record for a file
  */
 export interface InsightRecord {
   filePath: string;
   codeHash: string;
   analysis?: AnalysisResult;
+  explain?: ExplainResult;
   uml?: UMLDiagrams;
   timestamp: string;
 }

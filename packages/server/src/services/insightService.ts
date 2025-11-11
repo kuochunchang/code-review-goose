@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import crypto from 'crypto';
 import type { InsightRecord, InsightCheckResult, DiagramType, UMLDiagrams } from '../types/insight.js';
-import type { AnalysisResult } from '../types/ai.js';
+import type { AnalysisResult, ExplainResult } from '../types/ai.js';
 import type { UMLResult } from './umlService.js';
 
 const INSIGHTS_DIR = '.code-review/insights';
@@ -84,13 +84,14 @@ export class InsightService {
   async set(filePath: string, codeHash: string, analysis: AnalysisResult): Promise<InsightRecord> {
     await this.ensureInsightsDir();
 
-    // Get existing insight to preserve UML if it exists
+    // Get existing insight to preserve UML and explain if they exist
     const existing = await this.get(filePath);
 
     const insight: InsightRecord = {
       filePath,
       codeHash,
       analysis,
+      explain: existing?.explain, // Preserve existing explanation
       uml: existing?.uml, // Preserve existing UML diagrams
       timestamp: new Date().toISOString(),
     };
@@ -99,6 +100,42 @@ export class InsightService {
     await fs.writeFile(insightPath, JSON.stringify(insight, null, 2), 'utf-8');
 
     return insight;
+  }
+
+  /**
+   * Set code explanation
+   */
+  async setExplain(
+    filePath: string,
+    codeHash: string,
+    explainResult: ExplainResult
+  ): Promise<InsightRecord> {
+    await this.ensureInsightsDir();
+
+    // Get existing insight or create new one
+    const existing = await this.get(filePath);
+
+    const insight: InsightRecord = {
+      filePath,
+      codeHash,
+      analysis: existing?.analysis, // Preserve existing analysis
+      explain: explainResult, // Set new explanation
+      uml: existing?.uml, // Preserve existing UML diagrams
+      timestamp: new Date().toISOString(),
+    };
+
+    const insightPath = this.getInsightPath(filePath);
+    await fs.writeFile(insightPath, JSON.stringify(insight, null, 2), 'utf-8');
+
+    return insight;
+  }
+
+  /**
+   * Get code explanation
+   */
+  async getExplain(filePath: string): Promise<ExplainResult | null> {
+    const insight = await this.get(filePath);
+    return insight?.explain || null;
   }
 
   /**
@@ -119,6 +156,7 @@ export class InsightService {
       filePath,
       codeHash,
       analysis: existing?.analysis, // Preserve existing analysis
+      explain: existing?.explain, // Preserve existing explanation
       uml: {
         ...(existing?.uml || {}),
         [diagramType]: umlResult,
@@ -149,6 +187,7 @@ export class InsightService {
       filePath,
       codeHash,
       analysis: existing?.analysis, // Preserve existing analysis
+      explain: existing?.explain, // Preserve existing explanation
       uml: {
         ...(existing?.uml || {}),
         ...umlDiagrams,

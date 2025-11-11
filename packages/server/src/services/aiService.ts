@@ -1,4 +1,4 @@
-import type { AIProvider, AnalysisOptions, AnalysisResult } from '../types/ai.js';
+import type { AIProvider, AnalysisOptions, AnalysisResult, ExplainResult } from '../types/ai.js';
 import type { ProjectConfig } from '../types/config.js';
 import { OpenAIProvider } from './providers/openaiProvider.js';
 import { CustomProvider } from './providers/customProvider.js';
@@ -82,6 +82,17 @@ export class AIService {
   async analyzeCode(code: string, options: AnalysisOptions = {}): Promise<AnalysisResult> {
     const provider = await this.getProvider();
     return provider.analyze(code, options);
+  }
+
+  /**
+   * Explain code
+   */
+  async explainCode(code: string, options: AnalysisOptions = {}): Promise<ExplainResult> {
+    const provider = await this.getProvider();
+    if (!provider.explain) {
+      throw new Error('Current AI provider does not support code explanation');
+    }
+    return provider.explain(code, options);
   }
 
   /**

@@ -3,52 +3,87 @@
     <v-card elevation="1" class="h-100">
       <v-card-title class="text-subtitle-1 py-2 px-3 d-flex align-center">
         <v-icon icon="mdi-brain" size="small" class="mr-2"></v-icon>
-        <span class="flex-grow-1">AI Analysis</span>
-        <!-- Insight status indicator -->
-        <span v-if="insightStatus === 'up-to-date'" class="text-caption text-success mr-2">
-          <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-1"></v-icon>
-          Up to date
-        </span>
-        <span v-else-if="insightStatus === 'outdated'" class="text-caption text-warning mr-2">
-          <v-icon icon="mdi-alert" size="small" color="warning" class="mr-1"></v-icon>
-          Code changed
-        </span>
-        <!-- Auto-save status indicator -->
-        <span v-if="autoSaved" class="text-caption text-success mr-2">
-          <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-1"></v-icon>
-          Saved
-        </span>
-        <v-btn
-          v-if="analysisResult && currentFile"
-          :color="copied ? 'success' : 'info'"
-          size="small"
-          variant="text"
-          :prepend-icon="copied ? 'mdi-check' : 'mdi-content-copy'"
-          @click="copyToClipboard"
-          :disabled="copying"
-          class="mr-1"
-        >
-          {{ copied ? 'Copied' : 'Copy' }}
-        </v-btn>
-        <v-btn
-          v-if="currentFile"
-          color="primary"
-          size="small"
-          variant="text"
-          prepend-icon="mdi-play"
-          data-testid="analyze-button"
-          @click="runAnalysis"
-          :loading="analyzing"
-          :disabled="analyzing || !isFileAnalyzable"
-        >
-          Analyze
-        </v-btn>
+        <span class="flex-grow-1">AI Insights</span>
+        <!-- Status indicators based on current tab -->
+        <template v-if="currentTab === 'analysis'">
+          <span v-if="insightStatus === 'up-to-date'" class="text-caption text-success mr-2">
+            <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-1"></v-icon>
+            Up to date
+          </span>
+          <span v-else-if="insightStatus === 'outdated'" class="text-caption text-warning mr-2">
+            <v-icon icon="mdi-alert" size="small" color="warning" class="mr-1"></v-icon>
+            Code changed
+          </span>
+          <span v-if="autoSaved" class="text-caption text-success mr-2">
+            <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-1"></v-icon>
+            Saved
+          </span>
+          <v-btn
+            v-if="analysisResult && currentFile"
+            :color="copied ? 'success' : 'info'"
+            size="small"
+            variant="text"
+            :prepend-icon="copied ? 'mdi-check' : 'mdi-content-copy'"
+            @click="copyToClipboard"
+            :disabled="copying"
+            class="mr-1"
+          >
+            {{ copied ? 'Copied' : 'Copy' }}
+          </v-btn>
+          <v-btn
+            v-if="currentFile"
+            color="primary"
+            size="small"
+            variant="text"
+            prepend-icon="mdi-play"
+            data-testid="analyze-button"
+            @click="runAnalysis"
+            :loading="analyzing"
+            :disabled="analyzing || !isFileAnalyzable"
+          >
+            Analyze
+          </v-btn>
+        </template>
+        <template v-else-if="currentTab === 'explain'">
+          <span v-if="explainStatus === 'up-to-date'" class="text-caption text-success mr-2">
+            <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-1"></v-icon>
+            Up to date
+          </span>
+          <span v-else-if="explainStatus === 'outdated'" class="text-caption text-warning mr-2">
+            <v-icon icon="mdi-alert" size="small" color="warning" class="mr-1"></v-icon>
+            Code changed
+          </span>
+          <span v-if="explainAutoSaved" class="text-caption text-success mr-2">
+            <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-1"></v-icon>
+            Saved
+          </span>
+          <v-btn
+            v-if="currentFile"
+            color="primary"
+            size="small"
+            variant="text"
+            prepend-icon="mdi-lightbulb-on"
+            @click="runExplain"
+            :loading="explaining"
+            :disabled="explaining || !isFileAnalyzable"
+          >
+            Explain
+          </v-btn>
+        </template>
       </v-card-title>
+
+      <!-- Tabs -->
+      <v-tabs v-model="currentTab" class="px-3">
+        <v-tab value="analysis">Analysis</v-tab>
+        <v-tab value="explain">Explain</v-tab>
+      </v-tabs>
+
       <v-card-text class="pa-0">
+        <!-- Common empty/loading states -->
         <div v-if="!currentFile" class="empty-state">
           <v-icon icon="mdi-information-outline" size="48" color="grey-lighten-1"></v-icon>
           <p class="text-grey mt-4 text-center px-4">
-            Select a file and click "Analyze" to get AI-powered code review
+            Select a file to get AI-powered insights
           </p>
         </div>
 
@@ -63,17 +98,21 @@
 
         <div v-else-if="loadingCache" class="analyzing-state">
           <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
-          <p class="text-grey mt-4">Loading cached analysis...</p>
+          <p class="text-grey mt-4">Loading cached insights...</p>
         </div>
 
-        <div v-else-if="analyzing" class="analyzing-state" data-testid="analysis-loading">
-          <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
-          <p class="text-grey mt-4">Analyzing code...</p>
-        </div>
+        <!-- Tab content -->
+        <v-window v-else v-model="currentTab">
+          <!-- Analysis Tab -->
+          <v-window-item value="analysis">
+            <div v-if="analyzing" class="analyzing-state" data-testid="analysis-loading">
+              <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
+              <p class="text-grey mt-4">Analyzing code...</p>
+            </div>
 
-        <v-alert v-else-if="error" type="error" variant="tonal" class="ma-2">
-          {{ error }}
-        </v-alert>
+            <v-alert v-else-if="error" type="error" variant="tonal" class="ma-2">
+              {{ error }}
+            </v-alert>
 
         <div v-else-if="analysisResult" class="analysis-content" data-testid="analysis-results">
           <!-- Outdated warning banner -->
@@ -187,10 +226,58 @@
           </div>
         </div>
 
-        <div v-else class="empty-state">
-          <v-icon icon="mdi-file-search-outline" size="48" color="grey-lighten-1"></v-icon>
-          <p class="text-grey mt-4">No analysis yet</p>
-        </div>
+            <div v-else class="empty-state">
+              <v-icon icon="mdi-file-search-outline" size="48" color="grey-lighten-1"></v-icon>
+              <p class="text-grey mt-4">No analysis yet</p>
+            </div>
+          </v-window-item>
+
+          <!-- Explain Tab -->
+          <v-window-item value="explain">
+            <div v-if="explaining" class="analyzing-state">
+              <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
+              <p class="text-grey mt-4">Generating explanation...</p>
+            </div>
+
+            <v-alert v-else-if="explainError" type="error" variant="tonal" class="ma-2">
+              {{ explainError }}
+            </v-alert>
+
+            <div v-else-if="explainResult" class="explain-content" data-testid="explain-results">
+              <!-- Outdated warning banner -->
+              <v-alert
+                v-if="explainStatus === 'outdated'"
+                type="warning"
+                variant="tonal"
+                density="compact"
+                class="ma-2 mb-0"
+              >
+                <template #prepend>
+                  <v-icon icon="mdi-alert"></v-icon>
+                </template>
+                <span class="text-body-2">
+                  Code has changed since last explanation. Click "Explain" to refresh.
+                </span>
+              </v-alert>
+
+              <!-- Explanation content -->
+              <div class="pa-3">
+                <div
+                  class="text-body-2 markdown-content"
+                  v-html="renderMarkdown(explainResult.explanation)"
+                ></div>
+              </div>
+            </div>
+
+            <div v-else class="empty-state">
+              <v-icon icon="mdi-lightbulb-outline" size="48" color="grey-lighten-1"></v-icon>
+              <p class="text-grey mt-4">No explanation yet</p>
+              <p class="text-caption text-grey-darken-1 mt-2">
+                Click "Explain" to get a detailed explanation of this code
+              </p>
+            </div>
+          </v-window-item>
+        </v-window>
       </v-card-text>
     </v-card>
   </div>
@@ -203,6 +290,7 @@ import { useProjectStore } from '../stores/project';
 import { useMarkdown } from '../composables/useMarkdown';
 import { computeHash } from '../utils/hash';
 import type { AnalysisResult } from '../types/analysis';
+import type { ExplainResult } from '../types/insight';
 
 interface Props {
   filePath?: string;
@@ -232,6 +320,14 @@ const isFileAnalyzable = ref(true);
 const insightStatus = ref<'none' | 'up-to-date' | 'outdated'>('none');
 const currentCodeHash = ref<string>('');
 const insightTimestamp = ref<string>('');
+
+// Explain feature
+const currentTab = ref<'analysis' | 'explain'>('analysis');
+const explaining = ref(false);
+const explainResult = ref<ExplainResult | null>(null);
+const explainError = ref<string | null>(null);
+const explainAutoSaved = ref(false);
+const explainStatus = ref<'none' | 'up-to-date' | 'outdated'>('none');
 
 // Unified function to create analysis options
 // This must match the backend createAnalysisOptions to ensure cache key consistency
@@ -280,6 +376,11 @@ watch(currentFile, async (newFilePath, oldFilePath) => {
   insightStatus.value = 'none';
   currentCodeHash.value = '';
   insightTimestamp.value = '';
+  // Reset explain state
+  explainResult.value = null;
+  explainError.value = null;
+  explainAutoSaved.value = false;
+  explainStatus.value = 'none';
 
   try {
     // Check if file is analyzable
@@ -301,19 +402,38 @@ watch(currentFile, async (newFilePath, oldFilePath) => {
     // Check if insight exists and whether hash matches
     const checkResult = await insightsApi.checkInsight(newFilePath, hash);
 
-    if (checkResult.hasRecord && checkResult.insight && checkResult.insight.analysis) {
-      // Display the insight
-      analysisResult.value = checkResult.insight.analysis;
-      insightTimestamp.value = checkResult.insight.timestamp;
+    if (checkResult.hasRecord && checkResult.insight) {
+      // Load analysis if available
+      if (checkResult.insight.analysis) {
+        analysisResult.value = checkResult.insight.analysis;
+        insightTimestamp.value = checkResult.insight.timestamp;
 
-      // Set status based on hash match
-      if (checkResult.hashMatched) {
-        insightStatus.value = 'up-to-date';
+        // Set status based on hash match
+        if (checkResult.hashMatched) {
+          insightStatus.value = 'up-to-date';
+        } else {
+          insightStatus.value = 'outdated';
+        }
       } else {
-        insightStatus.value = 'outdated';
+        insightStatus.value = 'none';
+      }
+
+      // Load explain if available
+      if (checkResult.insight.explain) {
+        explainResult.value = checkResult.insight.explain;
+
+        // Set status based on hash match
+        if (checkResult.hashMatched) {
+          explainStatus.value = 'up-to-date';
+        } else {
+          explainStatus.value = 'outdated';
+        }
+      } else {
+        explainStatus.value = 'none';
       }
     } else {
       insightStatus.value = 'none';
+      explainStatus.value = 'none';
     }
   } catch (err) {
     console.error('Failed to load insight:', err);
@@ -473,6 +593,58 @@ const copyToClipboard = async () => {
     copying.value = false;
   }
 };
+
+const runExplain = async () => {
+  if (!currentFile.value) return;
+
+  // Double check if file is analyzable
+  if (!isFileAnalyzable.value) {
+    explainError.value = 'This file type cannot be analyzed';
+    return;
+  }
+
+  explaining.value = true;
+  explainError.value = null;
+  explainAutoSaved.value = false;
+
+  try {
+    // Fetch file content
+    const content = await projectStore.fetchFileContent(currentFile.value);
+
+    // Compute hash of current code
+    const hash = await computeHash(content);
+    currentCodeHash.value = hash;
+
+    // Call AI explain API using standardized options
+    const result = await analysisApi.explainCode(content, createAnalysisOptions(currentFile.value));
+
+    explainResult.value = result;
+
+    // Save explain to insights
+    try {
+      await insightsApi.saveExplain(currentFile.value, hash, result);
+
+      // Update explain status
+      explainStatus.value = 'up-to-date';
+
+      // Show auto-saved indicator
+      explainAutoSaved.value = true;
+
+      // Hide indicator after 3 seconds
+      setTimeout(() => {
+        explainAutoSaved.value = false;
+      }, 3000);
+    } catch (saveErr) {
+      console.error('Failed to save explain:', saveErr);
+      // Don't show error to user, save failure is not critical
+    }
+  } catch (err) {
+    explainError.value = err instanceof Error ? err.message : 'Explanation failed';
+    console.error('Explanation failed:', err);
+  } finally {
+    explaining.value = false;
+  }
+};
 </script>
 
 <style scoped>
@@ -495,9 +667,10 @@ const copyToClipboard = async () => {
   height: calc(100vh - 150px);
 }
 
-.analysis-content {
+.analysis-content,
+.explain-content {
   overflow-y: auto;
-  max-height: calc(100vh - 150px);
+  max-height: calc(100vh - 200px);
 }
 
 .issue-item {

@@ -46,6 +46,7 @@ export interface AIProviderConfig {
 export interface AIProvider {
   name: string;
   analyze(code: string, options: AnalysisOptions): Promise<AnalysisResult>;
+  explain?(code: string, options: AnalysisOptions): Promise<ExplainResult>;
   generateDiagram?(
     code: string,
     diagramType: string,
@@ -59,4 +60,9 @@ export interface DiagramGenerationResult {
   success: boolean;
   error?: string;
   metadata?: any;
+}
+
+export interface ExplainResult {
+  explanation: string; // Markdown formatted explanation
+  timestamp: string;
 }

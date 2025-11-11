@@ -69,6 +69,69 @@ analysisRouter.post('/analyze', async (req: Request, res: Response): Promise<voi
 });
 
 /**
+ * POST /api/analysis/explain
+ * Generate code explanation
+ * Note: Insights management is handled by the frontend.
+ * This endpoint only performs the explanation generation.
+ */
+analysisRouter.post('/explain', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const projectPath = req.app.locals.projectPath;
+    const { code, options } = req.body as {
+      code: string;
+      options?: AnalysisOptions;
+    };
+
+    if (!code || typeof code !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: 'Code is required and must be a string',
+      });
+      return;
+    }
+
+    const aiService = new AIService(projectPath);
+
+    // Check if configured
+    const isConfigured = await aiService.isConfigured();
+    if (!isConfigured) {
+      res.status(400).json({
+        success: false,
+        error: 'AI provider not configured. Please configure API key first.',
+      });
+      return;
+    }
+
+    // Check if file type can be analyzed
+    if (options?.filePath) {
+      const isAnalyzable = await aiService.isFileAnalyzable(options.filePath);
+      if (!isAnalyzable) {
+        res.status(400).json({
+          success: false,
+          error:
+            'This file type cannot be analyzed. Please check your analyzable file extensions configuration.',
+        });
+        return;
+      }
+    }
+
+    // Execute explanation (insights management is handled by frontend)
+    const result = await aiService.explainCode(code, options || {});
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error('Explanation error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Explanation failed',
+    });
+  }
+});
+
+/**
  * GET /api/analysis/status
  * Check AI configuration status
  */

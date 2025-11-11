@@ -6,6 +6,7 @@ import type {
   AnalysisResult,
   Issue,
   DiagramGenerationResult,
+  ExplainResult,
 } from '../../types/ai.js';
 
 export class OpenAIProvider implements AIProvider {
@@ -85,6 +86,87 @@ export class OpenAIProvider implements AIProvider {
       }
       throw new Error('AI analysis failed: Unknown error');
     }
+  }
+
+  async explain(code: string, options: AnalysisOptions): Promise<ExplainResult> {
+    if (!this.client) {
+      throw new Error('OpenAI client not initialized. Please configure API key first.');
+    }
+
+    const prompt = this.buildExplainPrompt(code, options);
+
+    try {
+      // Check if the model supports custom temperature
+      const supportsCustomTemp = this.supportsCustomTemperature();
+
+      // Build request parameters
+      const requestParams: any = {
+        model: this.model,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are an expert code explainer. Provide clear, comprehensive explanations of code in Markdown format.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+      };
+
+      // Only add temperature if the model supports custom values
+      if (supportsCustomTemp) {
+        requestParams.temperature = 0.4;
+      }
+
+      const response = await this.client.chat.completions.create(requestParams);
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No response from OpenAI');
+      }
+
+      return {
+        explanation: content.trim(),
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('OpenAI API error:', error);
+      if (error instanceof Error) {
+        throw new Error(`Code explanation failed: ${error.message}`);
+      }
+      throw new Error('Code explanation failed: Unknown error');
+    }
+  }
+
+  private buildExplainPrompt(code: string, options: AnalysisOptions): string {
+    const language = options.language || 'unknown';
+    const filePath = options.filePath || 'unknown';
+
+    return `Explain the following ${language} code from ${filePath}.
+
+Provide a comprehensive explanation in Markdown format that includes:
+
+1. **Overview**: A brief summary of what the code does
+2. **Main Components**: Describe the key classes, functions, or modules
+3. **How It Works**: Step-by-step explanation of the code's logic and flow
+4. **Key Concepts**: Explain important patterns, algorithms, or techniques used
+5. **Dependencies**: Mention any external libraries or modules being used
+6. **Notable Features**: Highlight interesting or important aspects of the code
+
+Format your response in clear, well-structured Markdown with:
+- Headers (##, ###) for different sections
+- Code snippets with syntax highlighting when referencing specific parts
+- Bullet points or numbered lists for clarity
+- **Bold** text for emphasis on key terms
+
+Code:
+\`\`\`${language}
+${code}
+\`\`\`
+
+Make the explanation clear, educational, and suitable for developers who want to understand this code thoroughly.`;
   }
 
   private supportsJsonMode(): boolean {
