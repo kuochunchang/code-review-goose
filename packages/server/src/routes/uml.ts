@@ -2,19 +2,20 @@ import { Router, Request, Response } from 'express';
 import { UMLService, DiagramType, UMLResult } from '../services/umlService.js';
 import { AIService } from '../services/aiService.js';
 import { ConfigService } from '../services/configService.js';
-import { CacheService } from '../services/cacheService.js';
+import { InsightService } from '../services/insightService.js';
 
 export const umlRouter = Router();
 
 /**
  * POST /api/uml/generate
- * Generate UML diagram
+ * Generate UML diagram and store in insights
  */
 umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { code, type, forceRefresh } = req.body as {
+    const { code, type, filePath, forceRefresh } = req.body as {
       code: string;
       type: DiagramType;
+      filePath: string;
       forceRefresh?: boolean;
     };
 
@@ -29,6 +30,14 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    if (!filePath || typeof filePath !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: 'FilePath is required and must be a string',
+      });
+      return;
+    }
+
     const validTypes: DiagramType[] = ['class', 'flowchart', 'sequence', 'dependency'];
     if (!type || !validTypes.includes(type)) {
       res.status(400).json({
@@ -38,19 +47,25 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // Initialize cache service
-    const cacheService = new CacheService(projectPath, 'uml');
+    // Compute code hash
+    const codeHash = InsightService.computeHash(code);
 
-    // Try to get from cache (unless forceRefresh is set)
+    // Initialize insight service
+    const insightService = new InsightService(projectPath);
+
+    // Try to get from insights (unless forceRefresh is set)
     if (!forceRefresh) {
-      const cacheOptions = { type };
-      const cached = await cacheService.get<UMLResult>(code, cacheOptions);
-      if (cached) {
+      const checkResult = await insightService.check(filePath, codeHash);
+
+      // If hash matches and UML diagram exists, return cached result
+      if (checkResult.hashMatched && checkResult.insight?.uml?.[type]) {
+        const cachedDiagram = checkResult.insight.uml[type];
         res.json({
           success: true,
           data: {
-            ...cached,
-            fromCache: true,
+            ...cachedDiagram,
+            fromInsights: true,
+            hashMatched: true,
           },
         });
         return;
@@ -78,15 +93,14 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
     const umlService = new UMLService(aiService, config);
     const result = await umlService.generateDiagram(code, type);
 
-    // Save to cache (cache will be updated regardless of forceRefresh)
-    const cacheOptions = { type };
-    await cacheService.set(code, cacheOptions, result);
+    // Save to insights
+    await insightService.setUML(filePath, codeHash, type, result);
 
     res.json({
       success: true,
       data: {
         ...result,
-        fromCache: false,
+        fromInsights: false,
         forceRefreshed: !!forceRefresh,
       },
     });
@@ -101,50 +115,56 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
 
 /**
  * DELETE /api/uml/cache
- * Clear UML cache
+ * Clear UML insights (deprecated endpoint, use /api/insights/clear instead)
+ * Note: This clears ALL insights including analysis, not just UML
  */
 umlRouter.delete('/cache', async (req: Request, res: Response): Promise<void> => {
   try {
     const projectPath = req.app.locals.projectPath;
-    const cacheService = new CacheService(projectPath, 'uml');
+    const insightService = new InsightService(projectPath);
 
-    await cacheService.clear();
+    // Clear all insights (including UML and analysis)
+    await insightService.clear();
 
     res.json({
       success: true,
       data: {
-        message: 'UML cache cleared successfully',
+        message: 'All insights (including UML diagrams) cleared successfully',
+        note: 'UML is now stored in insights. Use /api/insights/clear for future requests.',
       },
     });
   } catch (error) {
-    console.error('UML cache clear error:', error);
+    console.error('Insights clear error:', error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to clear UML cache',
+      error: error instanceof Error ? error.message : 'Failed to clear insights',
     });
   }
 });
 
 /**
  * GET /api/uml/cache/stats
- * Get UML cache statistics
+ * Get UML insights statistics (deprecated endpoint, use /api/insights/stats instead)
  */
 umlRouter.get('/cache/stats', async (req: Request, res: Response): Promise<void> => {
   try {
     const projectPath = req.app.locals.projectPath;
-    const cacheService = new CacheService(projectPath, 'uml');
+    const insightService = new InsightService(projectPath);
 
-    const stats = await cacheService.getStats();
+    const stats = await insightService.getStats();
 
     res.json({
       success: true,
-      data: stats,
+      data: {
+        ...stats,
+        note: 'UML is now stored in insights. Use /api/insights/stats for future requests.',
+      },
     });
   } catch (error) {
-    console.error('UML cache stats error:', error);
+    console.error('Insights stats error:', error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to get UML cache stats',
+      error: error instanceof Error ? error.message : 'Failed to get insights stats',
     });
   }
 });

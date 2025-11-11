@@ -1,7 +1,7 @@
 <template>
   <div class="uml-page">
     <div class="uml-content">
-      <UMLViewer :code="currentCode" @close="handleClose" />
+      <UMLViewer :code="currentCode" :file-path="currentFilePath" @close="handleClose" />
     </div>
   </div>
 </template>
@@ -11,14 +11,23 @@ import { ref, onMounted } from 'vue';
 import UMLViewer from '../components/UMLViewer.vue';
 
 const currentCode = ref<string>('');
+const currentFilePath = ref<string>('');
 
 onMounted(() => {
-  // Get code from sessionStorage set by the parent window
+  // Get code and filePath from sessionStorage set by the parent window
   const code = sessionStorage.getItem('uml_code');
+  const filePath = sessionStorage.getItem('uml_filePath');
+
   if (code) {
     currentCode.value = code;
   } else {
     console.warn('No code found in sessionStorage');
+  }
+
+  if (filePath) {
+    currentFilePath.value = filePath;
+  } else {
+    console.warn('No filePath found in sessionStorage');
   }
 });
 

@@ -299,12 +299,13 @@ const openSearch = () => {
 };
 
 const openUMLViewer = () => {
-  if (!currentCode.value) {
+  if (!currentCode.value || !selectedFile.value) {
     uiStore.showSnackbar('Please select a file first', 'warning');
     return;
   }
-  // Store code in sessionStorage to pass to new window
+  // Store code and filePath in sessionStorage to pass to new window
   sessionStorage.setItem('uml_code', currentCode.value);
+  sessionStorage.setItem('uml_filePath', selectedFile.value);
   // Open UML viewer in a new window
   const width = 1400;
   const height = 900;

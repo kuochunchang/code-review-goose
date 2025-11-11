@@ -13,7 +13,14 @@ import type {
   SearchHistoryItem,
   SearchStats,
 } from '../types/search';
-import type { InsightRecord, InsightCheckResult, InsightStats } from '../types/insight';
+import type {
+  InsightRecord,
+  InsightCheckResult,
+  InsightStats,
+  UMLResult,
+  DiagramType,
+  UMLDiagrams,
+} from '../types/insight';
 
 const api = axios.create({
   baseURL: '/api',
@@ -238,6 +245,84 @@ export const insightsApi = {
     const response = await api.get<ApiResponse<InsightStats>>('/insights/stats');
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || 'Failed to get insights stats');
+    }
+    return response.data.data;
+  },
+
+  // UML-related methods (UML is now stored in insights)
+
+  async generateUML(
+    code: string,
+    filePath: string,
+    diagramType: DiagramType,
+    forceRefresh?: boolean
+  ): Promise<UMLResult & { fromInsights?: boolean; hashMatched?: boolean }> {
+    const response = await api.post<
+      ApiResponse<UMLResult & { fromInsights?: boolean; hashMatched?: boolean }>
+    >('/uml/generate', {
+      code,
+      filePath,
+      type: diagramType,
+      forceRefresh,
+    });
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || 'UML generation failed');
+    }
+    return response.data.data;
+  },
+
+  async getUML(filePath: string, diagramType: DiagramType): Promise<UMLResult | null> {
+    const insight = await this.getInsight(filePath);
+    return insight?.uml?.[diagramType] || null;
+  },
+
+  async getAllUML(filePath: string): Promise<UMLDiagrams | null> {
+    const insight = await this.getInsight(filePath);
+    return insight?.uml || null;
+  },
+};
+
+export const umlApi = {
+  async generateDiagram(
+    code: string,
+    filePath: string,
+    type: DiagramType,
+    forceRefresh?: boolean
+  ): Promise<UMLResult & { fromInsights?: boolean; hashMatched?: boolean }> {
+    return insightsApi.generateUML(code, filePath, type, forceRefresh);
+  },
+
+  async getSupportedTypes(): Promise<{
+    generationMode: string;
+    aiAvailable: boolean;
+    types: any[];
+  }> {
+    const response = await api.get<
+      ApiResponse<{
+        generationMode: string;
+        aiAvailable: boolean;
+        types: any[];
+      }>
+    >('/uml/supported-types');
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || 'Failed to get supported types');
+    }
+    return response.data.data;
+  },
+
+  async clearCache(): Promise<void> {
+    const response = await api.delete<ApiResponse<any>>('/uml/cache');
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to clear UML cache');
+    }
+  },
+
+  async getCacheStats(): Promise<{ count: number; totalSize: number }> {
+    const response = await api.get<ApiResponse<{ count: number; totalSize: number }>>(
+      '/uml/cache/stats'
+    );
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.error || 'Failed to get cache stats');
     }
     return response.data.data;
   },

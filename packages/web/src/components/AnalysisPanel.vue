@@ -301,7 +301,7 @@ watch(currentFile, async (newFilePath, oldFilePath) => {
     // Check if insight exists and whether hash matches
     const checkResult = await insightsApi.checkInsight(newFilePath, hash);
 
-    if (checkResult.hasRecord && checkResult.insight) {
+    if (checkResult.hasRecord && checkResult.insight && checkResult.insight.analysis) {
       // Display the insight
       analysisResult.value = checkResult.insight.analysis;
       insightTimestamp.value = checkResult.insight.timestamp;

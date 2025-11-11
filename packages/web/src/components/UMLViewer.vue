@@ -20,26 +20,35 @@
         </v-btn>
       </v-btn-toggle>
       <v-spacer></v-spacer>
+      <!-- Insight status indicator -->
+      <span v-if="insightStatus === 'up-to-date'" class="text-caption text-success mr-2">
+        <v-icon icon="mdi-check-circle" size="small" color="success" class="mr-1"></v-icon>
+        Up to date
+      </span>
+      <span v-else-if="insightStatus === 'outdated'" class="text-caption text-warning mr-2">
+        <v-icon icon="mdi-alert" size="small" color="warning" class="mr-1"></v-icon>
+        Code changed
+      </span>
       <v-btn
         icon="mdi-refresh"
         size="small"
-        :loading="loading"
-        :disabled="!currentCode"
+        :loading="loading || loadingFromInsights"
+        :disabled="!currentCode || !currentFilePath"
         @click="generateDiagram(false)"
       >
         <v-icon>mdi-refresh</v-icon>
-        <v-tooltip activator="parent" location="bottom">Refresh (use cache)</v-tooltip>
+        <v-tooltip activator="parent" location="bottom">Generate (use insights)</v-tooltip>
       </v-btn>
       <v-btn
         icon="mdi-refresh-circle"
         size="small"
         :loading="loading"
-        :disabled="!currentCode"
+        :disabled="!currentCode || !currentFilePath"
         @click="generateDiagram(true)"
         color="warning"
       >
         <v-icon>mdi-refresh-circle</v-icon>
-        <v-tooltip activator="parent" location="bottom">Force Refresh (skip cache)</v-tooltip>
+        <v-tooltip activator="parent" location="bottom">Force Refresh (regenerate)</v-tooltip>
       </v-btn>
       <v-btn icon="mdi-download" size="small" :disabled="!diagram" @click="exportDiagram"></v-btn>
       <v-btn icon="mdi-close" size="small" @click="$emit('close')"></v-btn>
@@ -102,11 +111,14 @@
 import { ref, watch, onMounted, nextTick, computed } from 'vue';
 import { useTheme } from 'vuetify';
 import mermaid from 'mermaid';
-import axios from 'axios';
+import { umlApi, insightsApi } from '../services/api';
+import { computeHash } from '../utils/hash';
+import type { DiagramType } from '../types/insight';
 
 // Props
 interface Props {
   code?: string;
+  filePath?: string;
 }
 
 const props = defineProps<Props>();
@@ -117,16 +129,21 @@ defineEmits<{
 }>();
 
 // State
-type DiagramType = 'class' | 'flowchart' | 'sequence' | 'dependency';
 const selectedType = ref<DiagramType>('class');
 const loading = ref(false);
 const error = ref<string | null>(null);
 const diagram = ref<string | null>(null);
 const currentCode = ref<string>('');
+const currentFilePath = ref<string>('');
 const mermaidContainer = ref<HTMLElement | null>(null);
 const aiAvailable = ref(false);
 const generationMode = ref<string>('hybrid');
 const supportedTypes = ref<any[]>([]);
+
+// Insight status tracking
+const insightStatus = ref<'none' | 'up-to-date' | 'outdated'>('none');
+const currentCodeHash = ref<string>('');
+const loadingFromInsights = ref(false);
 
 // Theme
 const theme = useTheme();
@@ -150,35 +167,87 @@ onMounted(async () => {
 // Fetch supported types from API
 async function fetchSupportedTypes() {
   try {
-    const response = await axios.get('/api/uml/supported-types');
-    if (response.data.success) {
-      supportedTypes.value = response.data.data.types;
-      aiAvailable.value = response.data.data.aiAvailable;
-      generationMode.value = response.data.data.generationMode;
-    }
+    const result = await umlApi.getSupportedTypes();
+    supportedTypes.value = result.types;
+    aiAvailable.value = result.aiAvailable;
+    generationMode.value = result.generationMode;
   } catch (err) {
     console.error('Failed to fetch supported types:', err);
   }
 }
 
-// Watch for code changes
+// Watch for code and filePath changes - auto-load from insights
 watch(
-  () => props.code,
-  (newCode) => {
-    if (newCode) {
+  [() => props.code, () => props.filePath],
+  async ([newCode, newFilePath]) => {
+    if (newCode && newFilePath) {
       currentCode.value = newCode;
-      generateDiagram();
+      currentFilePath.value = newFilePath;
+
+      // Compute hash and check insights
+      await checkInsights();
+    } else if (newCode) {
+      // Fallback: code without filePath (shouldn't happen in normal use)
+      currentCode.value = newCode;
+      currentFilePath.value = '';
+      insightStatus.value = 'none';
     }
   },
   { immediate: true }
 );
 
 // Watch for type changes
-watch(selectedType, () => {
-  if (currentCode.value) {
-    generateDiagram();
+watch(selectedType, async () => {
+  if (currentCode.value && currentFilePath.value) {
+    await checkInsights();
   }
 });
+
+// Check if insights exist for current file and diagram type
+async function checkInsights() {
+  if (!currentCode.value || !currentFilePath.value) {
+    insightStatus.value = 'none';
+    return;
+  }
+
+  loadingFromInsights.value = true;
+  error.value = null;
+
+  try {
+    // Compute hash of current code
+    const hash = await computeHash(currentCode.value);
+    currentCodeHash.value = hash;
+
+    // Check if insight exists
+    const checkResult = await insightsApi.checkInsight(currentFilePath.value, hash);
+
+    if (checkResult.hasRecord && checkResult.insight?.uml?.[selectedType.value]) {
+      // UML diagram exists in insights
+      const umlResult = checkResult.insight.uml[selectedType.value];
+      if (umlResult) {
+        diagram.value = umlResult.mermaidCode;
+
+        // Set status based on hash match
+        if (checkResult.hashMatched) {
+          insightStatus.value = 'up-to-date';
+        } else {
+          insightStatus.value = 'outdated';
+        }
+      }
+    } else {
+      // No UML diagram in insights, auto-generate
+      insightStatus.value = 'none';
+      diagram.value = null;
+      // Optionally auto-generate here
+      // await generateDiagram();
+    }
+  } catch (err) {
+    console.error('Failed to check insights:', err);
+    insightStatus.value = 'none';
+  } finally {
+    loadingFromInsights.value = false;
+  }
+}
 
 // Watch for diagram changes and render when ready
 watch(diagram, async (newDiagram) => {
@@ -193,27 +262,36 @@ async function generateDiagram(forceRefresh = false) {
     return;
   }
 
+  // Require filePath for insights integration
+  if (!currentFilePath.value) {
+    error.value = 'File path is required for UML generation';
+    return;
+  }
+
   loading.value = true;
   error.value = null;
   diagram.value = null;
 
   try {
-    const response = await axios.post('/api/uml/generate', {
-      code: currentCode.value,
-      type: selectedType.value,
-      forceRefresh,
-    });
+    const result = await umlApi.generateDiagram(
+      currentCode.value,
+      currentFilePath.value,
+      selectedType.value,
+      forceRefresh
+    );
 
-    if (response.data.success) {
-      diagram.value = response.data.data.mermaidCode;
-      // Rendering will be triggered by the watch
+    diagram.value = result.mermaidCode;
+    // Rendering will be triggered by the watch
 
-      // Show notification if this was a forced refresh
-      if (forceRefresh && response.data.data.forceRefreshed) {
-        console.log('UML diagram forcefully regenerated, cache updated');
-      }
+    // Update insight status
+    if (result.fromInsights && result.hashMatched) {
+      insightStatus.value = 'up-to-date';
+    } else if (forceRefresh) {
+      insightStatus.value = 'up-to-date';
+      console.log('UML diagram forcefully regenerated and saved to insights');
     } else {
-      error.value = response.data.error || 'Failed to generate diagram';
+      insightStatus.value = 'up-to-date';
+      console.log('UML diagram generated and saved to insights');
     }
   } catch (err) {
     console.error('UML generation error:', err);
