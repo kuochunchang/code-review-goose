@@ -266,7 +266,7 @@
                   <v-icon icon="mdi-text-box-outline" size="small" class="mr-2"></v-icon>
                   Overview
                 </h3>
-                <p class="text-body-2 text-grey-darken-2">{{ explainResult.overview }}</p>
+                <p class="text-body-2 text-medium-emphasis">{{ explainResult.overview }}</p>
               </div>
 
               <v-divider></v-divider>
@@ -304,7 +304,7 @@
                             Line {{ component.line }}
                           </v-btn>
                         </div>
-                        <p class="text-caption text-grey-darken-1">{{ component.description }}</p>
+                        <p class="text-caption text-medium-emphasis">{{ component.description }}</p>
                         <pre
                           v-if="component.codeSnippet"
                           class="code-snippet mt-2 pa-2 rounded text-caption"
@@ -347,7 +347,7 @@
                           Line {{ step.line }}
                         </v-btn>
                       </div>
-                      <p class="text-caption text-grey-darken-1">{{ step.description }}</p>
+                      <p class="text-caption text-medium-emphasis">{{ step.description }}</p>
                     </div>
                   </v-timeline-item>
                 </v-timeline>
@@ -419,7 +419,7 @@
             <div v-else class="empty-state">
               <v-icon icon="mdi-lightbulb-outline" size="48" color="grey-lighten-1"></v-icon>
               <p class="text-grey mt-4">No explanation yet</p>
-              <p class="text-caption text-grey-darken-1 mt-2">
+              <p class="text-caption text-medium-emphasis mt-2">
                 Click "Explain" to get a detailed explanation of this code
               </p>
             </div>
