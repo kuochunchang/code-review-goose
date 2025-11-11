@@ -166,7 +166,7 @@ export class BatchAnalysisService {
   /**
    * Analyze a single file
    */
-  private async analyzeFile(filePath: string, force: boolean): Promise<FileAnalysisResult> {
+  private async analyzeFile(filePath: string, _force: boolean): Promise<FileAnalysisResult> {
     const startTime = Date.now();
 
     try {
