@@ -198,4 +198,104 @@ describe('ProjectService', () => {
       expect(tree.children![0].children![0].size).toBe(500);
     });
   });
+
+  describe('findReadmeFile', () => {
+    it('should find README.md in project root', async () => {
+      vi.mocked(fs.readdir).mockResolvedValueOnce(['README.md', 'package.json', 'src'] as any);
+      vi.mocked(fs.stat).mockResolvedValueOnce({
+        isFile: () => true,
+        size: 1234,
+      } as any);
+
+      const readmePath = await projectService.findReadmeFile();
+
+      expect(readmePath).toBe('README.md');
+      expect(fs.readdir).toHaveBeenCalledTimes(1);
+      expect(fs.stat).toHaveBeenCalledTimes(1);
+    });
+
+    it('should find readme.md (lowercase) in project root', async () => {
+      vi.mocked(fs.readdir).mockResolvedValueOnce(['package.json', 'readme.md', 'src'] as any);
+      vi.mocked(fs.stat).mockResolvedValueOnce({
+        isFile: () => true,
+        size: 1234,
+      } as any);
+
+      const readmePath = await projectService.findReadmeFile();
+
+      expect(readmePath).toBe('readme.md');
+    });
+
+    it('should find README (no extension) in project root', async () => {
+      vi.mocked(fs.readdir).mockResolvedValueOnce(['package.json', 'README', 'src'] as any);
+      vi.mocked(fs.stat).mockResolvedValueOnce({
+        isFile: () => true,
+        size: 1234,
+      } as any);
+
+      const readmePath = await projectService.findReadmeFile();
+
+      expect(readmePath).toBe('README');
+    });
+
+    it('should find README.txt in project root', async () => {
+      vi.mocked(fs.readdir).mockResolvedValueOnce(['package.json', 'README.txt', 'src'] as any);
+      vi.mocked(fs.stat).mockResolvedValueOnce({
+        isFile: () => true,
+        size: 1234,
+      } as any);
+
+      const readmePath = await projectService.findReadmeFile();
+
+      expect(readmePath).toBe('README.txt');
+    });
+
+    it('should return null when no README file exists', async () => {
+      vi.mocked(fs.readdir).mockResolvedValueOnce(['package.json', 'src', 'index.ts'] as any);
+
+      const readmePath = await projectService.findReadmeFile();
+
+      expect(readmePath).toBeNull();
+      expect(fs.readdir).toHaveBeenCalledTimes(1);
+      expect(fs.stat).not.toHaveBeenCalled();
+    });
+
+    it('should return null when directory cannot be read', async () => {
+      vi.mocked(fs.readdir).mockRejectedValueOnce(new Error('Permission denied'));
+
+      const readmePath = await projectService.findReadmeFile();
+
+      expect(readmePath).toBeNull();
+    });
+
+    it('should skip README if it is a directory, not a file', async () => {
+      vi.mocked(fs.readdir).mockResolvedValueOnce(['README.md', 'package.json'] as any);
+      vi.mocked(fs.stat).mockResolvedValueOnce({
+        isFile: () => false, // README.md is a directory
+        isDirectory: () => true,
+        size: 0,
+      } as any);
+
+      const readmePath = await projectService.findReadmeFile();
+
+      expect(readmePath).toBeNull();
+    });
+
+    it('should prefer README.md over other variants', async () => {
+      vi.mocked(fs.readdir).mockResolvedValueOnce([
+        'readme.txt',
+        'README.md',
+        'README',
+      ] as any);
+      vi.mocked(fs.stat).mockResolvedValueOnce({
+        isFile: () => true,
+        size: 1234,
+      } as any);
+
+      const readmePath = await projectService.findReadmeFile();
+
+      // Should find README.md first because it's higher in priority list
+      expect(readmePath).toBe('README.md');
+    });
+  });
 });

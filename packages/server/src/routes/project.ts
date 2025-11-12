@@ -45,3 +45,24 @@ projectRouter.get('/tree', async (req: Request, res: Response) => {
     res.status(500).json(response);
   }
 });
+
+// GET /api/project/readme - Find README file
+projectRouter.get('/readme', async (req: Request, res: Response) => {
+  try {
+    const projectPath = req.app.locals.projectPath as string;
+    const projectService = new ProjectService(projectPath);
+    const readmePath = await projectService.findReadmeFile();
+
+    const response: ApiResponse = {
+      success: true,
+      data: { readmePath },
+    };
+    res.json(response);
+  } catch (error) {
+    const response: ApiResponse = {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+    res.status(500).json(response);
+  }
+});
