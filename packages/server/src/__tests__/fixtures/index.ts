@@ -9,7 +9,6 @@
 export {
   mockAnalysisResult,
   mockEmptyAnalysisResult,
-  mockCachedResult,
   mockMultipleIssuesResult,
   mockSecurityIssuesResult,
   mockPerformanceIssuesResult,

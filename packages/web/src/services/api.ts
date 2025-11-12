@@ -345,23 +345,6 @@ export const umlApi = {
     }
     return response.data.data;
   },
-
-  async clearCache(): Promise<void> {
-    const response = await api.delete<ApiResponse<any>>('/uml/cache');
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to clear UML cache');
-    }
-  },
-
-  async getCacheStats(): Promise<{ count: number; totalSize: number }> {
-    const response = await api.get<ApiResponse<{ count: number; totalSize: number }>>(
-      '/uml/cache/stats'
-    );
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.error || 'Failed to get cache stats');
-    }
-    return response.data.data;
-  },
 };
 
 export default api;

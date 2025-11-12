@@ -24,7 +24,6 @@ export interface AnalysisResult {
   issues: Issue[];
   summary: string;
   timestamp: string;
-  fromCache?: boolean;
 }
 
 export interface AnalysisOptions {
@@ -74,9 +73,4 @@ export interface ProjectConfig {
   ignorePatterns?: string[];
   maxFileSize?: number;
   analyzableFileExtensions?: string[]; // File extensions that can be analyzed by AI
-}
-
-export interface CacheStats {
-  count: number;
-  totalSize: number;
 }
