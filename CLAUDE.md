@@ -211,6 +211,48 @@ Default ignore patterns:
 
 ## Workflow Guidelines
 
+### ⚠️ CRITICAL: Pre-Development Checklist
+
+**BEFORE starting ANY new feature or modification, you MUST follow these steps:**
+
+1. **Verify you are NOT on main branch**
+   - Run: `git branch --show-current`
+   - If on `main`, DO NOT proceed - create a feature branch first
+
+2. **Check working directory is clean**
+   - Run: `git status`
+   - Ensure no uncommitted changes exist
+   - If dirty, commit or stash changes before proceeding
+
+3. **Create appropriate feature branch**
+   - Branch naming convention: `feature/description`, `fix/description`, `docs/description`
+   - Run: `git checkout -b feature/your-feature-name`
+   - Use descriptive names that reflect the work being done
+
+4. **Only then begin development work**
+
+**If any check fails:**
+
+- ❌ STOP immediately
+- ⚠️ Alert the user about the issue
+- 📋 Provide clear instructions on how to resolve
+- ✅ Wait for confirmation before proceeding
+
+**Example workflow:**
+
+```bash
+# Check current branch
+git branch --show-current  # Should NOT be 'main'
+
+# Check working directory
+git status  # Should be clean
+
+# Create feature branch
+git checkout -b feature/add-new-analysis-type
+
+# Now you can proceed with development
+```
+
 ### Making Changes
 
 1. **Explore first**: Read relevant files before coding
