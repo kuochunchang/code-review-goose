@@ -104,11 +104,42 @@ export interface MethodDependency {
   description?: string; // Optional description of why this dependency exists
 }
 
+/**
+ * File dependency information - represents imports from other project files
+ */
+export interface FileImport {
+  filePath: string; // Absolute or relative path to the imported file
+  importedSymbols: string[]; // Symbols imported from this file
+  line: number; // Line number of the import statement
+}
+
+/**
+ * File export information - what this file exports
+ */
+export interface FileExport {
+  name: string; // Name of the exported symbol
+  type: 'function' | 'class' | 'constant' | 'interface' | 'type' | 'default'; // Export type
+  line: number; // Line number of the export
+}
+
+/**
+ * Cross-file dependency analysis result
+ * Shows relationships between files in the project
+ */
+export interface FileDependencyInfo {
+  imports: FileImport[]; // Files imported by this file (project files only)
+  exports: FileExport[]; // What this file exports
+  dependents: string[]; // Files that import this file (project files only)
+  classDiagram: string; // Mermaid class diagram showing file relationships
+  sequenceDiagram?: string; // Optional: Mermaid sequence diagram for cross-file method calls
+}
+
 export interface ExplainResult {
   overview: string; // Brief summary
   fields?: Field[]; // Class/module data fields
   mainComponents: ComponentInfo[]; // Key components (methods, functions, constants, classes, etc.)
   methodDependencies?: MethodDependency[]; // Dependencies between methods in this file
+  fileDependencies?: FileDependencyInfo; // NEW: Cross-file dependencies (project files only)
   howItWorks: WorkflowStep[]; // Step-by-step flow
   keyConcepts: KeyConcept[]; // Important concepts
   dependencies: Dependency[]; // External/internal dependencies

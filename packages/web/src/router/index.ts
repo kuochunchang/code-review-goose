@@ -11,11 +11,6 @@ const routes: RouteRecordRaw[] = [
     name: 'review',
     component: () => import('../views/ReviewView.vue'),
   },
-  {
-    path: '/uml',
-    name: 'uml',
-    component: () => import('../views/UMLPage.vue'),
-  },
 ];
 
 const router = createRouter({

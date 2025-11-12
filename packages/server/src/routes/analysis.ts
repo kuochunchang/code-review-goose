@@ -117,6 +117,26 @@ analysisRouter.post('/explain', async (req: Request, res: Response): Promise<voi
     // Execute explanation (insights management is handled by frontend)
     const result = await aiService.explainCode(code, options || {});
 
+    // Add file dependency analysis if filePath is provided
+    if (options?.filePath) {
+      try {
+        const { FileDependencyService } = await import('../services/fileDependencyService.js');
+        const fileDependencyService = new FileDependencyService();
+
+        const fileDependencies = await fileDependencyService.analyzeFileDependencies(code, {
+          projectRoot: projectPath,
+          currentFilePath: options.filePath,
+        });
+
+        // Add file dependencies to result
+        result.fileDependencies = fileDependencies;
+      } catch (depError) {
+        console.error('File dependency analysis error:', depError);
+        // Don't fail the entire request if dependency analysis fails
+        // Just log the error and continue without file dependencies
+      }
+    }
+
     res.json({
       success: true,
       data: result,

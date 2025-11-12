@@ -430,6 +430,115 @@
 
               <v-divider v-if="explainResult.methodDependencies && explainResult.methodDependencies.length > 0"></v-divider>
 
+              <!-- File Dependencies (Cross-file dependencies) -->
+              <div v-if="explainResult.fileDependencies && (explainResult.fileDependencies.imports.length > 0 || explainResult.fileDependencies.dependents.length > 0)" class="pa-3">
+                <h3 class="text-subtitle-2 mb-3 d-flex align-center">
+                  <v-icon icon="mdi-file-tree" size="small" class="mr-2"></v-icon>
+                  File Dependencies
+                  <v-spacer></v-spacer>
+                  <v-btn
+                    size="x-small"
+                    variant="text"
+                    prepend-icon="mdi-arrow-expand-all"
+                    @click="openFileDependencyModal"
+                  >
+                    Enlarge
+                  </v-btn>
+                </h3>
+
+                <!-- Class Diagram Preview (File relationships) -->
+                <div class="file-dependency-diagram mb-3">
+                  <div ref="classDiagramContainer" class="mermaid-container"></div>
+                </div>
+
+                <!-- Imports Section -->
+                <div v-if="explainResult.fileDependencies.imports.length > 0" class="mb-3">
+                  <h4 class="text-caption font-weight-bold mb-2 d-flex align-center">
+                    <v-icon icon="mdi-import" size="small" class="mr-1"></v-icon>
+                    Imports from Project Files
+                  </h4>
+                  <v-list density="compact" class="pa-0">
+                    <v-list-item
+                      v-for="(imp, index) in explainResult.fileDependencies.imports"
+                      :key="index"
+                      class="px-0"
+                    >
+                      <div class="d-flex align-center w-100">
+                        <div class="flex-grow-1">
+                          <div class="text-subtitle-2 font-weight-bold mb-1">
+                            {{ imp.filePath }}
+                          </div>
+                          <div class="text-caption text-medium-emphasis">
+                            Symbols: {{ imp.importedSymbols.join(', ') || 'None' }}
+                          </div>
+                        </div>
+                        <v-btn
+                          size="x-small"
+                          variant="text"
+                          color="primary"
+                          prepend-icon="mdi-file-document-outline"
+                          @click="handleFileClick(imp.filePath)"
+                        >
+                          Open
+                        </v-btn>
+                      </div>
+                    </v-list-item>
+                  </v-list>
+                </div>
+
+                <!-- Exports Section -->
+                <div v-if="explainResult.fileDependencies.exports.length > 0" class="mb-3">
+                  <h4 class="text-caption font-weight-bold mb-2 d-flex align-center">
+                    <v-icon icon="mdi-export" size="small" class="mr-1"></v-icon>
+                    Exports
+                  </h4>
+                  <div class="d-flex flex-wrap gap-2">
+                    <v-chip
+                      v-for="(exp, index) in explainResult.fileDependencies.exports"
+                      :key="index"
+                      size="small"
+                      :color="getExportTypeColor(exp.type)"
+                      @click="emit('jumpToLine', exp.line)"
+                      class="cursor-pointer"
+                    >
+                      {{ exp.name }} ({{ exp.type }})
+                    </v-chip>
+                  </div>
+                </div>
+
+                <!-- Dependents Section -->
+                <div v-if="explainResult.fileDependencies.dependents.length > 0" class="mb-3">
+                  <h4 class="text-caption font-weight-bold mb-2 d-flex align-center">
+                    <v-icon icon="mdi-file-import-outline" size="small" class="mr-1"></v-icon>
+                    Used By ({{ explainResult.fileDependencies.dependents.length }} files)
+                  </h4>
+                  <v-list density="compact" class="pa-0">
+                    <v-list-item
+                      v-for="(dep, index) in explainResult.fileDependencies.dependents"
+                      :key="index"
+                      class="px-0"
+                    >
+                      <div class="d-flex align-center w-100">
+                        <div class="flex-grow-1">
+                          <div class="text-subtitle-2">{{ dep }}</div>
+                        </div>
+                        <v-btn
+                          size="x-small"
+                          variant="text"
+                          color="primary"
+                          prepend-icon="mdi-file-document-outline"
+                          @click="handleFileClick(dep)"
+                        >
+                          Open
+                        </v-btn>
+                      </div>
+                    </v-list-item>
+                  </v-list>
+                </div>
+              </div>
+
+              <v-divider v-if="explainResult.fileDependencies && (explainResult.fileDependencies.imports.length > 0 || explainResult.fileDependencies.dependents.length > 0)"></v-divider>
+
               <!-- How It Works -->
               <div v-if="explainResult.howItWorks.length > 0" class="pa-3">
                 <h3 class="text-subtitle-2 mb-3 d-flex align-center">
@@ -556,6 +665,22 @@
         </v-card-text>
       </v-card>
     </v-dialog>
+
+    <!-- File Dependency Modal -->
+    <v-dialog v-model="showFileDependency" max-width="90vw" scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon icon="mdi-file-tree" class="mr-2"></v-icon>
+          File Dependencies - Cross-file Relationships
+          <v-spacer></v-spacer>
+          <v-btn icon="mdi-close" variant="text" @click="showFileDependency = false"></v-btn>
+        </v-card-title>
+        <v-divider></v-divider>
+        <v-card-text class="pa-4">
+          <div ref="fileDependencyModalContainer" class="mermaid-large-container"></div>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -609,6 +734,11 @@ const explainStatus = ref<'none' | 'up-to-date' | 'outdated'>('none');
 const showSequenceDiagram = ref(false);
 const sequenceContainer = ref<HTMLElement | null>(null);
 const sequenceModalContainer = ref<HTMLElement | null>(null);
+
+// File dependency diagram feature
+const showFileDependency = ref(false);
+const classDiagramContainer = ref<HTMLElement | null>(null);
+const fileDependencyModalContainer = ref<HTMLElement | null>(null);
 
 // Unified function to create analysis options
 // This must match the backend createAnalysisOptions for consistency
@@ -1004,6 +1134,64 @@ watch(
   },
   { immediate: true }
 );
+
+// Render class diagram (file dependencies) in a container
+const renderClassDiagram = async (container: HTMLElement | null, enlarged: boolean = false) => {
+  if (!container) return;
+  if (!explainResult.value?.fileDependencies?.classDiagram) return;
+
+  const mermaidCode = explainResult.value.fileDependencies.classDiagram;
+  if (!mermaidCode) return;
+
+  try {
+    const id = `class-${Date.now()}-${enlarged ? 'modal' : 'preview'}`;
+    const { svg } = await mermaid.render(id, mermaidCode);
+    container.innerHTML = svg;
+  } catch (err) {
+    console.error('Failed to render class diagram:', err);
+    container.innerHTML = '<p class="text-error text-caption">Failed to render file dependency diagram</p>';
+  }
+};
+
+// Open file dependency diagram in modal
+const openFileDependencyModal = async () => {
+  showFileDependency.value = true;
+  await nextTick();
+  renderClassDiagram(fileDependencyModalContainer.value, true);
+};
+
+// Watch for fileDependencies changes to render preview
+watch(
+  () => [explainResult.value?.fileDependencies, classDiagramContainer.value] as const,
+  async ([fileDeps, container]) => {
+    if (fileDeps && fileDeps.imports.length + fileDeps.dependents.length > 0 && container) {
+      await nextTick();
+      renderClassDiagram(container, false);
+    }
+  },
+  { immediate: true }
+);
+
+// Handle file click - emit event to parent to open file
+const handleFileClick = (filePath: string) => {
+  // Emit event to parent to select the file
+  // This will be handled by ReviewView.vue
+  console.log('File clicked:', filePath);
+  // TODO: Emit event to parent or use projectStore to change current file
+};
+
+// Helper function to get color for export type chips
+const getExportTypeColor = (type: string): string => {
+  const colorMap: Record<string, string> = {
+    function: 'green',
+    class: 'blue',
+    constant: 'orange',
+    interface: 'purple',
+    type: 'indigo',
+    default: 'teal',
+  };
+  return colorMap[type] || 'grey';
+};
 </script>
 
 <style scoped>
@@ -1171,5 +1359,22 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* File dependency diagram styles */
+.file-dependency-diagram {
+  max-height: 400px;
+  overflow: auto;
+  background: #f5f5f5;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.gap-2 {
+  gap: 0.5rem;
 }
 </style>

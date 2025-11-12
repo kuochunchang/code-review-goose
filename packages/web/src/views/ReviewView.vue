@@ -95,12 +95,6 @@
         </template>
       </v-tooltip>
 
-      <v-tooltip text="UML Diagram" location="bottom">
-        <template v-slot:activator="{ props }">
-          <v-btn icon="mdi-chart-tree" @click="openUMLViewer" v-bind="props" class="mr-2"></v-btn>
-        </template>
-      </v-tooltip>
-
       <v-tooltip :text="uiStore.theme === 'light' ? 'Dark Mode' : 'Light Mode'" location="bottom">
         <template v-slot:activator="{ props }">
           <v-btn
@@ -191,14 +185,6 @@ const keyboardShortcuts: KeyboardShortcut[] = [
     description: 'Open Search',
     handler: () => {
       searchDialog.value = true;
-    },
-  },
-  {
-    key: 'u',
-    ctrl: true,
-    description: 'Open UML Diagram',
-    handler: () => {
-      openUMLViewer();
     },
   },
   {
@@ -297,22 +283,6 @@ const openSettings = () => {
 
 const openSearch = () => {
   searchDialog.value = true;
-};
-
-const openUMLViewer = () => {
-  if (!currentCode.value || !selectedFile.value) {
-    uiStore.showSnackbar('Please select a file first', 'warning');
-    return;
-  }
-  // Store code and filePath in sessionStorage to pass to new window
-  sessionStorage.setItem('uml_code', currentCode.value);
-  sessionStorage.setItem('uml_filePath', selectedFile.value);
-  // Open UML viewer in a new window
-  const width = 1400;
-  const height = 900;
-  const left = window.screenX + (window.outerWidth - width) / 2;
-  const top = window.screenY + (window.outerHeight - height) / 2;
-  window.open('/uml', 'UML_Viewer', `width=${width},height=${height},left=${left},top=${top}`);
 };
 
 const handleSelectMatch = (filePath: string, line: number) => {
