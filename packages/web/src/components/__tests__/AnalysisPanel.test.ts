@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import AnalysisPanel from '../AnalysisPanel.vue';
 import type { ExplainResult } from '../../types/insight';
 
-// Mock mermaid
+// Mock mermaid - use a factory function to avoid hoisting issues
 vi.mock('mermaid', () => ({
   default: {
     initialize: vi.fn(),
@@ -75,7 +75,11 @@ describe('AnalysisPanel - Sequence Diagram Feature', () => {
     timestamp: new Date().toISOString(),
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Clear the mermaid mock between tests
+    const mermaid = await import('mermaid');
+    vi.mocked(mermaid.default.render).mockClear();
+
     wrapper = mount(AnalysisPanel, {
       props: {
         filePath: '/test/file.ts',
@@ -102,6 +106,12 @@ describe('AnalysisPanel - Sequence Diagram Feature', () => {
         },
       },
     });
+  });
+
+  afterEach(() => {
+    if (wrapper) {
+      wrapper.unmount();
+    }
   });
 
   describe('Sequence Diagram Generation', () => {
