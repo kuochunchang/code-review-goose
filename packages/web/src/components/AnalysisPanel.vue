@@ -431,7 +431,7 @@
               <v-divider v-if="explainResult.methodDependencies && explainResult.methodDependencies.length > 0"></v-divider>
 
               <!-- File Dependencies (Cross-file dependencies) -->
-              <div v-if="explainResult.fileDependencies && (explainResult.fileDependencies.imports.length > 0 || explainResult.fileDependencies.dependents.length > 0)" class="pa-3">
+              <div v-if="explainResult.fileDependencies" class="pa-3">
                 <h3 class="text-subtitle-2 mb-3 d-flex align-center">
                   <v-icon icon="mdi-file-tree" size="small" class="mr-2"></v-icon>
                   File Dependencies
@@ -450,6 +450,20 @@
                 <div class="file-dependency-diagram mb-3">
                   <div ref="classDiagramContainer" class="mermaid-container"></div>
                 </div>
+
+                <!-- Empty state info when no imports/dependents -->
+                <v-alert
+                  v-if="explainResult.fileDependencies.imports.length === 0 && explainResult.fileDependencies.dependents.length === 0"
+                  type="info"
+                  variant="tonal"
+                  density="compact"
+                  class="mb-3"
+                >
+                  <v-icon icon="mdi-information" class="mr-2"></v-icon>
+                  <span class="text-body-2">
+                    This file has no dependencies on other project files. It may only import external libraries or be a standalone module.
+                  </span>
+                </v-alert>
 
                 <!-- Imports Section -->
                 <div v-if="explainResult.fileDependencies.imports.length > 0" class="mb-3">
@@ -537,7 +551,7 @@
                 </div>
               </div>
 
-              <v-divider v-if="explainResult.fileDependencies && (explainResult.fileDependencies.imports.length > 0 || explainResult.fileDependencies.dependents.length > 0)"></v-divider>
+              <v-divider v-if="explainResult.fileDependencies"></v-divider>
 
               <!-- How It Works -->
               <div v-if="explainResult.howItWorks.length > 0" class="pa-3">
@@ -1187,19 +1201,18 @@ watch(
       hasContainer: !!container,
       importsCount: fileDeps?.imports?.length || 0,
       dependentsCount: fileDeps?.dependents?.length || 0,
+      exportsCount: fileDeps?.exports?.length || 0,
     });
 
-    if (fileDeps && (fileDeps.imports.length > 0 || fileDeps.dependents.length > 0) && container) {
+    // Render diagram if we have fileDeps and container
+    // Even if no imports/dependents, we should show the diagram (it will show "no dependencies found")
+    if (fileDeps && container) {
       console.log('[AnalysisPanel] Rendering class diagram preview...');
       await nextTick();
       renderClassDiagram(container, false);
     } else {
       console.log('[AnalysisPanel] Skipping diagram render:', {
-        reason: !fileDeps
-          ? 'No file deps'
-          : !container
-            ? 'No container'
-            : 'No imports/dependents',
+        reason: !fileDeps ? 'No file deps' : 'No container',
       });
     }
   },
