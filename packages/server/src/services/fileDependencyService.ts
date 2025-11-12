@@ -458,18 +458,28 @@ export class FileDependencyService {
     // Remove file extension
     const withoutExt = filePath.replace(/\.(ts|tsx|js|jsx|vue)$/, '');
 
-    // Replace path separators and special chars with underscores
-    // But keep it readable by preserving some structure
-    const sanitized = withoutExt
-      .replace(/\//g, '_')
-      .replace(/\\/g, '_')
+    // Split path into parts
+    const parts = withoutExt.split(/[/\\]+/).filter((p) => p.length > 0);
+
+    // Strategy: Keep last 2-3 meaningful parts (e.g., "services/batchAnalysisService")
+    let displayName: string;
+    if (parts.length <= 2) {
+      displayName = parts.join('_');
+    } else {
+      // Take last 3 parts for better context
+      displayName = parts.slice(-3).join('_');
+    }
+
+    // Replace special chars with underscores
+    const sanitized = displayName
       .replace(/[^a-zA-Z0-9_]/g, '_')
       .replace(/_+/g, '_')
       .replace(/^_|_$/g, '');
 
-    // Limit length to keep diagram clean (take last 50 chars)
-    if (sanitized.length > 50) {
-      return '...' + sanitized.slice(-47);
+    // Limit length to keep diagram clean (max 40 chars)
+    if (sanitized.length > 40) {
+      // Take first 15 and last 20 chars with ellipsis
+      return sanitized.substring(0, 15) + '...' + sanitized.substring(sanitized.length - 20);
     }
 
     return sanitized;
