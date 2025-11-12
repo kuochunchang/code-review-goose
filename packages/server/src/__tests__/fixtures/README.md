@@ -157,7 +157,6 @@ describe('Hybrid Test', () => {
 | ----------------------------- | ------------------------------- |
 | `mockAnalysisResult`          | 基础分析结果，包含1个medium问题 |
 | `mockEmptyAnalysisResult`     | 空结果，无问题                  |
-| `mockCachedResult`            | 缓存的结果                      |
 | `mockMultipleIssuesResult`    | 多问题结果（3个不同severity）   |
 | `mockSecurityIssuesResult`    | 安全问题结果                    |
 | `mockPerformanceIssuesResult` | 性能问题结果                    |

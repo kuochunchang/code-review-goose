@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { AIService } from '../services/aiService.js';
-import { CacheService } from '../services/cacheService.js';
 import type { AnalysisOptions } from '../types/ai.js';
 
 export const analysisRouter = Router();
@@ -8,7 +7,7 @@ export const analysisRouter = Router();
 /**
  * POST /api/analysis/analyze
  * Analyze code
- * Note: Cache/insights management is now handled by the frontend.
+ * Note: Insights management is now handled by the frontend.
  * This endpoint only performs the analysis.
  */
 analysisRouter.post('/analyze', async (req: Request, res: Response): Promise<void> => {
@@ -156,56 +155,6 @@ analysisRouter.get('/status', async (req: Request, res: Response): Promise<void>
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to check status',
-    });
-  }
-});
-
-/**
- * DELETE /api/analysis/cache
- * Clear analysis cache
- */
-analysisRouter.delete('/cache', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const projectPath = req.app.locals.projectPath;
-    const cacheService = new CacheService(projectPath);
-
-    await cacheService.clear();
-
-    res.json({
-      success: true,
-      data: {
-        message: 'Cache cleared successfully',
-      },
-    });
-  } catch (error) {
-    console.error('Cache clear error:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to clear cache',
-    });
-  }
-});
-
-/**
- * GET /api/analysis/cache/stats
- * Get cache statistics
- */
-analysisRouter.get('/cache/stats', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const projectPath = req.app.locals.projectPath;
-    const cacheService = new CacheService(projectPath);
-
-    const stats = await cacheService.getStats();
-
-    res.json({
-      success: true,
-      data: stats,
-    });
-  } catch (error) {
-    console.error('Cache stats error:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to get cache stats',
     });
   }
 });
