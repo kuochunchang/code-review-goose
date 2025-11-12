@@ -173,7 +173,7 @@ export class BatchAnalysisService {
       // Read file content
       const content = await this.fileService.readFile(filePath);
 
-      // Use standardized options builder to ensure cache key consistency
+      // Use standardized options builder for consistency
       const analysisOptions = createAnalysisOptions(filePath, this.getLanguageFromPath(filePath));
 
       // Analyze the file

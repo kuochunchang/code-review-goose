@@ -96,11 +96,6 @@
           </p>
         </div>
 
-        <div v-else-if="loadingCache" class="analyzing-state">
-          <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
-          <p class="text-grey mt-4">Loading cached insights...</p>
-        </div>
-
         <!-- Tab content -->
         <v-window v-else v-model="currentTab">
           <!-- Analysis Tab -->
@@ -595,7 +590,6 @@ const error = ref<string | null>(null);
 const analysisResult = ref<AnalysisResult | null>(null);
 const expandedIssues = ref<number[]>([]);
 const severityFilter = ref<string[]>(['critical', 'high', 'medium', 'low', 'info']);
-const loadingCache = ref(false);
 const isFileAnalyzable = ref(true);
 
 // Insight status tracking
@@ -617,7 +611,7 @@ const sequenceContainer = ref<HTMLElement | null>(null);
 const sequenceModalContainer = ref<HTMLElement | null>(null);
 
 // Unified function to create analysis options
-// This must match the backend createAnalysisOptions to ensure cache key consistency
+// This must match the backend createAnalysisOptions for consistency
 const createAnalysisOptions = (filePath: string) => {
   const ext = filePath.split('.').pop()?.toLowerCase() || '';
   const languageMap: Record<string, string> = {
@@ -658,7 +652,6 @@ watch(currentFile, async (newFilePath, oldFilePath) => {
   error.value = null;
   expandedIssues.value = [];
   autoSaved.value = false;
-  loadingCache.value = true;
   isFileAnalyzable.value = true;
   insightStatus.value = 'none';
   currentCodeHash.value = '';
@@ -675,7 +668,6 @@ watch(currentFile, async (newFilePath, oldFilePath) => {
 
     // If file is not analyzable, don't try to load insights
     if (!isFileAnalyzable.value) {
-      loadingCache.value = false;
       return;
     }
 
@@ -726,8 +718,6 @@ watch(currentFile, async (newFilePath, oldFilePath) => {
     console.error('Failed to load insight:', err);
     // Don't show error to user, just no insight available
     insightStatus.value = 'none';
-  } finally {
-    loadingCache.value = false;
   }
 });
 

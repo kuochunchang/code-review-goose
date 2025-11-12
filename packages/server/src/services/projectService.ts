@@ -143,6 +143,48 @@ export class ProjectService {
     return this.buildFileTree(this.projectPath, '');
   }
 
+  /**
+   * Find README file in project root directory
+   * @returns README file path (relative) or null if not found
+   */
+  async findReadmeFile(): Promise<string | null> {
+    // Common README file names (case-insensitive)
+    const readmePatterns = [
+      'README.md',
+      'readme.md',
+      'Readme.md',
+      'README.MD',
+      'README',
+      'readme',
+      'README.txt',
+      'readme.txt',
+      'README.rst',
+      'readme.rst',
+    ];
+
+    try {
+      const entries = await fs.readdir(this.projectPath);
+
+      // Find the first matching README file
+      for (const pattern of readmePatterns) {
+        if (entries.includes(pattern)) {
+          const filePath = path.join(this.projectPath, pattern);
+          const stats = await fs.stat(filePath);
+
+          // Make sure it's a file, not a directory
+          if (stats.isFile()) {
+            return pattern; // Return relative path
+          }
+        }
+      }
+    } catch (error) {
+      // If directory can't be read, return null
+      return null;
+    }
+
+    return null;
+  }
+
   private async buildFileTree(fullPath: string, relativePath: string): Promise<FileNode> {
     const stats = await fs.stat(fullPath);
     const name = path.basename(fullPath);

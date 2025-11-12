@@ -28,15 +28,6 @@ export const mockEmptyAnalysisResult: AnalysisResult = {
 };
 
 /**
- * 缓存的结果
- */
-export const mockCachedResult: AnalysisResult = {
-  issues: [],
-  summary: 'No issues (cached)',
-  timestamp: '2024-01-01T00:00:00.000Z',
-};
-
-/**
  * 多问题结果
  * 包含不同severity和category的问题
  */

@@ -77,31 +77,14 @@ describe('UML API', () => {
       expect(response.body.data.fromInsights).toBe(false);
     });
 
-    it('should return cached result when available', async () => {
-      vi.mocked(CacheService).mockImplementation(
-        () =>
-          ({
-            get: vi.fn().mockResolvedValue(mockUMLResult),
-          }) as any
-      );
-
-      const response = await request(app)
-        .post('/api/uml/generate')
-        .send({ code: 'class Test {}', type: 'class' });
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.fromCache).toBe(true);
-    });
-
     it('should force refresh when requested', async () => {
       const mockGenerateDiagram = vi.fn().mockResolvedValue(mockUMLResult);
 
-      vi.mocked(CacheService).mockImplementation(
+      vi.mocked(InsightService).mockImplementation(
         () =>
           ({
-            get: vi.fn().mockResolvedValue(mockUMLResult),
-            set: vi.fn().mockResolvedValue(undefined),
+            check: vi.fn().mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
+            setUML: vi.fn().mockResolvedValue(undefined),
           }) as any
       );
 
@@ -128,7 +111,7 @@ describe('UML API', () => {
 
       const response = await request(app)
         .post('/api/uml/generate')
-        .send({ code: 'class Test {}', type: 'class', forceRefresh: true });
+        .send({ code: 'class Test {}', type: 'class', filePath: '/test/file.ts', forceRefresh: true });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -145,7 +128,7 @@ describe('UML API', () => {
     });
 
     it('should return 400 when type is missing', async () => {
-      const response = await request(app).post('/api/uml/generate').send({ code: 'class Test {}' });
+      const response = await request(app).post('/api/uml/generate').send({ code: 'class Test {}', filePath: '/test/file.ts' });
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
@@ -155,7 +138,7 @@ describe('UML API', () => {
     it('should return 400 for invalid diagram type', async () => {
       const response = await request(app)
         .post('/api/uml/generate')
-        .send({ code: 'class Test {}', type: 'invalid' });
+        .send({ code: 'class Test {}', type: 'invalid', filePath: '/test/file.ts' });
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
@@ -165,11 +148,11 @@ describe('UML API', () => {
     it('should handle UML generation errors', async () => {
       const mockGenerateDiagram = vi.fn().mockRejectedValue(new Error('Generation failed'));
 
-      vi.mocked(CacheService).mockImplementation(
+      vi.mocked(InsightService).mockImplementation(
         () =>
           ({
-            get: vi.fn().mockResolvedValue(null),
-            set: vi.fn(),
+            check: vi.fn().mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
+            setUML: vi.fn().mockResolvedValue(undefined),
           }) as any
       );
 
@@ -198,92 +181,11 @@ describe('UML API', () => {
 
       const response = await request(app)
         .post('/api/uml/generate')
-        .send({ code: 'class Test {}', type: 'class' });
+        .send({ code: 'class Test {}', type: 'class', filePath: '/test/file.ts' });
 
       expect(response.status).toBe(500);
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBe('Generation failed');
-      expect(consoleErrorSpy).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
-    });
-  });
-
-  describe('DELETE /api/uml/cache', () => {
-    it('should clear UML cache successfully', async () => {
-      vi.mocked(CacheService).mockImplementation(
-        () =>
-          ({
-            clear: vi.fn().mockResolvedValue(undefined),
-          }) as any
-      );
-
-      const response = await request(app).delete('/api/uml/cache');
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.message).toBe('UML cache cleared successfully');
-    });
-
-    it('should handle errors when clearing cache', async () => {
-      vi.mocked(CacheService).mockImplementation(
-        () =>
-          ({
-            clear: vi.fn().mockRejectedValue(new Error('Clear failed')),
-          }) as any
-      );
-
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const response = await request(app).delete('/api/uml/cache');
-
-      expect(response.status).toBe(500);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Clear failed');
-      expect(consoleErrorSpy).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
-    });
-  });
-
-  describe('GET /api/uml/cache/stats', () => {
-    it('should return UML cache statistics', async () => {
-      const mockStats = {
-        totalEntries: 10,
-        totalSize: 2048,
-        oldestEntry: new Date().toISOString(),
-        newestEntry: new Date().toISOString(),
-      };
-
-      vi.mocked(CacheService).mockImplementation(
-        () =>
-          ({
-            getStats: vi.fn().mockResolvedValue(mockStats),
-          }) as any
-      );
-
-      const response = await request(app).get('/api/uml/cache/stats');
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toEqual(mockStats);
-    });
-
-    it('should handle errors when getting cache stats', async () => {
-      vi.mocked(CacheService).mockImplementation(
-        () =>
-          ({
-            getStats: vi.fn().mockRejectedValue(new Error('Stats failed')),
-          }) as any
-      );
-
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const response = await request(app).get('/api/uml/cache/stats');
-
-      expect(response.status).toBe(500);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Stats failed');
       expect(consoleErrorSpy).toHaveBeenCalled();
 
       consoleErrorSpy.mockRestore();

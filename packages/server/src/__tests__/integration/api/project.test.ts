@@ -98,4 +98,55 @@ describe('Project API', () => {
       expect(response.body.error).toBe('Failed to read directory');
     });
   });
+
+  describe('GET /api/project/readme', () => {
+    it('should return README file path when it exists', async () => {
+      const mockFindReadmeFile = vi.fn().mockResolvedValue('README.md');
+      vi.mocked(ProjectService).mockImplementation(
+        () =>
+          ({
+            findReadmeFile: mockFindReadmeFile,
+          }) as any
+      );
+
+      const response = await request(app).get('/api/project/readme');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toEqual({ readmePath: 'README.md' });
+      expect(mockFindReadmeFile).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return null when no README file exists', async () => {
+      const mockFindReadmeFile = vi.fn().mockResolvedValue(null);
+      vi.mocked(ProjectService).mockImplementation(
+        () =>
+          ({
+            findReadmeFile: mockFindReadmeFile,
+          }) as any
+      );
+
+      const response = await request(app).get('/api/project/readme');
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toEqual({ readmePath: null });
+    });
+
+    it('should handle errors when finding README file', async () => {
+      const mockFindReadmeFile = vi.fn().mockRejectedValue(new Error('Failed to read directory'));
+      vi.mocked(ProjectService).mockImplementation(
+        () =>
+          ({
+            findReadmeFile: mockFindReadmeFile,
+          }) as any
+      );
+
+      const response = await request(app).get('/api/project/readme');
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('Failed to read directory');
+    });
+  });
 });
