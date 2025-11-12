@@ -17,6 +17,7 @@
     "lint": "eslint . --ext .ts,.vue",
     "format": "prettier --write \"**/*.{ts,vue,json,md}\"",
     "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
     "test:e2e": "npm run test:e2e -w @code-review-goose/web",
     "test:e2e:ui": "npm run test:e2e:ui -w @code-review-goose/web",
     "test:e2e:debug": "npm run test:e2e:debug -w @code-review-goose/web",
