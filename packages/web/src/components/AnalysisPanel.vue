@@ -994,12 +994,16 @@ const openSequenceDiagramModal = async () => {
 };
 
 // Watch for explainResult changes to render preview
-watch(explainResult, async (newResult) => {
-  if (newResult?.methodDependencies && newResult.methodDependencies.length > 0) {
-    await nextTick();
-    renderSequenceDiagram(sequenceContainer.value, false);
-  }
-}, { immediate: true });
+watch(
+  () => [explainResult.value, sequenceContainer.value] as const,
+  async ([newResult, container]) => {
+    if (newResult?.methodDependencies && newResult.methodDependencies.length > 0 && container) {
+      await nextTick();
+      renderSequenceDiagram(container, false);
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>
