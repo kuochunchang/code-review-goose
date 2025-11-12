@@ -1137,18 +1137,36 @@ watch(
 
 // Render class diagram (file dependencies) in a container
 const renderClassDiagram = async (container: HTMLElement | null, enlarged: boolean = false) => {
-  if (!container) return;
-  if (!explainResult.value?.fileDependencies?.classDiagram) return;
+  if (!container) {
+    console.warn('[AnalysisPanel] Container not available for class diagram');
+    return;
+  }
+
+  if (!explainResult.value?.fileDependencies?.classDiagram) {
+    console.warn('[AnalysisPanel] No class diagram data available');
+    return;
+  }
 
   const mermaidCode = explainResult.value.fileDependencies.classDiagram;
-  if (!mermaidCode) return;
+  if (!mermaidCode) {
+    console.warn('[AnalysisPanel] Empty class diagram code');
+    return;
+  }
+
+  console.log('[AnalysisPanel] Rendering class diagram:', {
+    enlarged,
+    codeLength: mermaidCode.length,
+    preview: mermaidCode.substring(0, 100),
+  });
 
   try {
     const id = `class-${Date.now()}-${enlarged ? 'modal' : 'preview'}`;
     const { svg } = await mermaid.render(id, mermaidCode);
     container.innerHTML = svg;
+    console.log('[AnalysisPanel] Class diagram rendered successfully');
   } catch (err) {
-    console.error('Failed to render class diagram:', err);
+    console.error('[AnalysisPanel] Failed to render class diagram:', err);
+    console.error('[AnalysisPanel] Mermaid code:', mermaidCode);
     container.innerHTML = '<p class="text-error text-caption">Failed to render file dependency diagram</p>';
   }
 };
@@ -1164,9 +1182,25 @@ const openFileDependencyModal = async () => {
 watch(
   () => [explainResult.value?.fileDependencies, classDiagramContainer.value] as const,
   async ([fileDeps, container]) => {
-    if (fileDeps && fileDeps.imports.length + fileDeps.dependents.length > 0 && container) {
+    console.log('[AnalysisPanel] Watch triggered for file dependencies:', {
+      hasFileDeps: !!fileDeps,
+      hasContainer: !!container,
+      importsCount: fileDeps?.imports?.length || 0,
+      dependentsCount: fileDeps?.dependents?.length || 0,
+    });
+
+    if (fileDeps && (fileDeps.imports.length > 0 || fileDeps.dependents.length > 0) && container) {
+      console.log('[AnalysisPanel] Rendering class diagram preview...');
       await nextTick();
       renderClassDiagram(container, false);
+    } else {
+      console.log('[AnalysisPanel] Skipping diagram render:', {
+        reason: !fileDeps
+          ? 'No file deps'
+          : !container
+            ? 'No container'
+            : 'No imports/dependents',
+      });
     }
   },
   { immediate: true }

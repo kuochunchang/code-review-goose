@@ -31,6 +31,12 @@ export class FileDependencyService {
     try {
       const { projectRoot, currentFilePath } = options;
 
+      console.log('[FileDependencyService] Starting analysis:', {
+        currentFilePath,
+        projectRoot,
+        codeLength: code.length,
+      });
+
       // Parse code to AST
       const ast = parse(code, {
         sourceType: 'module',
@@ -42,8 +48,15 @@ export class FileDependencyService {
       const imports = this.extractImports(ast, currentFilePath, projectRoot);
       const exports = this.extractExports(ast);
 
+      console.log('[FileDependencyService] Extracted:', {
+        importsCount: imports.length,
+        exportsCount: exports.length,
+      });
+
       // Find files that depend on this file (dependents)
       const dependents = await this.findDependents(currentFilePath, projectRoot);
+
+      console.log('[FileDependencyService] Found dependents:', dependents.length);
 
       // Generate Mermaid diagrams
       const classDiagram = this.generateClassDiagram(
@@ -54,6 +67,11 @@ export class FileDependencyService {
       );
       const sequenceDiagram = this.generateSequenceDiagram(currentFilePath, imports, projectRoot);
 
+      console.log('[FileDependencyService] Generated diagrams:', {
+        classDiagramLength: classDiagram.length,
+        hasSequenceDiagram: !!sequenceDiagram,
+      });
+
       return {
         imports,
         exports,
@@ -62,7 +80,7 @@ export class FileDependencyService {
         sequenceDiagram,
       };
     } catch (error) {
-      console.error('Error analyzing file dependencies:', error);
+      console.error('[FileDependencyService] Error analyzing file dependencies:', error);
       // Return empty result on error
       return {
         imports: [],
@@ -434,12 +452,26 @@ export class FileDependencyService {
 
   /**
    * Sanitize file name for Mermaid diagram
-   * Replace special characters with underscores
+   * Convert file path to a readable class name
    */
   private sanitizeFileName(filePath: string): string {
-    return filePath
-      .replace(/[^a-zA-Z0-9]/g, '_')
+    // Remove file extension
+    const withoutExt = filePath.replace(/\.(ts|tsx|js|jsx|vue)$/, '');
+
+    // Replace path separators and special chars with underscores
+    // But keep it readable by preserving some structure
+    const sanitized = withoutExt
+      .replace(/\//g, '_')
+      .replace(/\\/g, '_')
+      .replace(/[^a-zA-Z0-9_]/g, '_')
       .replace(/_+/g, '_')
       .replace(/^_|_$/g, '');
+
+    // Limit length to keep diagram clean (take last 50 chars)
+    if (sanitized.length > 50) {
+      return '...' + sanitized.slice(-47);
+    }
+
+    return sanitized;
   }
 }

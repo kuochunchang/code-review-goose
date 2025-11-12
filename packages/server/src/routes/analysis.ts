@@ -121,15 +121,25 @@ analysisRouter.post('/explain', async (req: Request, res: Response): Promise<voi
     if (options?.filePath) {
       try {
         const { FileDependencyService } = await import('../services/fileDependencyService.js');
+        const path = await import('path');
         const fileDependencyService = new FileDependencyService();
+
+        // Convert relative path to absolute path
+        const absoluteFilePath = path.resolve(projectPath, options.filePath);
 
         const fileDependencies = await fileDependencyService.analyzeFileDependencies(code, {
           projectRoot: projectPath,
-          currentFilePath: options.filePath,
+          currentFilePath: absoluteFilePath,
         });
 
         // Add file dependencies to result
         result.fileDependencies = fileDependencies;
+        console.log('File dependencies analyzed:', {
+          filePath: options.filePath,
+          absolutePath: absoluteFilePath,
+          importsCount: fileDependencies.imports.length,
+          dependentsCount: fileDependencies.dependents.length,
+        });
       } catch (depError) {
         console.error('File dependency analysis error:', depError);
         // Don't fail the entire request if dependency analysis fails
