@@ -41,7 +41,9 @@ describe('UML API', () => {
       vi.mocked(InsightService).mockImplementation(
         () =>
           ({
-            check: vi.fn().mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
+            check: vi
+              .fn()
+              .mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
             setUML: vi.fn().mockResolvedValue(undefined),
           }) as any
       );
@@ -83,7 +85,9 @@ describe('UML API', () => {
       vi.mocked(InsightService).mockImplementation(
         () =>
           ({
-            check: vi.fn().mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
+            check: vi
+              .fn()
+              .mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
             setUML: vi.fn().mockResolvedValue(undefined),
           }) as any
       );
@@ -111,7 +115,12 @@ describe('UML API', () => {
 
       const response = await request(app)
         .post('/api/uml/generate')
-        .send({ code: 'class Test {}', type: 'class', filePath: '/test/file.ts', forceRefresh: true });
+        .send({
+          code: 'class Test {}',
+          type: 'class',
+          filePath: '/test/file.ts',
+          forceRefresh: true,
+        });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -128,7 +137,9 @@ describe('UML API', () => {
     });
 
     it('should return 400 when type is missing', async () => {
-      const response = await request(app).post('/api/uml/generate').send({ code: 'class Test {}', filePath: '/test/file.ts' });
+      const response = await request(app)
+        .post('/api/uml/generate')
+        .send({ code: 'class Test {}', filePath: '/test/file.ts' });
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
@@ -151,7 +162,9 @@ describe('UML API', () => {
       vi.mocked(InsightService).mockImplementation(
         () =>
           ({
-            check: vi.fn().mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
+            check: vi
+              .fn()
+              .mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
             setUML: vi.fn().mockResolvedValue(undefined),
           }) as any
       );

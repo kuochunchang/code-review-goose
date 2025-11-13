@@ -82,9 +82,7 @@
         <!-- Common empty/loading states -->
         <div v-if="!currentFile" class="empty-state">
           <v-icon icon="mdi-information-outline" size="48" color="grey-lighten-1"></v-icon>
-          <p class="text-grey mt-4 text-center px-4">
-            Select a file to get AI-powered insights
-          </p>
+          <p class="text-grey mt-4 text-center px-4">Select a file to get AI-powered insights</p>
         </div>
 
         <div v-else-if="currentFile && !isFileAnalyzable" class="empty-state">
@@ -109,118 +107,118 @@
               {{ error }}
             </v-alert>
 
-        <div v-else-if="analysisResult" class="analysis-content" data-testid="analysis-results">
-          <!-- Outdated warning banner -->
-          <v-alert
-            v-if="insightStatus === 'outdated'"
-            type="warning"
-            variant="tonal"
-            density="compact"
-            class="ma-2 mb-0"
-          >
-            <template #prepend>
-              <v-icon icon="mdi-alert"></v-icon>
-            </template>
-            <span class="text-body-2">
-              Code has changed since last analysis. Click "Analyze" to refresh insights.
-            </span>
-          </v-alert>
+            <div v-else-if="analysisResult" class="analysis-content" data-testid="analysis-results">
+              <!-- Outdated warning banner -->
+              <v-alert
+                v-if="insightStatus === 'outdated'"
+                type="warning"
+                variant="tonal"
+                density="compact"
+                class="ma-2 mb-0"
+              >
+                <template #prepend>
+                  <v-icon icon="mdi-alert"></v-icon>
+                </template>
+                <span class="text-body-2">
+                  Code has changed since last analysis. Click "Analyze" to refresh insights.
+                </span>
+              </v-alert>
 
-          <!-- Summary -->
-          <div class="summary-section pa-3">
-            <h3 class="text-subtitle-2 mb-2">Summary</h3>
-            <div
-              class="text-body-2 markdown-content"
-              v-html="renderMarkdown(analysisResult.summary)"
-            ></div>
-          </div>
+              <!-- Summary -->
+              <div class="summary-section pa-3">
+                <h3 class="text-subtitle-2 mb-2">Summary</h3>
+                <div
+                  class="text-body-2 markdown-content"
+                  v-html="renderMarkdown(analysisResult.summary)"
+                ></div>
+              </div>
 
-          <v-divider></v-divider>
+              <v-divider></v-divider>
 
-          <!-- Issues List -->
-          <div class="issues-section">
-            <div class="pa-3 d-flex align-center">
-              <h3 class="text-subtitle-2 flex-grow-1">Issues ({{ filteredIssues.length }})</h3>
-              <!-- Severity Filter -->
-              <v-btn-toggle v-model="severityFilter" multiple size="small" density="compact">
-                <v-btn value="critical" size="x-small">
-                  <v-icon icon="mdi-alert-circle" color="error" size="small"></v-icon>
-                </v-btn>
-                <v-btn value="high" size="x-small">
-                  <v-icon icon="mdi-alert" color="warning" size="small"></v-icon>
-                </v-btn>
-                <v-btn value="medium" size="x-small">
-                  <v-icon icon="mdi-information" color="info" size="small"></v-icon>
-                </v-btn>
-                <v-btn value="low" size="x-small">
-                  <v-icon icon="mdi-minus-circle" color="grey" size="small"></v-icon>
-                </v-btn>
-              </v-btn-toggle>
-            </div>
-
-            <v-list v-if="filteredIssues.length > 0" class="py-0">
-              <template v-for="(issue, index) in filteredIssues" :key="index">
-                <v-list-item class="issue-item" @click="toggleIssue(index)">
-                  <template #prepend>
-                    <v-icon
-                      :icon="getSeverityIcon(issue.severity)"
-                      :color="getSeverityColor(issue.severity)"
-                      size="small"
-                    ></v-icon>
-                  </template>
-                  <v-list-item-title class="text-body-2">
-                    {{ issue.message }}
-                  </v-list-item-title>
-                  <v-list-item-subtitle class="text-caption">
-                    Line {{ issue.line }}{{ issue.column ? `:${issue.column}` : '' }} ·
-                    {{ issue.category }}
-                  </v-list-item-subtitle>
-                  <template #append>
-                    <v-btn
-                      size="x-small"
-                      variant="text"
-                      color="primary"
-                      prepend-icon="mdi-cursor-default-click"
-                      @click.stop="emit('jumpToLine', issue.line)"
-                    >
-                      Line {{ issue.line }}
+              <!-- Issues List -->
+              <div class="issues-section">
+                <div class="pa-3 d-flex align-center">
+                  <h3 class="text-subtitle-2 flex-grow-1">Issues ({{ filteredIssues.length }})</h3>
+                  <!-- Severity Filter -->
+                  <v-btn-toggle v-model="severityFilter" multiple size="small" density="compact">
+                    <v-btn value="critical" size="x-small">
+                      <v-icon icon="mdi-alert-circle" color="error" size="small"></v-icon>
                     </v-btn>
+                    <v-btn value="high" size="x-small">
+                      <v-icon icon="mdi-alert" color="warning" size="small"></v-icon>
+                    </v-btn>
+                    <v-btn value="medium" size="x-small">
+                      <v-icon icon="mdi-information" color="info" size="small"></v-icon>
+                    </v-btn>
+                    <v-btn value="low" size="x-small">
+                      <v-icon icon="mdi-minus-circle" color="grey" size="small"></v-icon>
+                    </v-btn>
+                  </v-btn-toggle>
+                </div>
+
+                <v-list v-if="filteredIssues.length > 0" class="py-0">
+                  <template v-for="(issue, index) in filteredIssues" :key="index">
+                    <v-list-item class="issue-item" @click="toggleIssue(index)">
+                      <template #prepend>
+                        <v-icon
+                          :icon="getSeverityIcon(issue.severity)"
+                          :color="getSeverityColor(issue.severity)"
+                          size="small"
+                        ></v-icon>
+                      </template>
+                      <v-list-item-title class="text-body-2">
+                        {{ issue.message }}
+                      </v-list-item-title>
+                      <v-list-item-subtitle class="text-caption">
+                        Line {{ issue.line }}{{ issue.column ? `:${issue.column}` : '' }} ·
+                        {{ issue.category }}
+                      </v-list-item-subtitle>
+                      <template #append>
+                        <v-btn
+                          size="x-small"
+                          variant="text"
+                          color="primary"
+                          prepend-icon="mdi-cursor-default-click"
+                          @click.stop="emit('jumpToLine', issue.line)"
+                        >
+                          Line {{ issue.line }}
+                        </v-btn>
+                      </template>
+
+                      <!-- Expanded Details -->
+                      <v-expand-transition>
+                        <div v-if="expandedIssues.includes(index)" class="issue-details mt-2">
+                          <div class="suggestion-box pa-2 bg-blue-lighten-5 rounded">
+                            <p class="text-caption font-weight-bold mb-1">Suggestion:</p>
+                            <div
+                              class="text-caption markdown-content"
+                              v-html="renderMarkdown(issue.suggestion)"
+                            ></div>
+                          </div>
+
+                          <!-- Code Example -->
+                          <div v-if="issue.codeExample" class="code-example mt-2">
+                            <div class="pa-2 bg-red-lighten-5 rounded mb-1">
+                              <p class="text-caption font-weight-bold mb-1">Before:</p>
+                              <pre class="text-caption">{{ issue.codeExample.before }}</pre>
+                            </div>
+                            <div class="pa-2 bg-green-lighten-5 rounded">
+                              <p class="text-caption font-weight-bold mb-1">After:</p>
+                              <pre class="text-caption">{{ issue.codeExample.after }}</pre>
+                            </div>
+                          </div>
+                        </div>
+                      </v-expand-transition>
+                    </v-list-item>
+                    <v-divider v-if="index < filteredIssues.length - 1"></v-divider>
                   </template>
+                </v-list>
 
-                  <!-- Expanded Details -->
-                  <v-expand-transition>
-                    <div v-if="expandedIssues.includes(index)" class="issue-details mt-2">
-                      <div class="suggestion-box pa-2 bg-blue-lighten-5 rounded">
-                        <p class="text-caption font-weight-bold mb-1">Suggestion:</p>
-                        <div
-                          class="text-caption markdown-content"
-                          v-html="renderMarkdown(issue.suggestion)"
-                        ></div>
-                      </div>
-
-                      <!-- Code Example -->
-                      <div v-if="issue.codeExample" class="code-example mt-2">
-                        <div class="pa-2 bg-red-lighten-5 rounded mb-1">
-                          <p class="text-caption font-weight-bold mb-1">Before:</p>
-                          <pre class="text-caption">{{ issue.codeExample.before }}</pre>
-                        </div>
-                        <div class="pa-2 bg-green-lighten-5 rounded">
-                          <p class="text-caption font-weight-bold mb-1">After:</p>
-                          <pre class="text-caption">{{ issue.codeExample.after }}</pre>
-                        </div>
-                      </div>
-                    </div>
-                  </v-expand-transition>
-                </v-list-item>
-                <v-divider v-if="index < filteredIssues.length - 1"></v-divider>
-              </template>
-            </v-list>
-
-            <div v-else class="pa-3 text-center text-grey">
-              No issues found matching the selected filters
+                <div v-else class="pa-3 text-center text-grey">
+                  No issues found matching the selected filters
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
             <div v-else class="empty-state">
               <v-icon icon="mdi-file-search-outline" size="48" color="grey-lighten-1"></v-icon>
@@ -291,7 +289,9 @@
                             {{ field.visibility }}
                           </v-chip>
                           <span class="text-subtitle-2 font-weight-bold">{{ field.name }}</span>
-                          <span class="text-caption text-medium-emphasis ml-2">: {{ field.type }}</span>
+                          <span class="text-caption text-medium-emphasis ml-2"
+                            >: {{ field.type }}</span
+                          >
                         </div>
                         <p class="text-caption text-medium-emphasis">{{ field.description }}</p>
                       </div>
@@ -329,7 +329,11 @@
                     <v-card variant="outlined" class="h-100">
                       <v-card-text>
                         <div class="d-flex align-center mb-2">
-                          <v-chip size="small" :color="getComponentColor(component.type)" class="mr-2">
+                          <v-chip
+                            size="small"
+                            :color="getComponentColor(component.type)"
+                            class="mr-2"
+                          >
                             {{ component.type }}
                           </v-chip>
                           <span class="text-subtitle-2 font-weight-bold flex-grow-1">{{
@@ -350,7 +354,8 @@
                         <pre
                           v-if="component.codeSnippet"
                           class="code-snippet mt-2 pa-2 rounded text-caption"
-                        >{{ component.codeSnippet }}</pre>
+                          >{{ component.codeSnippet }}</pre
+                        >
                       </v-card-text>
                     </v-card>
                   </v-col>
@@ -360,7 +365,12 @@
               <v-divider></v-divider>
 
               <!-- Method Dependencies -->
-              <div v-if="explainResult.methodDependencies && explainResult.methodDependencies.length > 0" class="pa-3">
+              <div
+                v-if="
+                  explainResult.methodDependencies && explainResult.methodDependencies.length > 0
+                "
+                class="pa-3"
+              >
                 <h3 class="text-subtitle-2 mb-3 d-flex align-center">
                   <v-icon icon="mdi-call-split" size="small" class="mr-2"></v-icon>
                   Method Dependencies ({{ explainResult.methodDependencies.length }})
@@ -410,7 +420,8 @@
                           prepend-icon="mdi-cursor-default-click"
                           @click="emit('jumpToLine', dep.callerLine)"
                         >
-                          {{ dep.caller.substring(0, 10) }}{{ dep.caller.length > 10 ? '...' : '' }}:{{ dep.callerLine }}
+                          {{ dep.caller.substring(0, 10)
+                          }}{{ dep.caller.length > 10 ? '...' : '' }}:{{ dep.callerLine }}
                         </v-btn>
                         <v-btn
                           v-if="dep.calleeLine"
@@ -420,7 +431,8 @@
                           prepend-icon="mdi-cursor-default-click"
                           @click="emit('jumpToLine', dep.calleeLine)"
                         >
-                          {{ dep.callee.substring(0, 10) }}{{ dep.callee.length > 10 ? '...' : '' }}:{{ dep.calleeLine }}
+                          {{ dep.callee.substring(0, 10)
+                          }}{{ dep.callee.length > 10 ? '...' : '' }}:{{ dep.calleeLine }}
                         </v-btn>
                       </div>
                     </div>
@@ -428,7 +440,11 @@
                 </v-list>
               </div>
 
-              <v-divider v-if="explainResult.methodDependencies && explainResult.methodDependencies.length > 0"></v-divider>
+              <v-divider
+                v-if="
+                  explainResult.methodDependencies && explainResult.methodDependencies.length > 0
+                "
+              ></v-divider>
 
               <!-- How It Works -->
               <div v-if="explainResult.howItWorks.length > 0" class="pa-3">
@@ -504,7 +520,9 @@
                     :prepend-icon="dep.isExternal ? 'mdi-cloud-download' : 'mdi-folder'"
                   >
                     <v-list-item-title class="text-body-2">{{ dep.name }}</v-list-item-title>
-                    <v-list-item-subtitle class="text-caption">{{ dep.purpose }}</v-list-item-subtitle>
+                    <v-list-item-subtitle class="text-caption">{{
+                      dep.purpose
+                    }}</v-list-item-subtitle>
                   </v-list-item>
                 </v-list>
               </div>
@@ -955,13 +973,16 @@ mermaid.initialize({
 
 // Generate Mermaid sequence diagram syntax from methodDependencies
 const generateSequenceDiagram = (): string | null => {
-  if (!explainResult.value?.methodDependencies || explainResult.value.methodDependencies.length === 0) {
+  if (
+    !explainResult.value?.methodDependencies ||
+    explainResult.value.methodDependencies.length === 0
+  ) {
     return null;
   }
 
   let mermaidCode = 'sequenceDiagram\n';
 
-  explainResult.value.methodDependencies.forEach(dep => {
+  explainResult.value.methodDependencies.forEach((dep) => {
     const description = dep.description || 'calls';
     mermaidCode += `    ${dep.caller}->>${dep.callee}: ${description}\n`;
   });
@@ -982,7 +1003,8 @@ const renderSequenceDiagram = async (container: HTMLElement | null, enlarged: bo
     container.innerHTML = svg;
   } catch (err) {
     console.error('Failed to render sequence diagram:', err);
-    container.innerHTML = '<p class="text-error text-caption">Failed to render sequence diagram</p>';
+    container.innerHTML =
+      '<p class="text-error text-caption">Failed to render sequence diagram</p>';
   }
 };
 

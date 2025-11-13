@@ -120,7 +120,8 @@ export class PathResolver {
       // 正規化兩個路徑並確保都以 / 結尾來進行比較
       const normalizedRealPath = realPath + (realPath.endsWith(path.sep) ? '' : path.sep);
       const normalizedProjectPath =
-        this.normalizedProjectPath + (this.normalizedProjectPath.endsWith(path.sep) ? '' : path.sep);
+        this.normalizedProjectPath +
+        (this.normalizedProjectPath.endsWith(path.sep) ? '' : path.sep);
 
       // 檢查是否以專案路徑開頭
       return normalizedRealPath.startsWith(normalizedProjectPath);

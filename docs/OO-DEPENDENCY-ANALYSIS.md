@@ -11,6 +11,7 @@
 ### 問題現況
 
 **改進前的限制**:
+
 - ❌ 只能偵測繼承 (`extends`) 和介面實作 (`implements`)
 - ❌ 無法偵測組合、聚合、依賴、關聯、依賴注入
 - ❌ 依賴 AI 生成依賴圖表（昂貴、不可靠、緩慢）
@@ -59,14 +60,17 @@
 ### 核心元件
 
 **UnifiedAST Model** (`src/types/ast.ts`)
+
 - 統一的 AST 型別定義，支援多語言
 - 定義 `ImportInfo`, `DependencyInfo`, `ClassInfo`, `PropertyInfo` 等
 
 **OOAnalysisService** (`src/services/ooAnalysisService.ts`)
+
 - 核心分析引擎，提取 6 種 OO 關係
 - 型別解析系統（處理陣列、泛型、聯合型別）
 
 **UMLService Enhancement** (`src/services/umlService.ts`)
+
 - 整合 OOAnalysisService
 - 生成標準 UML 符號的 Mermaid 圖表
 
@@ -76,31 +80,32 @@
 
 ### 支援的 6 種關係
 
-| 關係 | UML 符號 | 偵測規則 | Mermaid 語法 |
-|------|----------|----------|--------------|
-| **Inheritance** (繼承) | ◁ 實線 | `extends` | `<\|--` |
-| **Realization** (實作) | ◁ 虛線 | `implements` | `<\|..` |
-| **Composition** (組合) | ◆ 實心菱形 | `private` 類別屬性 | `*--` |
-| **Aggregation** (聚合) | ◇ 空心菱形 | `public` 陣列屬性 | `o--` |
-| **Dependency** (依賴) | → 虛線 | 方法參數/回傳值 | `..>` |
-| **Association** (關聯) | → 實線 | `public` 單一物件 | `-->` |
-| **Injection** (注入) | → 虛線 `<<inject>>` | 建構子參數 | `..> : <<inject>>` |
+| 關係                   | UML 符號            | 偵測規則           | Mermaid 語法       |
+| ---------------------- | ------------------- | ------------------ | ------------------ |
+| **Inheritance** (繼承) | ◁ 實線              | `extends`          | `<\|--`            |
+| **Realization** (實作) | ◁ 虛線              | `implements`       | `<\|..`            |
+| **Composition** (組合) | ◆ 實心菱形          | `private` 類別屬性 | `*--`              |
+| **Aggregation** (聚合) | ◇ 空心菱形          | `public` 陣列屬性  | `o--`              |
+| **Dependency** (依賴)  | → 虛線              | 方法參數/回傳值    | `..>`              |
+| **Association** (關聯) | → 實線              | `public` 單一物件  | `-->`              |
+| **Injection** (注入)   | → 虛線 `<<inject>>` | 建構子參數         | `..> : <<inject>>` |
 
 ### 範例
 
 ```typescript
 class Car {
-  private engine: Engine;        // Composition (◆)
-  public wheels: Wheel[];        // Aggregation (◇)
-  public driver: Driver;         // Association (→)
+  private engine: Engine; // Composition (◆)
+  public wheels: Wheel[]; // Aggregation (◇)
+  public driver: Driver; // Association (→)
 
-  constructor(private logger: Logger) { }  // Injection
+  constructor(private logger: Logger) {} // Injection
 
-  registerInsurance(insurance: Insurance): void { }  // Dependency
+  registerInsurance(insurance: Insurance): void {} // Dependency
 }
 ```
 
 **生成的 UML**:
+
 ```mermaid
 classDiagram
   Car *-- "1" Engine : engine
@@ -118,13 +123,13 @@ classDiagram
 
 #### 新增檔案
 
-| 檔案 | 行數 | 說明 |
-|------|------|------|
-| `src/types/ast.ts` | 422 | 統一 AST 型別定義 |
-| `src/services/ooAnalysisService.ts` | 687 | OO 分析引擎 |
-| `src/__tests__/unit/services/ooAnalysisService.test.ts` | 636 | 22 個單元測試 |
-| `test-oo-relationships.ts` | 280 | 完整測試範例 |
-| `TEST-OO-ANALYSIS.md` | 388 | 測試指南 |
+| 檔案                                                    | 行數 | 說明              |
+| ------------------------------------------------------- | ---- | ----------------- |
+| `src/types/ast.ts`                                      | 422  | 統一 AST 型別定義 |
+| `src/services/ooAnalysisService.ts`                     | 687  | OO 分析引擎       |
+| `src/__tests__/unit/services/ooAnalysisService.test.ts` | 636  | 22 個單元測試     |
+| `test-oo-relationships.ts`                              | 280  | 完整測試範例      |
+| `TEST-OO-ANALYSIS.md`                                   | 388  | 測試指南          |
 
 #### 修改檔案
 
@@ -192,9 +197,9 @@ classDiagram
 
 ### 🚧 Phase 1.5: 跨檔案雙向依賴分析 (Cross-File Bidirectional Analysis)
 
-**狀態**: 🚧 In Progress (40% Complete)
+**狀態**: 🚧 In Progress (70% Complete)
 **開始日期**: 2025-11-13
-**預計完成**: 2025-11-20
+**預計完成**: 2025-11-17
 
 ---
 
@@ -203,6 +208,7 @@ classDiagram
 #### Phase 1.5.1: 基礎建設 (2025-11-13) ✅
 
 **1. PathResolver Service**
+
 - ✅ 實作完成 (~200 行)
 - ✅ 測試覆蓋率: 88.99% (Stmts), 80% (Branch), 100% (Funcs)
 - ✅ 29 個單元測試全部通過
@@ -214,6 +220,7 @@ classDiagram
   - 處理 macOS 符號連結
 
 **2. 測試 Fixtures**
+
 - ✅ 4 組完整測試資料
   - `simple/` - Car/Engine/Wheel (組合、聚合關係)
   - `circular/` - A ↔ B (循環依賴)
@@ -221,6 +228,7 @@ classDiagram
   - `complex/` - UserService + re-exports (index.ts)
 
 **3. AST 型別定義擴充**
+
 - ✅ 新增 6 個介面
   - `CrossFileAnalysisMode` - 分析模式類型
   - `CrossFileAnalysisOptions` - 跨檔案分析選項
@@ -232,6 +240,7 @@ classDiagram
 #### Phase 1.5.2: Forward Mode (2025-11-13) ✅
 
 **1. CrossFileAnalysisService - Forward Mode**
+
 - ✅ 實作完成 (~478 行)
 - ✅ 測試覆蓋率: 71.71% (Stmts), 80.28% (Branch), 80% (Funcs)
 - ✅ 16 個單元測試全部通過
@@ -243,6 +252,7 @@ classDiagram
   - OO 關係分析整合
 
 **2. 驗證場景**
+
 - ✅ Simple: Car → Engine, Wheel (1 層)
 - ✅ Deep: Level1 → Level2 → Level3 (3 層)
 - ✅ Circular: A ↔ B (循環偵測)
@@ -250,62 +260,90 @@ classDiagram
 
 ---
 
+#### Phase 1.5.3: Reverse Mode (2025-11-13) ✅
+
+**1. ImportIndexBuilder Service**
+
+- ✅ 實作完成 (~259 行)
+- ✅ 測試覆蓋率: 95.27% (Stmts), 89.74% (Branch), 100% (Funcs)
+- ✅ 22 個單元測試全部通過
+- 功能：
+  - 快速 regex-based import 提取（10-20x faster than AST）
+  - 平行檔案掃描（p-limit, concurrency: 10）
+  - 建立正向與反向 import maps
+  - 智慧過濾（ignore patterns, extensions, maxFiles）
+  - 支援 ES6/CommonJS/TypeScript type imports
+
+**2. CrossFileAnalysisService - Reverse Mode**
+
+- ✅ 實作完成 (+103 行)
+- ✅ 測試覆蓋率: 75.47% (Stmts), 83.51% (Branch), 82.6% (Funcs)
+- ✅ 16 個新增測試（總共 30 個）全部通過
+- 功能：
+  - `analyzeReverse()` 方法（BFS 演算法）
+  - Import index 快取（5 分鐘 TTL）
+  - 支援 depth 1/2/3 控制
+  - 正確處理循環依賴
+
+**3. 驗證場景**
+
+- ✅ Reverse: Engine ← Car (1 層)
+- ✅ Reverse: Level3 ← Level2 ← Level1 (3 層)
+- ✅ Circular: A ↔ B (雙向循環)
+- ✅ Complex: User ← index ← UserService (re-exports)
+
+---
+
 ### 📊 Phase 1.5 統計數據 (目前)
 
-| 項目 | 數量 |
-|------|------|
-| **新增檔案** | 17 個 |
-| **新增程式碼** | ~1,280 行 |
-| **新增測試** | 45 個 |
-| **測試覆蓋率** | ≥71% (所有新增服務) |
-| **測試執行時間** | ~160ms |
-| **文件更新** | 1 個 (本文件) |
+| 項目             | 數量                  |
+| ---------------- | --------------------- |
+| **新增檔案**     | 21 個                 |
+| **新增程式碼**   | ~2,340 行             |
+| **新增測試**     | 83 個                 |
+| **測試覆蓋率**   | ≥75% (所有新增服務)   |
+| **平均覆蓋率**   | 82.02% (Stmts)        |
+| **測試執行時間** | ~284ms                |
+| **文件更新**     | 2 個 (PHASE-1.5, OO)  |
+| **完成進度**     | **70% Complete** 🚧   |
 
 ---
 
 ### ⏳ 進行中項目 (In Progress)
 
-**無** - 等待繼續實作
+**無** - Phase 1.5.3 已完成，等待 Phase 1.5.4
 
 ---
 
-### 🔜 待完成項目 (Remaining - 60%)
-
-#### Phase 1.5.3: Reverse Mode (預計 2-3 天)
-
-**1. ImportIndexBuilder**
-- ⏳ 輕量級 import 索引建立
-- ⏳ 使用正則快速提取 import 語句
-- ⏳ 平行掃描優化（p-limit）
-- ⏳ 智慧過濾（ignore patterns）
-
-**2. CrossFileAnalysisService - Reverse Mode**
-- ⏳ 反向依賴追蹤（誰依賴當前檔案）
-- ⏳ 支援 depth 控制
-- ⏳ 整合 ImportIndex
+### 🔜 待完成項目 (Remaining - 30%)
 
 #### Phase 1.5.4: Bidirectional & 整合 (預計 2-3 天)
 
 **1. Bidirectional Analysis**
+
 - ⏳ 合併 Forward + Reverse 結果
 - ⏳ 類別與關係去重
 - ⏳ 統計資訊
 
 **2. UMLService 整合**
+
 - ⏳ 新增 `generateCrossFileClassDiagram()`
 - ⏳ 合併多檔案 UML 圖表
 
 **3. API 擴充**
+
 - ⏳ 新增 `/api/uml/generate` 參數
   - `crossFileAnalysis: boolean`
   - `analysisMode: 'forward' | 'reverse' | 'bidirectional'`
   - `analysisDepth: 1 | 2 | 3`
 
 **4. E2E 測試**
+
 - ⏳ 測試所有三種模式
 - ⏳ 測試不同 depth 參數
 
 **5. 文件與驗證**
+
 - ⏳ 運行完整測試套件
 - ⏳ 驗證整體覆蓋率 ≥80%
 - ⏳ 更新文件
@@ -330,7 +368,7 @@ classDiagram
 
 ```typescript
 // models/Engine.ts
-export class Engine { }
+export class Engine {}
 
 // models/Car.ts
 import { Engine } from './Engine';
@@ -341,13 +379,13 @@ export class Car {
 // models/Truck.ts
 import { Engine } from './Engine';
 export class Truck {
-  private engine: Engine;  // ⚠️ 從 Car.ts 分析時看不到 Truck
+  private engine: Engine; // ⚠️ 從 Car.ts 分析時看不到 Truck
 }
 
 // models/Bus.ts
 import { Engine } from './Engine';
 export class Bus {
-  private engine: Engine;  // ⚠️ 從 Car.ts 分析時看不到 Bus
+  private engine: Engine; // ⚠️ 從 Car.ts 分析時看不到 Bus
 }
 ```
 
@@ -358,11 +396,11 @@ export class Bus {
 
 #### 解決方案：三種分析模式
 
-| 模式 | 說明 | 使用情境 | 需要掃描專案 |
-|------|------|----------|--------------|
-| **Forward** (正向) | 追蹤當前檔案依賴的類別 | 理解類別的依賴關係 | ❌ No |
-| **Reverse** (反向) | 找出誰依賴當前檔案 | 重構前影響評估 | ✅ Yes |
-| **Bidirectional** (雙向) | 結合正向 + 反向 | 完整的依賴網路 | ✅ Yes |
+| 模式                     | 說明                   | 使用情境           | 需要掃描專案 |
+| ------------------------ | ---------------------- | ------------------ | ------------ |
+| **Forward** (正向)       | 追蹤當前檔案依賴的類別 | 理解類別的依賴關係 | ❌ No        |
+| **Reverse** (反向)       | 找出誰依賴當前檔案     | 重構前影響評估     | ✅ Yes       |
+| **Bidirectional** (雙向) | 結合正向 + 反向        | 完整的依賴網路     | ✅ Yes       |
 
 ---
 
@@ -398,23 +436,27 @@ export class Bus {
 #### 核心元件
 
 **1. CrossFileAnalysisService (Forward Mode)**
+
 ```typescript
 resolveImports(filePath, imports, projectPath, maxDepth)
   → Map<moduleName, { classes, imports, filePath, depth }>
 ```
 
 **功能**:
+
 - 遞迴追蹤 import 依賴
 - 解析相對路徑 (`./`, `../`)、TS path aliases (`@/models`)
 - 避免循環依賴、可設定深度限制
 
 **2. ProjectScanner (Reverse Mode)** - **新增**
+
 ```typescript
 findReverseDependencies(targetFile, projectPath, maxDepth)
   → Array<{ filePath, classes, dependencyType }>
 ```
 
 **功能**:
+
 - 掃描專案所有檔案（使用 ignore patterns）
 - 解析每個檔案的 import 語句
 - 過濾出引用 targetFile 的檔案
@@ -422,6 +464,7 @@ findReverseDependencies(targetFile, projectPath, maxDepth)
 - 支援深度控制（depth 1 = 直接依賴者，depth 2 = 間接依賴者）
 
 **3. BidirectionalAnalyzer** - **新增**
+
 ```typescript
 analyze(filePath, projectPath, options)
   → {
@@ -451,6 +494,7 @@ POST /api/uml/generate
 **使用範例**:
 
 **Forward Mode** (預設):
+
 ```json
 {
   "filePath": "/project/models/Car.ts",
@@ -461,6 +505,7 @@ POST /api/uml/generate
 ```
 
 **Reverse Mode**:
+
 ```json
 {
   "filePath": "/project/models/Engine.ts",
@@ -471,6 +516,7 @@ POST /api/uml/generate
 ```
 
 **Bidirectional Mode**:
+
 ```json
 {
   "filePath": "/project/models/Engine.ts",
@@ -502,14 +548,11 @@ class ProjectScanner {
     // 1. 掃描專案所有原始檔
     const allFiles = await this.scanProjectFiles(projectPath, {
       extensions: ['.ts', '.tsx', '.js', '.jsx'],
-      ignorePatterns: ['node_modules', 'dist', '.git']
+      ignorePatterns: ['node_modules', 'dist', '.git'],
     });
 
     // 2. 找出直接依賴 targetFile 的檔案
-    const directDependents = await this.findDirectDependents(
-      targetFile,
-      allFiles
-    );
+    const directDependents = await this.findDirectDependents(targetFile, allFiles);
 
     // 3. 如果 depth > 1，遞迴找出間接依賴者
     if (maxDepth > 1) {
@@ -559,19 +602,19 @@ class ProjectScanner {
 
 **Forward Mode**:
 
-| 深度 | 檔案數 | 預估時間 | 優化 |
-|------|--------|----------|------|
-| 1 | 1-10 | ~100-500ms | 平行解析 |
-| 2 | 10-50 | ~500ms-2s | AST 快取 |
-| 3 | 50-200 | ~2-5s | 限制預設值 |
+| 深度 | 檔案數 | 預估時間   | 優化       |
+| ---- | ------ | ---------- | ---------- |
+| 1    | 1-10   | ~100-500ms | 平行解析   |
+| 2    | 10-50  | ~500ms-2s  | AST 快取   |
+| 3    | 50-200 | ~2-5s      | 限制預設值 |
 
 **Reverse Mode**:
 
-| 專案規模 | 檔案數 | 掃描時間 | 優化 |
-|----------|--------|----------|------|
-| 小型 | 50-200 | ~500ms-1s | 快取 import map |
-| 中型 | 200-1000 | ~2-5s | 增量掃描 |
-| 大型 | 1000+ | ~5-10s | 背景索引 |
+| 專案規模 | 檔案數   | 掃描時間  | 優化            |
+| -------- | -------- | --------- | --------------- |
+| 小型     | 50-200   | ~500ms-1s | 快取 import map |
+| 中型     | 200-1000 | ~2-5s     | 增量掃描        |
+| 大型     | 1000+    | ~5-10s    | 背景索引        |
 
 **Bidirectional Mode**: Forward + Reverse 時間總和
 
@@ -610,11 +653,7 @@ class ProjectScanner {
   <v-option value="bidirectional">Bidirectional (完整視圖)</v-option>
 </v-select>
 
-<v-slider
-  v-model="analysisDepth"
-  :min="1" :max="3"
-  :label="`Depth: ${analysisDepth}`"
-/>
+<v-slider v-model="analysisDepth" :min="1" :max="3" :label="`Depth: ${analysisDepth}`" />
 
 <v-alert v-if="analysisMode !== 'forward'" type="info">
   Reverse/Bidirectional mode will scan project files (may be slower)
@@ -632,6 +671,7 @@ class ProjectScanner {
 #### 核心設計
 
 **Parser Registry**
+
 ```typescript
 class ParserRegistry {
   register('js', new JavaScriptParser());
@@ -661,6 +701,7 @@ class ParserRegistry {
 - 手動清除 (API endpoint)
 
 **預期效能提升**:
+
 - 首次分析: ~50-200ms（不變）
 - 重複分析: ~5-20ms（快 10-20 倍）
 

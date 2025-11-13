@@ -5,10 +5,7 @@ import { MermaidValidator } from './uml/mermaidValidator.js';
 import { OOAnalysisService } from './ooAnalysisService.js';
 import type { AIService } from './aiService.js';
 import type { ProjectConfig } from '../types/config.js';
-import type {
-  ImportInfo,
-  DependencyInfo as ASTDependencyInfo,
-} from '../types/ast.js';
+import type { ImportInfo, DependencyInfo as ASTDependencyInfo } from '../types/ast.js';
 
 // Correct way to import @babel/traverse
 const traverse = (traverseModule as any).default || traverseModule;

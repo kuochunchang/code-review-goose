@@ -539,9 +539,7 @@ describe('OOAnalysisService', () => {
               visibility: 'public',
             },
           ],
-          constructorParams: [
-            { name: 'userService', type: 'UserService' },
-          ],
+          constructorParams: [{ name: 'userService', type: 'UserService' }],
           lineNumber: 1,
         },
       ];

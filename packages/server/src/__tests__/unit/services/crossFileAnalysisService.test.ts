@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { CrossFileAnalysisService } from '../../../services/crossFileAnalysisService';
 import * as path from 'path';
 
@@ -241,6 +241,213 @@ describe('CrossFileAnalysisService', () => {
       service.clearCache();
 
       expect(service.getAnalyzedFiles().length).toBe(0);
+    });
+  });
+
+  describe('analyzeReverse - Reverse Mode', () => {
+    describe('Depth 1 - Direct Dependents', () => {
+      it('應該找到直接依賴者（Engine.ts ← Car.ts）', async () => {
+        const engineFile = path.join(FIXTURES_PATH, 'simple/Engine.ts');
+        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+
+        const result = await service.analyzeReverse(engineFile, 1);
+
+        // 應該包含 Engine.ts 和 Car.ts
+        expect(result.size).toBeGreaterThanOrEqual(2);
+
+        // 驗證 Engine.ts 自己 (depth 0)
+        const engineResult = result.get(engineFile);
+        expect(engineResult).toBeDefined();
+        expect(engineResult?.depth).toBe(0);
+        expect(engineResult?.classes[0].name).toBe('Engine');
+
+        // 驗證 Car.ts (depth 1 - 依賴 Engine)
+        const carResult = result.get(carFile);
+        expect(carResult).toBeDefined();
+        expect(carResult?.depth).toBe(1);
+        expect(carResult?.classes[0].name).toBe('Car');
+      });
+
+      it('應該處理沒有依賴者的檔案', async () => {
+        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+
+        const result = await service.analyzeReverse(carFile, 1);
+
+        // 只有 Car.ts 自己
+        expect(result.size).toBe(1);
+        expect(result.get(carFile)?.depth).toBe(0);
+      });
+
+      it('應該找到多個檔案依賴同一個目標', async () => {
+        // Wheel is used by Car (could be used by other classes too)
+        const wheelFile = path.join(FIXTURES_PATH, 'simple/Wheel.ts');
+        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+
+        const result = await service.analyzeReverse(wheelFile, 1);
+
+        // 應該包含 Wheel.ts 和 Car.ts
+        expect(result.size).toBeGreaterThanOrEqual(2);
+        expect(result.get(wheelFile)?.depth).toBe(0);
+        expect(result.get(carFile)?.depth).toBe(1);
+      });
+    });
+
+    describe('Depth 2 - Indirect Dependents', () => {
+      it('應該找到兩層依賴者（Level3 ← Level2 ← Level1）', async () => {
+        const level3File = path.join(FIXTURES_PATH, 'deep/Level3.ts');
+        const level2File = path.join(FIXTURES_PATH, 'deep/Level2.ts');
+        const level1File = path.join(FIXTURES_PATH, 'deep/Level1.ts');
+
+        const result = await service.analyzeReverse(level3File, 2);
+
+        // 應該包含 3 個檔案
+        expect(result.size).toBe(3);
+
+        expect(result.get(level3File)?.depth).toBe(0);
+        expect(result.get(level2File)?.depth).toBe(1);
+        expect(result.get(level1File)?.depth).toBe(2);
+      });
+
+      it('應該在 depth=1 時只分析一層', async () => {
+        const level3File = path.join(FIXTURES_PATH, 'deep/Level3.ts');
+        const level1File = path.join(FIXTURES_PATH, 'deep/Level1.ts');
+
+        const result = await service.analyzeReverse(level3File, 1);
+
+        // 只有 Level3 和 Level2，沒有 Level1
+        expect(result.size).toBe(2);
+        expect(result.get(level1File)).toBeUndefined();
+      });
+    });
+
+    describe('Depth 3 - Three-level Dependents', () => {
+      it('應該分析三層依賴者', async () => {
+        const level3File = path.join(FIXTURES_PATH, 'deep/Level3.ts');
+        const level2File = path.join(FIXTURES_PATH, 'deep/Level2.ts');
+        const level1File = path.join(FIXTURES_PATH, 'deep/Level1.ts');
+
+        const result = await service.analyzeReverse(level3File, 3);
+
+        // 應該包含所有 3 個檔案
+        expect(result.size).toBe(3);
+
+        expect(result.get(level3File)?.depth).toBe(0);
+        expect(result.get(level2File)?.depth).toBe(1);
+        expect(result.get(level1File)?.depth).toBe(2);
+      });
+    });
+
+    describe('Circular Dependencies', () => {
+      it('應該處理循環依賴（A ↔ B）', async () => {
+        const fileA = path.join(FIXTURES_PATH, 'circular/A.ts');
+        const fileB = path.join(FIXTURES_PATH, 'circular/B.ts');
+
+        // 從 A 分析反向依賴
+        const resultA = await service.analyzeReverse(fileA, 1);
+
+        // A 被 B 依賴
+        expect(resultA.size).toBeGreaterThanOrEqual(2);
+        expect(resultA.get(fileA)?.depth).toBe(0);
+        expect(resultA.get(fileB)?.depth).toBe(1);
+
+        // 從 B 分析反向依賴
+        const resultB = await service.analyzeReverse(fileB, 1);
+
+        // B 被 A 依賴
+        expect(resultB.size).toBeGreaterThanOrEqual(2);
+        expect(resultB.get(fileB)?.depth).toBe(0);
+        expect(resultB.get(fileA)?.depth).toBe(1);
+      });
+
+      it('應該避免循環依賴造成的無限迴圈', async () => {
+        const fileA = path.join(FIXTURES_PATH, 'circular/A.ts');
+
+        // 深度 2 應該不會造成無限迴圈
+        const result = await service.analyzeReverse(fileA, 2);
+
+        // 應該只有 2 個檔案（A 和 B），不會重複
+        expect(result.size).toBe(2);
+      });
+    });
+
+    describe('Complex Scenarios', () => {
+      it('應該處理 re-exports (index.ts)', async () => {
+        const userFile = path.join(FIXTURES_PATH, 'complex/models/User.ts');
+        const indexFile = path.join(FIXTURES_PATH, 'complex/models/index.ts');
+        const userServiceFile = path.join(FIXTURES_PATH, 'complex/services/UserService.ts');
+
+        const result = await service.analyzeReverse(userFile, 2);
+
+        // User.ts 被 index.ts 匯出，index.ts 被 UserService.ts 使用
+        expect(result.size).toBeGreaterThanOrEqual(2);
+        expect(result.get(userFile)?.depth).toBe(0);
+
+        // 應該找到 index.ts 或 UserService.ts
+        const hasIndexOrService =
+          result.get(indexFile) !== undefined || result.get(userServiceFile) !== undefined;
+        expect(hasIndexOrService).toBe(true);
+      });
+    });
+
+    describe('Error Handling', () => {
+      it('應該對不存在的檔案拋出錯誤', async () => {
+        const nonExistentFile = path.join(FIXTURES_PATH, 'non-existent.ts');
+
+        await expect(service.analyzeReverse(nonExistentFile, 1)).rejects.toThrow();
+      });
+
+      it('應該對無效的 depth 參數拋出錯誤', async () => {
+        const engineFile = path.join(FIXTURES_PATH, 'simple/Engine.ts');
+
+        await expect(service.analyzeReverse(engineFile, 0 as any)).rejects.toThrow();
+        await expect(service.analyzeReverse(engineFile, 4 as any)).rejects.toThrow();
+      });
+    });
+
+    describe('Import Index Caching', () => {
+      it('應該建立並快取 import index', async () => {
+        const engineFile = path.join(FIXTURES_PATH, 'simple/Engine.ts');
+
+        // 第一次呼叫會建立 index
+        const start1 = Date.now();
+        await service.analyzeReverse(engineFile, 1);
+        const duration1 = Date.now() - start1;
+
+        // 第二次呼叫應該使用快取的 index (應該更快)
+        const start2 = Date.now();
+        await service.analyzeReverse(engineFile, 1);
+        const duration2 = Date.now() - start2;
+
+        // 第二次應該至少不比第一次慢太多（允許一些誤差）
+        expect(duration2).toBeLessThanOrEqual(duration1 * 1.5);
+      });
+
+      it('應該在 clearCache() 時清除 import index', async () => {
+        const engineFile = path.join(FIXTURES_PATH, 'simple/Engine.ts');
+
+        await service.analyzeReverse(engineFile, 1);
+
+        service.clearCache();
+
+        // 清除後再次分析應該重新建立 index
+        const result = await service.analyzeReverse(engineFile, 1);
+        expect(result.size).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    describe('OO Relationships in Reverse Mode', () => {
+      it('應該從依賴者中提取 OO 關係', async () => {
+        const engineFile = path.join(FIXTURES_PATH, 'simple/Engine.ts');
+        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+
+        const result = await service.analyzeReverse(engineFile, 1);
+
+        // Car.ts 依賴 Engine.ts，應該有 OO 關係
+        const carResult = result.get(carFile);
+        expect(carResult).toBeDefined();
+        expect(carResult?.relationships).toBeDefined();
+        expect(carResult?.relationships.length).toBeGreaterThan(0);
+      });
     });
   });
 });

@@ -22,13 +22,7 @@ vi.mock('axios', () => {
 });
 
 // Import services after mocking axios
-import {
-  analysisApi,
-  configApi,
-  fileApi,
-  projectApi,
-  searchApi,
-} from '../../services/api';
+import { analysisApi, configApi, fileApi, projectApi, searchApi } from '../../services/api';
 
 describe('API Services', () => {
   beforeEach(() => {
