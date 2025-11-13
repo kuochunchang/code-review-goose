@@ -16,6 +16,8 @@ import type {
   MethodInfo,
   ParameterInfo,
   ImportIndex,
+  BidirectionalAnalysisResult,
+  DependencyInfo,
 } from '../types/ast.js';
 
 /**
@@ -131,6 +133,105 @@ export class CrossFileAnalysisService {
     await this.analyzeReverseDependencies(filePath, maxDepth, importIndex, results);
 
     return results;
+  }
+
+  /**
+   * 分析雙向依賴（Bidirectional mode）
+   *
+   * 結合 Forward 與 Reverse 分析，提供完整的依賴關係視圖
+   *
+   * @param filePath - 要分析的檔案路徑
+   * @param maxDepth - 最大追蹤深度（1-3）
+   * @returns BidirectionalAnalysisResult - 包含正向、反向依賴與統計資訊
+   */
+  async analyzeBidirectional(
+    filePath: string,
+    maxDepth: 1 | 2 | 3
+  ): Promise<BidirectionalAnalysisResult> {
+    // 驗證深度參數
+    if (maxDepth < 1 || maxDepth > 3) {
+      throw new Error('Depth must be between 1 and 3');
+    }
+
+    // 驗證檔案存在
+    if (!(await fs.pathExists(filePath))) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    // 1. 執行正向分析
+    const forwardResults = await this.analyzeForward(filePath, maxDepth);
+
+    // 2. 執行反向分析
+    const reverseResults = await this.analyzeReverse(filePath, maxDepth);
+
+    // 3. 合併結果
+    const allResults = new Map<string, FileAnalysisResult>();
+
+    // 加入正向依賴（排除目標檔案）
+    const forwardDeps: FileAnalysisResult[] = [];
+    for (const [path, result] of forwardResults.entries()) {
+      if (path !== filePath) {
+        forwardDeps.push(result);
+      }
+      allResults.set(path, result);
+    }
+
+    // 加入反向依賴（排除目標檔案和已存在的）
+    const reverseDeps: FileAnalysisResult[] = [];
+    for (const [path, result] of reverseResults.entries()) {
+      if (path !== filePath) {
+        reverseDeps.push(result);
+      }
+      if (!allResults.has(path)) {
+        allResults.set(path, result);
+      }
+    }
+
+    // 4. 提取所有類別（去重）
+    const allClasses: ClassInfo[] = [];
+    const classSet = new Set<string>(); // 用於去重（filePath:className）
+
+    for (const result of allResults.values()) {
+      for (const cls of result.classes) {
+        const key = `${result.filePath}:${cls.name}`;
+        if (!classSet.has(key)) {
+          classSet.add(key);
+          allClasses.push(cls);
+        }
+      }
+    }
+
+    // 5. 提取所有關係（去重）
+    const allRelationships: DependencyInfo[] = [];
+    const relationshipSet = new Set<string>(); // 用於去重
+
+    for (const result of allResults.values()) {
+      for (const rel of result.relationships) {
+        // 建立唯一鍵：from:to:type:name
+        const key = `${rel.from}:${rel.to}:${rel.type}:${rel.name || ''}`;
+        if (!relationshipSet.has(key)) {
+          relationshipSet.add(key);
+          allRelationships.push(rel);
+        }
+      }
+    }
+
+    // 6. 計算統計資訊
+    const maxDepthFound = Math.max(...Array.from(allResults.values()).map((r) => r.depth));
+
+    return {
+      targetFile: filePath,
+      forwardDeps,
+      reverseDeps,
+      allClasses,
+      relationships: allRelationships,
+      stats: {
+        totalFiles: allResults.size,
+        totalClasses: allClasses.length,
+        totalRelationships: allRelationships.length,
+        maxDepth: maxDepthFound,
+      },
+    };
   }
 
   /**

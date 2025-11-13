@@ -450,4 +450,211 @@ describe('CrossFileAnalysisService', () => {
       });
     });
   });
+
+  describe('analyzeBidirectional - Bidirectional Mode', () => {
+    describe('Basic Functionality', () => {
+      it('應該同時分析正向與反向依賴（Car.ts）', async () => {
+        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+
+        const result = await service.analyzeBidirectional(carFile, 1);
+
+        // 驗證基本結構
+        expect(result.targetFile).toBe(carFile);
+        expect(result.forwardDeps).toBeDefined();
+        expect(result.reverseDeps).toBeDefined();
+        expect(result.allClasses).toBeDefined();
+        expect(result.relationships).toBeDefined();
+        expect(result.stats).toBeDefined();
+
+        // 正向：Car.ts import Engine, Wheel
+        expect(result.forwardDeps.length).toBeGreaterThanOrEqual(2);
+        const forwardPaths = result.forwardDeps.map((d) => d.filePath);
+        expect(forwardPaths.some((p) => p.includes('Engine.ts'))).toBe(true);
+        expect(forwardPaths.some((p) => p.includes('Wheel.ts'))).toBe(true);
+
+        // 反向：無其他檔案 import Car.ts（在 simple fixture 中）
+        expect(result.reverseDeps.length).toBe(0);
+
+        // 統計資訊
+        expect(result.stats.totalFiles).toBeGreaterThanOrEqual(3); // Car, Engine, Wheel
+        expect(result.stats.totalClasses).toBeGreaterThanOrEqual(3);
+        expect(result.stats.maxDepth).toBe(1);
+      });
+
+      it('應該分析 Engine.ts 的雙向依賴', async () => {
+        const engineFile = path.join(FIXTURES_PATH, 'simple/Engine.ts');
+
+        const result = await service.analyzeBidirectional(engineFile, 1);
+
+        // 正向：Engine.ts 沒有 import 其他類別
+        expect(result.forwardDeps.length).toBe(0);
+
+        // 反向：Car.ts import Engine.ts
+        expect(result.reverseDeps.length).toBeGreaterThanOrEqual(1);
+        const reversePaths = result.reverseDeps.map((d) => d.filePath);
+        expect(reversePaths.some((p) => p.includes('Car.ts'))).toBe(true);
+
+        // 統計資訊
+        expect(result.stats.totalFiles).toBeGreaterThanOrEqual(2); // Engine, Car
+        expect(result.stats.totalClasses).toBeGreaterThanOrEqual(2);
+      });
+    });
+
+    describe('Depth Control', () => {
+      it('應該支援 depth=1 的雙向分析', async () => {
+        const level2File = path.join(FIXTURES_PATH, 'deep/Level2.ts');
+
+        const result = await service.analyzeBidirectional(level2File, 1);
+
+        // 正向：Level2 → Level3
+        expect(result.forwardDeps.length).toBe(1);
+        expect(result.forwardDeps[0].filePath).toContain('Level3.ts');
+
+        // 反向：Level1 → Level2
+        expect(result.reverseDeps.length).toBe(1);
+        expect(result.reverseDeps[0].filePath).toContain('Level1.ts');
+
+        // 總共 3 個檔案
+        expect(result.stats.totalFiles).toBe(3);
+      });
+
+      it('應該支援 depth=2 的雙向分析', async () => {
+        const level2File = path.join(FIXTURES_PATH, 'deep/Level2.ts');
+
+        const result = await service.analyzeBidirectional(level2File, 2);
+
+        // 正向：Level2 → Level3（沒有更深的）
+        expect(result.forwardDeps.length).toBe(1);
+
+        // 反向：Level1 → Level2（沒有更深的）
+        expect(result.reverseDeps.length).toBe(1);
+
+        // 總共仍是 3 個檔案（因為 deep fixture 只有 3 層）
+        expect(result.stats.totalFiles).toBe(3);
+      });
+
+      it('應該支援 depth=3 的雙向分析', async () => {
+        const level2File = path.join(FIXTURES_PATH, 'deep/Level2.ts');
+
+        const result = await service.analyzeBidirectional(level2File, 3);
+
+        expect(result.stats.totalFiles).toBe(3);
+        expect(result.stats.maxDepth).toBeLessThanOrEqual(3);
+      });
+    });
+
+    describe('Class and Relationship Deduplication', () => {
+      it('應該正確去重類別', async () => {
+        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+
+        const result = await service.analyzeBidirectional(carFile, 1);
+
+        // 檢查是否有重複的類別
+        const classNames = result.allClasses.map((c) => c.name);
+        const uniqueClassNames = new Set(classNames);
+
+        expect(classNames.length).toBe(uniqueClassNames.size);
+
+        // 應該包含 Car, Engine, Wheel 等類別
+        expect(classNames).toContain('Car');
+        expect(classNames).toContain('Engine');
+        expect(classNames).toContain('Wheel');
+      });
+
+      it('應該正確去重關係', async () => {
+        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+
+        const result = await service.analyzeBidirectional(carFile, 1);
+
+        // 檢查是否有重複的關係
+        const relationshipKeys = result.relationships.map(
+          (r) => `${r.from}:${r.to}:${r.type}:${r.name || ''}`
+        );
+        const uniqueKeys = new Set(relationshipKeys);
+
+        expect(relationshipKeys.length).toBe(uniqueKeys.size);
+
+        // 應該有多種 OO 關係
+        expect(result.relationships.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe('Circular Dependencies', () => {
+      it('應該處理循環依賴（A ↔ B）', async () => {
+        const aFile = path.join(FIXTURES_PATH, 'circular/A.ts');
+
+        const result = await service.analyzeBidirectional(aFile, 1);
+
+        // 正向：A → B
+        expect(result.forwardDeps.length).toBe(1);
+        expect(result.forwardDeps[0].filePath).toContain('B.ts');
+
+        // 反向：B → A
+        expect(result.reverseDeps.length).toBe(1);
+        expect(result.reverseDeps[0].filePath).toContain('B.ts');
+
+        // 總共 2 個檔案（不重複）
+        expect(result.stats.totalFiles).toBe(2);
+
+        // 類別不重複
+        const classNames = result.allClasses.map((c) => c.name);
+        expect(classNames).toContain('A');
+        expect(classNames).toContain('B');
+        expect(result.allClasses.length).toBe(2);
+      });
+    });
+
+    describe('Complex Scenarios', () => {
+      it('應該處理 re-exports (index.ts)', async () => {
+        const userServiceFile = path.join(FIXTURES_PATH, 'complex/services/UserService.ts');
+
+        const result = await service.analyzeBidirectional(userServiceFile, 1);
+
+        // 正向：UserService → index.ts
+        expect(result.forwardDeps.length).toBeGreaterThanOrEqual(1);
+
+        // 應該至少包含 UserService 類別
+        const classNames = result.allClasses.map((c) => c.name);
+        expect(classNames).toContain('UserService');
+        expect(result.stats.totalFiles).toBeGreaterThanOrEqual(1);
+      });
+    });
+
+    describe('Error Handling', () => {
+      it('應該對不存在的檔案拋出錯誤', async () => {
+        const nonExistentFile = path.join(FIXTURES_PATH, 'non-existent.ts');
+
+        await expect(service.analyzeBidirectional(nonExistentFile, 1)).rejects.toThrow(
+          'File not found'
+        );
+      });
+
+      it('應該對無效的 depth 參數拋出錯誤', async () => {
+        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+
+        await expect(service.analyzeBidirectional(carFile, 0 as any)).rejects.toThrow(
+          'Depth must be between 1 and 3'
+        );
+
+        await expect(service.analyzeBidirectional(carFile, 4 as any)).rejects.toThrow(
+          'Depth must be between 1 and 3'
+        );
+      });
+    });
+
+    describe('Statistics', () => {
+      it('應該提供正確的統計資訊', async () => {
+        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+
+        const result = await service.analyzeBidirectional(carFile, 1);
+
+        // 驗證統計資訊
+        expect(result.stats.totalFiles).toBe(result.forwardDeps.length + result.reverseDeps.length + 1);
+        expect(result.stats.totalClasses).toBe(result.allClasses.length);
+        expect(result.stats.totalRelationships).toBe(result.relationships.length);
+        expect(result.stats.maxDepth).toBeGreaterThanOrEqual(0);
+        expect(result.stats.maxDepth).toBeLessThanOrEqual(1);
+      });
+    });
+  });
 });
