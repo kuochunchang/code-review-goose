@@ -746,6 +746,565 @@ if (builtInTypes.includes(baseType)) {
 
 ## 未來工作 (Future Work)
 
+### 🚀 Phase 1.5: 跨檔案分析 (Cross-File Analysis)
+
+**目標**: 追蹤 import 依賴並載入相關檔案的類別定義，實現完整的專案依賴視覺化
+
+**重要性**: ⭐⭐⭐⭐⭐ **CRITICAL - 真實專案的必要功能**
+
+#### 問題背景 (Problem Background)
+
+目前的分析只處理單一檔案，無法處理真實專案中的跨檔案依賴：
+
+```typescript
+// ❌ 目前的限制：
+// src/models/Engine.ts
+export class Engine { }
+
+// src/models/Car.ts
+import { Engine } from './Engine';
+
+export class Car {
+  private engine: Engine;  // ⚠️ Engine 不在當前檔案的 classes 陣列中
+}
+
+// 分析結果：
+{
+  classes: [{ name: 'Car' }],  // ❌ 只有 Car，沒有 Engine
+  dependencies: [
+    { from: 'Car', to: 'Engine', type: 'composition' }  // ⚠️ 斷開的關係
+  ]
+}
+
+// Mermaid 輸出：
+classDiagram
+  class Car
+  Car *-- "1" Engine  // ❌ Engine 不存在，圖表不完整
+```
+
+#### 解決方案 (Solution)
+
+##### 1. CrossFileAnalysisService
+
+核心服務負責追蹤和解析 import 檔案：
+
+```typescript
+// packages/server/src/services/crossFileAnalysisService.ts
+export class CrossFileAnalysisService {
+  /**
+   * 解析 import 路徑並載入相關檔案
+   * @param filePath 當前檔案路徑
+   * @param imports Import 資訊陣列
+   * @param projectPath 專案根目錄
+   * @param maxDepth 最大追蹤深度 (預設: 1)
+   * @returns Map<moduleName, ClassInfo[]>
+   */
+  async resolveImports(
+    filePath: string,
+    imports: ImportInfo[],
+    projectPath: string,
+    maxDepth: number = 1
+  ): Promise<ResolvedModules> {
+    const resolvedModules = new Map<string, ModuleInfo>();
+    const visited = new Set<string>();  // 避免循環引用
+
+    await this.resolveImportsRecursive(
+      filePath,
+      imports,
+      projectPath,
+      resolvedModules,
+      visited,
+      0,
+      maxDepth
+    );
+
+    return resolvedModules;
+  }
+
+  /**
+   * 遞迴解析 imports
+   */
+  private async resolveImportsRecursive(
+    currentFilePath: string,
+    imports: ImportInfo[],
+    projectPath: string,
+    resolvedModules: Map<string, ModuleInfo>,
+    visited: Set<string>,
+    currentDepth: number,
+    maxDepth: number
+  ): Promise<void> {
+    if (currentDepth >= maxDepth) return;
+
+    for (const imp of imports) {
+      // 跳過外部模組 (node_modules)
+      if (!imp.source.startsWith('.') && !imp.source.startsWith('@/')) {
+        continue;
+      }
+
+      // 解析檔案路徑
+      const resolvedPath = this.resolveImportPath(
+        currentFilePath,
+        imp.source,
+        projectPath
+      );
+
+      if (!resolvedPath || visited.has(resolvedPath)) {
+        continue;
+      }
+
+      visited.add(resolvedPath);
+
+      try {
+        // 讀取檔案內容
+        const code = await fs.readFile(resolvedPath, 'utf-8');
+
+        // 解析 AST
+        const ast = parse(code, {
+          sourceType: 'module',
+          plugins: ['typescript', 'jsx', 'decorators-legacy'],
+        });
+
+        // 提取類別和 imports
+        const classes = this.extractClasses(ast);
+        const nestedImports = this.extractImports(ast);
+
+        // 儲存模組資訊
+        resolvedModules.set(imp.source, {
+          filePath: resolvedPath,
+          classes,
+          imports: nestedImports,
+          depth: currentDepth + 1,
+        });
+
+        // 遞迴處理巢狀 imports
+        await this.resolveImportsRecursive(
+          resolvedPath,
+          nestedImports,
+          projectPath,
+          resolvedModules,
+          visited,
+          currentDepth + 1,
+          maxDepth
+        );
+      } catch (error) {
+        console.warn(`Failed to resolve import: ${resolvedPath}`, error);
+      }
+    }
+  }
+
+  /**
+   * 解析 import 路徑
+   */
+  private resolveImportPath(
+    currentFilePath: string,
+    importSource: string,
+    projectPath: string
+  ): string | null {
+    // 相對路徑: './Engine', '../models/Engine'
+    if (importSource.startsWith('.')) {
+      const dir = path.dirname(currentFilePath);
+      const resolved = path.resolve(dir, importSource);
+
+      // 嘗試不同副檔名
+      for (const ext of ['.ts', '.tsx', '.js', '.jsx', '/index.ts', '/index.js']) {
+        const fullPath = resolved + ext;
+        if (fs.existsSync(fullPath)) {
+          return fullPath;
+        }
+      }
+    }
+
+    // TypeScript path aliases: '@/models/Engine'
+    if (importSource.startsWith('@/')) {
+      const tsConfigPath = path.join(projectPath, 'tsconfig.json');
+      if (fs.existsSync(tsConfigPath)) {
+        const aliasPath = this.resolvePathAlias(importSource, tsConfigPath, projectPath);
+        if (aliasPath) return aliasPath;
+      }
+    }
+
+    // node_modules: 'react', 'express' -> 忽略
+    return null;
+  }
+
+  /**
+   * 解析 TypeScript path aliases
+   */
+  private resolvePathAlias(
+    importSource: string,
+    tsConfigPath: string,
+    projectPath: string
+  ): string | null {
+    try {
+      const tsConfig = JSON.parse(fs.readFileSync(tsConfigPath, 'utf-8'));
+      const paths = tsConfig.compilerOptions?.paths || {};
+
+      for (const [alias, mappings] of Object.entries(paths)) {
+        const pattern = alias.replace('/*', '/(.*)');
+        const regex = new RegExp(`^${pattern}$`);
+        const match = importSource.match(regex);
+
+        if (match) {
+          const relativePath = match[1] || '';
+          for (const mapping of mappings as string[]) {
+            const resolvedPath = path.join(
+              projectPath,
+              mapping.replace('/*', '/' + relativePath)
+            );
+
+            for (const ext of ['.ts', '.tsx', '.js', '.jsx']) {
+              if (fs.existsSync(resolvedPath + ext)) {
+                return resolvedPath + ext;
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to parse tsconfig.json:', error);
+    }
+
+    return null;
+  }
+}
+
+export interface ResolvedModules extends Map<string, ModuleInfo> {}
+
+export interface ModuleInfo {
+  filePath: string;
+  classes: ClassInfo[];
+  imports: ImportInfo[];
+  depth: number;
+}
+```
+
+##### 2. 增強 UMLService
+
+新增跨檔案類別圖生成方法：
+
+```typescript
+// packages/server/src/services/umlService.ts
+export class UMLService {
+  private crossFileService: CrossFileAnalysisService;
+
+  constructor(aiService?: AIService, config?: ProjectConfig) {
+    // ...
+    this.crossFileService = new CrossFileAnalysisService();
+  }
+
+  /**
+   * 生成跨檔案類別圖
+   */
+  async generateCrossFileClassDiagram(
+    filePath: string,
+    code: string,
+    projectPath: string,
+    options: CrossFileOptions = {}
+  ): Promise<UMLResult> {
+    const { depth = 1, includeExternalTypes = false } = options;
+
+    const allClasses = new Map<string, ClassInfo>();
+    const allDependencies: ASTDependencyInfo[] = [];
+    const fileMap = new Map<string, string>();  // className -> filePath
+
+    // 1. 解析當前檔案
+    const ast = this.parseCode(code);
+    const currentClasses = this.extractClasses(ast);
+    const imports = this.ooAnalysisService.extractImports(ast);
+
+    // 加入當前檔案的類別
+    currentClasses.forEach(cls => {
+      allClasses.set(cls.name, cls);
+      fileMap.set(cls.name, filePath);
+    });
+
+    // 2. 分析當前檔案的 OO 關係
+    const currentOOAnalysis = this.ooAnalysisService.analyze(
+      currentClasses,
+      imports
+    );
+    allDependencies.push(...currentOOAnalysis.relationships);
+
+    // 3. 跨檔案追蹤
+    if (depth > 0) {
+      const resolvedModules = await this.crossFileService.resolveImports(
+        filePath,
+        imports,
+        projectPath,
+        depth
+      );
+
+      // 加入所有被 import 的類別
+      for (const [moduleName, moduleInfo] of resolvedModules.entries()) {
+        moduleInfo.classes.forEach(cls => {
+          // 避免覆蓋同名類別（以當前檔案優先）
+          if (!allClasses.has(cls.name)) {
+            allClasses.set(cls.name, cls);
+            fileMap.set(cls.name, moduleInfo.filePath);
+          }
+        });
+
+        // 分析每個模組的內部 OO 關係
+        const moduleOOAnalysis = this.ooAnalysisService.analyze(
+          moduleInfo.classes,
+          moduleInfo.imports
+        );
+        allDependencies.push(...moduleOOAnalysis.relationships);
+      }
+    }
+
+    // 4. 過濾外部型別（如果不包含）
+    let dependencies = allDependencies;
+    if (!includeExternalTypes) {
+      dependencies = allDependencies.filter(
+        dep => allClasses.has(dep.to) && allClasses.has(dep.from)
+      );
+    }
+
+    // 5. 生成 Mermaid（包含所有類別）
+    const classesArray = Array.from(allClasses.values());
+    const mermaidCode = this.generateMermaidClassDiagram(
+      classesArray,
+      dependencies
+    );
+
+    return {
+      type: 'class',
+      mermaidCode,
+      generationMode: 'native',
+      metadata: {
+        classes: classesArray,
+        dependencies,
+        imports,
+        crossFileAnalysis: {
+          enabled: true,
+          depth,
+          totalFiles: resolvedModules.size + 1,
+          totalClasses: allClasses.size,
+          fileMap: Object.fromEntries(fileMap),
+        },
+      },
+    };
+  }
+}
+
+export interface CrossFileOptions {
+  depth?: number;               // 追蹤深度 (預設: 1)
+  includeExternalTypes?: boolean;  // 包含外部型別 (預設: false)
+}
+```
+
+##### 3. 更新 API 端點
+
+```typescript
+// packages/server/src/routes/uml.ts
+umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> => {
+  const {
+    code,
+    type,
+    filePath,
+    forceRefresh,
+    crossFileAnalysis = false,     // ⬅️ 新增: 啟用跨檔案分析
+    analysisDepth = 1,              // ⬅️ 新增: 分析深度
+    includeExternalTypes = false,   // ⬅️ 新增: 包含外部型別
+  } = req.body;
+
+  const projectPath = req.app.locals.projectPath;
+
+  // ... (驗證程式碼)
+
+  const umlService = new UMLService(aiService, config);
+
+  let result: UMLResult;
+
+  // 跨檔案分析（僅限 class diagram）
+  if (type === 'class' && crossFileAnalysis) {
+    result = await umlService.generateCrossFileClassDiagram(
+      filePath,
+      code,
+      projectPath,
+      {
+        depth: analysisDepth,
+        includeExternalTypes,
+      }
+    );
+  } else {
+    // 單檔分析（現有行為）
+    result = await umlService.generateDiagram(code, type);
+  }
+
+  // ... (儲存結果)
+});
+```
+
+##### 4. 前端整合
+
+```typescript
+// packages/web/src/services/umlService.ts
+export class UMLService {
+  async generateUML(
+    code: string,
+    type: DiagramType,
+    filePath: string,
+    options?: {
+      crossFileAnalysis?: boolean;
+      analysisDepth?: number;
+      includeExternalTypes?: boolean;
+    }
+  ): Promise<UMLResult> {
+    const response = await axios.post('/api/uml/generate', {
+      code,
+      type,
+      filePath,
+      ...options,
+    });
+
+    return response.data.data;
+  }
+}
+```
+
+##### 5. UI 控制項
+
+在 UML 生成對話框中加入選項：
+
+```vue
+<!-- packages/web/src/components/UMLDialog.vue -->
+<template>
+  <v-dialog v-model="dialog">
+    <v-card>
+      <v-card-title>Generate UML Diagram</v-card-title>
+      <v-card-text>
+        <!-- 圖表類型選擇 -->
+        <v-select
+          v-model="diagramType"
+          :items="diagramTypes"
+          label="Diagram Type"
+        />
+
+        <!-- 跨檔案分析選項（僅 Class Diagram） -->
+        <v-checkbox
+          v-if="diagramType === 'class'"
+          v-model="crossFileAnalysis"
+          label="Enable cross-file analysis"
+          hint="Include classes from imported files"
+        />
+
+        <!-- 分析深度（跨檔案啟用時） -->
+        <v-slider
+          v-if="crossFileAnalysis"
+          v-model="analysisDepth"
+          :min="1"
+          :max="3"
+          :step="1"
+          label="Analysis Depth"
+          hint="How many levels of imports to follow"
+        />
+
+        <!-- 包含外部型別 -->
+        <v-checkbox
+          v-if="crossFileAnalysis"
+          v-model="includeExternalTypes"
+          label="Include external types"
+          hint="Show dependencies to node_modules"
+        />
+      </v-card-text>
+    </v-card>
+  </v-dialog>
+</template>
+```
+
+#### 測試計劃 (Test Plan)
+
+##### 測試案例結構
+
+```
+test-cross-file/
+├── models/
+│   ├── Engine.ts           # export class Engine
+│   ├── Wheel.ts            # export class Wheel
+│   └── Driver.ts           # export class Driver
+├── services/
+│   └── Logger.ts           # export class Logger
+└── Car.ts                  # import { Engine, Wheel, Driver } from './models'
+                            # import { Logger } from './services'
+```
+
+##### 單元測試
+
+```typescript
+// packages/server/src/__tests__/unit/services/crossFileAnalysisService.test.ts
+describe('CrossFileAnalysisService', () => {
+  describe('resolveImports', () => {
+    it('should resolve relative imports', async () => { });
+    it('should resolve TypeScript path aliases', async () => { });
+    it('should skip node_modules imports', async () => { });
+    it('should handle circular dependencies', async () => { });
+    it('should respect maxDepth', async () => { });
+  });
+
+  describe('resolveImportPath', () => {
+    it('should resolve ./relative paths', async () => { });
+    it('should resolve ../parent paths', async () => { });
+    it('should try multiple extensions', async () => { });
+    it('should resolve index files', async () => { });
+  });
+});
+
+// packages/server/src/__tests__/unit/services/umlService.test.ts
+describe('UMLService - Cross-File Analysis', () => {
+  it('should include classes from imported files', async () => { });
+  it('should respect analysis depth', async () => { });
+  it('should filter external dependencies', async () => { });
+  it('should track file paths for each class', async () => { });
+});
+```
+
+##### E2E 測試
+
+```typescript
+// packages/web/e2e/cross-file-uml.spec.ts
+test('should generate cross-file class diagram', async ({ page }) => {
+  // 1. 開啟 Car.ts
+  // 2. 點擊 UML 按鈕
+  // 3. 選擇 "Class Diagram"
+  // 4. 啟用 "Cross-file analysis"
+  // 5. 設定 depth = 1
+  // 6. 生成圖表
+  // 7. 驗證包含 Car, Engine, Wheel, Driver, Logger
+});
+```
+
+#### 效能考量 (Performance)
+
+| 場景 | 檔案數 | 預估時間 | 備註 |
+|------|--------|----------|------|
+| Depth 1 | 1-10 | ~100-500ms | 直接 imports |
+| Depth 2 | 10-50 | ~500ms-2s | 二層依賴 |
+| Depth 3 | 50-200 | ~2-5s | 可能過慢 |
+
+**優化策略**:
+- ✅ AST 快取（Phase 3 實作）
+- ✅ 平行解析（Promise.all）
+- ✅ 智慧深度限制（預設 depth=1）
+- ✅ 使用者可選擇性啟用
+
+#### 優先級 (Priority)
+
+**為什麼要優先實作？**
+
+1. ✅ **真實專案的必要功能** - 幾乎所有專案都是多檔案
+2. ✅ **完善現有 JS/TS 分析** - 讓 Phase 1 更完整
+3. ✅ **與現有實作高度相容** - 可重用 OOAnalysisService
+4. ✅ **使用者立即受益** - 不需等待多語言支援
+5. ✅ **為 Phase 3 AST 快取鋪路** - 自然引入快取需求
+
+**時程**: 1-2 週
+
+**測試覆蓋率目標**: ≥ 90%
+
+---
+
 ### 🚀 Phase 2: 多語言支援 (Multi-Language Support)
 
 **目標**: 擴展支援 Java 和 Python
@@ -834,6 +1393,8 @@ export class ParserRegistry {
 ### 🚀 Phase 3: AST 快取服務 (AST Cache Service)
 
 **目標**: 快取已解析的 AST，避免重複解析
+
+**前置需求**: Phase 1.5 已實作跨檔案分析，引入了多檔案解析需求，使 AST 快取成為必要的效能優化
 
 #### 快取策略
 
@@ -1321,16 +1882,17 @@ Phase 1 的 JavaScript/TypeScript OO 分析已完成，具備：
 
 接下來的工作重點：
 
-1. **Phase 2**: 多語言支援 (Java, Python)
-2. **Phase 3**: AST 快取服務
-3. **Phase 4**: 專案級依賴分析
-4. **Phase 5**: 進階功能（循環依賴、死碼偵測、設計模式識別）
+1. **Phase 1.5**: 跨檔案分析 (Cross-File Analysis) ⭐ **優先實作**
+2. **Phase 2**: 多語言支援 (Java, Python)
+3. **Phase 3**: AST 快取服務
+4. **Phase 4**: 專案級依賴分析
+5. **Phase 5**: 進階功能（循環依賴、死碼偵測、設計模式識別）
 
 這個系統將成為 Goose Code Review 的核心功能，提供精確、完整、可視覺化的物件導向依賴分析。
 
 ---
 
-**文件版本**: 1.0
+**文件版本**: 1.1
 **作者**: Claude Code (AI Assistant)
 **最後更新**: 2025-11-13
-**狀態**: Phase 1 Complete ✅
+**狀態**: Phase 1 Complete ✅ | Phase 1.5 Planning 📋
