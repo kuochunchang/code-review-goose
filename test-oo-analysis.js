@@ -78,12 +78,17 @@ function extractClassesSimple(node) {
           } else if (typeNode.type === 'TSArrayType') {
             isArray = true;
             if (typeNode.elementType.type === 'TSTypeReference') {
-              type = typeNode.elementType.typeName.name;
+              type = `${typeNode.elementType.typeName.name}[]`;  // 添加 [] 後綴
+            } else {
+              type = 'Array';
             }
           }
         }
 
-        const isClassType = type && type[0] === type[0].toUpperCase() && !['String', 'Number', 'Boolean'].includes(type);
+        // 移除 [] 後綴來判斷基礎類型
+        const baseType = type.replace(/\[\]/g, '');
+        const isClassType = baseType && baseType[0] === baseType[0].toUpperCase() &&
+                           !['String', 'Number', 'Boolean', 'Array'].includes(baseType);
 
         classInfo.properties.push({
           name: member.key.name,

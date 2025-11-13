@@ -443,7 +443,9 @@ export class UMLService {
     if (!t.isIdentifier(node.key)) return null;
 
     const typeStr = this.getTypeAnnotation(node.typeAnnotation);
-    const isArray = typeStr ? (typeStr.endsWith('[]') || typeStr.includes('Array<')) : false;
+    const isArray = typeStr
+      ? typeStr.endsWith('[]') || typeStr.startsWith('Array<') || typeStr === 'Array'
+      : false;
     const isClassType = typeStr ? this.isClassTypeName(typeStr) : false;
 
     return {
@@ -487,28 +489,65 @@ export class UMLService {
   }
 
   /**
-   * Get type annotation
+   * Get type annotation from TypeScript type annotation node
    */
   private getTypeAnnotation(typeAnnotation: any): string | undefined {
     if (!typeAnnotation) return undefined;
 
     if (t.isTSTypeAnnotation(typeAnnotation)) {
-      const tsType = typeAnnotation.typeAnnotation;
+      return this.getTSTypeString(typeAnnotation.typeAnnotation);
+    }
 
-      if (t.isTSStringKeyword(tsType)) return 'string';
-      if (t.isTSNumberKeyword(tsType)) return 'number';
-      if (t.isTSBooleanKeyword(tsType)) return 'boolean';
-      if (t.isTSVoidKeyword(tsType)) return 'void';
-      if (t.isTSAnyKeyword(tsType)) return 'any';
+    return undefined;
+  }
 
-      if (t.isTSTypeReference(tsType) && t.isIdentifier(tsType.typeName)) {
-        return tsType.typeName.name;
+  /**
+   * Get string representation of TypeScript type
+   */
+  private getTSTypeString(tsType: any): string | undefined {
+    if (!tsType) return undefined;
+
+    // Primitive types
+    if (t.isTSStringKeyword(tsType)) return 'string';
+    if (t.isTSNumberKeyword(tsType)) return 'number';
+    if (t.isTSBooleanKeyword(tsType)) return 'boolean';
+    if (t.isTSVoidKeyword(tsType)) return 'void';
+    if (t.isTSAnyKeyword(tsType)) return 'any';
+    if (t.isTSNullKeyword(tsType)) return 'null';
+    if (t.isTSUndefinedKeyword(tsType)) return 'undefined';
+
+    // Type reference (e.g., Wheel, Engine, Array<T>)
+    if (t.isTSTypeReference(tsType) && t.isIdentifier(tsType.typeName)) {
+      const typeName = tsType.typeName.name;
+
+      // Handle generic types like Array<Wheel>
+      if (tsType.typeParameters && tsType.typeParameters.params.length > 0) {
+        const typeArgs = tsType.typeParameters.params
+          .map((param: any) => this.getTSTypeString(param))
+          .filter((arg: string | undefined) => arg !== undefined)
+          .join(', ');
+
+        if (typeArgs) {
+          return `${typeName}<${typeArgs}>`;
+        }
       }
 
-      if (t.isTSArrayType(tsType)) {
-        const elementType = this.getTypeAnnotation({ typeAnnotation: tsType.elementType });
-        return elementType ? `${elementType}[]` : 'Array';
-      }
+      return typeName;
+    }
+
+    // Array type (e.g., Wheel[])
+    if (t.isTSArrayType(tsType)) {
+      const elementType = this.getTSTypeString(tsType.elementType);
+      return elementType ? `${elementType}[]` : 'Array';
+    }
+
+    // Union type (e.g., string | null)
+    if (t.isTSUnionType(tsType)) {
+      const types = tsType.types
+        .map((type: any) => this.getTSTypeString(type))
+        .filter((t: string | undefined) => t !== undefined)
+        .join(' | ');
+      return types || undefined;
     }
 
     return undefined;
@@ -545,11 +584,28 @@ export class UMLService {
       'symbol',
     ];
 
+    const builtInTypes = [
+      'Array',
+      'Map',
+      'Set',
+      'WeakMap',
+      'WeakSet',
+      'Promise',
+      'Date',
+      'RegExp',
+      'Error',
+    ];
+
     // Remove array brackets and generic type arguments
     const baseType = typeName.replace(/\[\]/g, '').replace(/<.*>/g, '').trim();
 
     // Check if it's a primitive type
     if (primitiveTypes.includes(baseType.toLowerCase())) {
+      return false;
+    }
+
+    // Check if it's a built-in type
+    if (builtInTypes.includes(baseType)) {
       return false;
     }
 

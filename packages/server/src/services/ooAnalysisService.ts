@@ -320,8 +320,23 @@ export class OOAnalysisService {
       'symbol',
     ];
 
+    const builtInTypes = [
+      'Array',
+      'Map',
+      'Set',
+      'WeakMap',
+      'WeakSet',
+      'Promise',
+      'Date',
+      'RegExp',
+      'Error',
+    ];
+
     // Check if it's an array type
-    const isArray = typeAnnotation.endsWith('[]') || typeAnnotation.includes('Array<');
+    const isArray =
+      typeAnnotation.endsWith('[]') ||
+      typeAnnotation.startsWith('Array<') ||
+      typeAnnotation === 'Array';
 
     // Extract base type name
     let typeName = typeAnnotation.replace(/\[\]/g, '').trim();
@@ -333,11 +348,18 @@ export class OOAnalysisService {
     if (genericMatch) {
       typeName = genericMatch[1];
       genericArgs = genericMatch[2].split(',').map((arg) => arg.trim());
+
+      // For Array<T>, use T as the actual type name for class type checking
+      if (typeName === 'Array' && genericArgs.length === 1) {
+        typeName = genericArgs[0];
+      }
     }
 
     const isPrimitive = primitiveTypes.includes(typeName.toLowerCase());
-    const isClassType = !isPrimitive && typeName[0] === typeName[0].toUpperCase();
-    const isInterfaceType = !isPrimitive && typeName.startsWith('I') && typeName[1] === typeName[1].toUpperCase();
+    const isBuiltIn = builtInTypes.includes(typeName);
+    const isClassType = !isPrimitive && !isBuiltIn && typeName[0] === typeName[0].toUpperCase();
+    const isInterfaceType =
+      !isPrimitive && !isBuiltIn && typeName.startsWith('I') && typeName[1] === typeName[1].toUpperCase();
 
     // Check if type is imported
     const importedFrom = imports.find((imp) => imp.specifiers.includes(typeName));
