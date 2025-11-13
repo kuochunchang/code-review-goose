@@ -1,10 +1,15 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { parse } from '@babel/parser';
-import traverse from '@babel/traverse';
+import traverseDefault from '@babel/traverse';
 import * as t from '@babel/types';
-import { PathResolver } from './pathResolver';
-import { OOAnalysisService } from './ooAnalysisService';
+
+// Handle CommonJS/ESM compatibility for @babel/traverse
+const traverse = typeof traverseDefault === 'function' 
+  ? traverseDefault 
+  : (traverseDefault as any).default;
+import { PathResolver } from './pathResolver.js';
+import { OOAnalysisService } from './ooAnalysisService.js';
 import type {
   FileAnalysisResult,
   ClassInfo,
@@ -13,7 +18,7 @@ import type {
   PropertyInfo,
   MethodInfo,
   ParameterInfo,
-} from '../types/ast';
+} from '../types/ast.js';
 
 /**
  * CrossFileAnalysisService - 跨檔案依賴分析服務
@@ -282,7 +287,7 @@ export class CrossFileAnalysisService {
       methods,
       extends: extendsClass,
       implements: implementsInterfaces.length > 0 ? implementsInterfaces : undefined,
-      isAbstract: node.abstract,
+      isAbstract: node.abstract ?? undefined,
       constructorParams: constructorParams.length > 0 ? constructorParams : undefined,
     };
   }
@@ -423,11 +428,15 @@ export class CrossFileAnalysisService {
 
     if (t.isIdentifier(param)) {
       name = param.name;
-      type = param.typeAnnotation ? this.getTypeString(param.typeAnnotation.typeAnnotation) : undefined;
-      isOptional = param.optional;
+      type = param.typeAnnotation && 'typeAnnotation' in param.typeAnnotation 
+        ? this.getTypeString((param.typeAnnotation as any).typeAnnotation) 
+        : undefined;
+      isOptional = param.optional ?? false;
     } else if (t.isAssignmentPattern(param) && t.isIdentifier(param.left)) {
       name = param.left.name;
-      type = param.left.typeAnnotation ? this.getTypeString(param.left.typeAnnotation.typeAnnotation) : undefined;
+      type = param.left.typeAnnotation && 'typeAnnotation' in param.left.typeAnnotation 
+        ? this.getTypeString((param.left.typeAnnotation as any).typeAnnotation) 
+        : undefined;
       isOptional = true;
     }
 
