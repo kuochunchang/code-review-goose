@@ -370,3 +370,134 @@ export interface OOAnalysisResult {
   /** Dependency injection patterns */
   injections: DependencyInfo[];
 }
+
+/**
+ * Cross-file analysis mode
+ */
+export type CrossFileAnalysisMode = 'forward' | 'reverse' | 'bidirectional';
+
+/**
+ * Cross-file analysis options
+ */
+export interface CrossFileAnalysisOptions {
+  /** Analysis mode: forward (dependencies), reverse (dependents), bidirectional (both) */
+  mode: CrossFileAnalysisMode;
+
+  /** Maximum depth to traverse (1-3) */
+  depth: 1 | 2 | 3;
+
+  /** Whether to include external types (e.g., from node_modules) */
+  includeExternalTypes?: boolean;
+
+  /** Ignore patterns for file scanning (glob patterns) */
+  ignorePatterns?: string[];
+}
+
+/**
+ * File analysis result - single file with its parsed content
+ */
+export interface FileAnalysisResult {
+  /** Absolute file path */
+  filePath: string;
+
+  /** Parsed classes from this file */
+  classes: ClassInfo[];
+
+  /** Import statements */
+  imports: ImportInfo[];
+
+  /** Export statements */
+  exports: ExportInfo[];
+
+  /** Depth from the original file (0 = original file, 1 = direct dependency, etc.) */
+  depth: number;
+
+  /** OO relationships detected in this file */
+  relationships: DependencyInfo[];
+}
+
+/**
+ * Bidirectional analysis result - combines forward and reverse dependencies
+ */
+export interface BidirectionalAnalysisResult {
+  /** The target file being analyzed */
+  targetFile: string;
+
+  /** Forward dependencies (files that targetFile imports) */
+  forwardDeps: FileAnalysisResult[];
+
+  /** Reverse dependencies (files that import targetFile) */
+  reverseDeps: FileAnalysisResult[];
+
+  /** All classes from all analyzed files (deduplicated) */
+  allClasses: ClassInfo[];
+
+  /** All relationships from all analyzed files (deduplicated) */
+  relationships: DependencyInfo[];
+
+  /** Statistics */
+  stats: {
+    totalFiles: number;
+    totalClasses: number;
+    totalRelationships: number;
+    maxDepth: number;
+  };
+}
+
+/**
+ * Import index for fast reverse dependency lookup
+ */
+export interface ImportIndex {
+  /** Map from file path to array of files it imports */
+  fileToImports: Map<string, string[]>;
+
+  /** Reverse index: map from file path to array of files that import it */
+  importToFiles: Map<string, string[]>;
+
+  /** Timestamp when index was built */
+  timestamp: number;
+
+  /** Number of files indexed */
+  fileCount: number;
+}
+
+/**
+ * Import index builder options
+ */
+export interface ImportIndexOptions {
+  /** Project root path */
+  projectPath: string;
+
+  /** File extensions to include */
+  extensions?: string[];
+
+  /** Ignore patterns (glob) */
+  ignorePatterns?: string[];
+
+  /** Maximum number of files to scan */
+  maxFiles?: number;
+}
+
+/**
+ * Cross-file dependency graph
+ */
+export interface CrossFileDependencyGraph {
+  /** Nodes: file path -> classes in that file */
+  nodes: Map<string, ClassInfo[]>;
+
+  /** Edges: dependency relationships between files */
+  edges: Array<{
+    from: string; // file path
+    to: string; // file path
+    dependencies: DependencyInfo[]; // specific class relationships
+  }>;
+
+  /** Entry point file */
+  entryPoint: string;
+
+  /** Analysis mode used */
+  mode: CrossFileAnalysisMode;
+
+  /** Maximum depth reached */
+  maxDepth: number;
+}

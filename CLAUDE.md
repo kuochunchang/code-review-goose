@@ -88,6 +88,7 @@ cd packages/web && npm run dev              # Vite dev server with HMR
 
 ### Comments & Documentation
 
+- **Always use English** for all comments and documentation
 - Add JSDoc comments for public APIs and exported functions
 - Explain "why" not "what" in comments
 - Document complex algorithms or non-obvious logic
