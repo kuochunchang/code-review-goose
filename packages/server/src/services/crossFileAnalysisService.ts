@@ -207,8 +207,8 @@ export class CrossFileAnalysisService {
 
     for (const result of allResults.values()) {
       for (const rel of result.relationships) {
-        // 建立唯一鍵：from:to:type:name
-        const key = `${rel.from}:${rel.to}:${rel.type}:${rel.name || ''}`;
+        // 建立唯一鍵：from:to:type:context
+        const key = `${rel.from}:${rel.to}:${rel.type}:${rel.context || ''}`;
         if (!relationshipSet.has(key)) {
           relationshipSet.add(key);
           allRelationships.push(rel);

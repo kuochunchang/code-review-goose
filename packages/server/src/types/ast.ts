@@ -476,6 +476,9 @@ export interface ImportIndexOptions {
 
   /** Maximum number of files to scan */
   maxFiles?: number;
+
+  /** Concurrency limit for parallel file processing */
+  concurrency?: number;
 }
 
 /**

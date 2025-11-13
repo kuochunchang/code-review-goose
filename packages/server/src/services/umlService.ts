@@ -225,13 +225,14 @@ export class UMLService {
 
       // Validate
       const validation = await this.validator.validate(mermaidCode);
-      if (!validation.isValid) {
+      if (!validation.valid) {
         console.warn('Cross-file class diagram validation warnings:', validation.errors);
       }
 
       return {
         type: 'class',
-        diagram: mermaidCode,
+        mermaidCode: mermaidCode,
+        generationMode: 'native',
         metadata: {
           mode,
           depth,
@@ -243,8 +244,8 @@ export class UMLService {
             forwardDeps: result.forwardDeps.length,
             reverseDeps: result.reverseDeps.length,
           },
+          validation,
         },
-        validation,
       };
     } catch (error) {
       throw new Error(
@@ -286,7 +287,7 @@ export class UMLService {
     for (const rel of result.relationships) {
       const symbol = this.getRelationshipSymbol(rel.type);
       const cardinality = rel.cardinality ? `"${rel.cardinality}"` : '';
-      const label = rel.name ? `: ${rel.name}` : '';
+      const label = rel.context ? `: ${rel.context}` : '';
 
       diagram += `  ${rel.from} ${symbol} ${cardinality} ${rel.to}${label}\n`;
     }

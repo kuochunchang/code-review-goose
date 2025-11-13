@@ -1,9 +1,13 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import ignore, { Ignore } from 'ignore';
+import ignoreModule from 'ignore';
+import type { Ignore } from 'ignore';
 import pLimit from 'p-limit';
-import { PathResolver } from './pathResolver';
-import type { ImportIndex, ImportIndexOptions } from '../types/ast';
+import { PathResolver } from './pathResolver.js';
+import type { ImportIndex, ImportIndexOptions } from '../types/ast.js';
+
+// Compatibility workaround for ESM/CommonJS interop
+const ignore = (ignoreModule as any).default || ignoreModule;
 
 /**
  * Default ignore patterns for project scanning
