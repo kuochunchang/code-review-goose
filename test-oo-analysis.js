@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
- * OO 依賴分析測試腳本
- * 使用方法: node test-oo-analysis.js
+ * OO Dependency Analysis Test Script
+ * Usage: node test-oo-analysis.js
  */
 
 import { readFileSync } from 'fs';
 import { parse } from '@babel/parser';
 import { OOAnalysisService } from './packages/server/dist/services/ooAnalysisService.js';
 
-// 讀取測試檔案
+// Read test file
 const testFile = './test-oo-relationships.ts';
 const code = readFileSync(testFile, 'utf-8');
 
-// 解析成 AST
+// Parse into AST
 const ast = parse(code, {
   sourceType: 'module',
   plugins: [
@@ -25,12 +25,12 @@ const ast = parse(code, {
   ],
 });
 
-// 創建 OO 分析服務
+// Create OO analysis service
 const service = new OOAnalysisService();
 
-// 提取 imports
+// Extract imports
 console.log('='.repeat(80));
-console.log('📦 IMPORT 分析');
+console.log('📦 IMPORT Analysis');
 console.log('='.repeat(80));
 const imports = service.extractImports(ast);
 imports.forEach((imp, idx) => {
@@ -40,9 +40,9 @@ imports.forEach((imp, idx) => {
   if (imp.isTypeOnly) console.log(`   Type-only import`);
 });
 
-// 提取 exports
+// Extract exports
 console.log('\n' + '='.repeat(80));
-console.log('📤 EXPORT 分析');
+console.log('📤 EXPORT Analysis');
 console.log('='.repeat(80));
 const exports = service.extractExports(ast);
 exports.forEach((exp, idx) => {
@@ -52,7 +52,7 @@ exports.forEach((exp, idx) => {
   if (exp.isReExport) console.log(`   Re-export from: ${exp.source}`);
 });
 
-// 簡化的類別提取（用於測試）
+// Simplified class extraction (for testing)
 const classes = [];
 function extractClassesSimple(node) {
   if (node.type === 'ClassDeclaration' && node.id) {
@@ -64,7 +64,7 @@ function extractClassesSimple(node) {
       constructorParams: [],
     };
 
-    // 提取屬性
+    // Extract properties
     node.body.body.forEach((member) => {
       if (member.type === 'ClassProperty' && member.key.type === 'Identifier') {
         const visibility = member.accessibility || (member.key.name.startsWith('#') ? 'private' : 'public');
@@ -78,14 +78,14 @@ function extractClassesSimple(node) {
           } else if (typeNode.type === 'TSArrayType') {
             isArray = true;
             if (typeNode.elementType.type === 'TSTypeReference') {
-              type = `${typeNode.elementType.typeName.name}[]`;  // 添加 [] 後綴
+              type = `${typeNode.elementType.typeName.name}[]`;  // Add [] suffix
             } else {
               type = 'Array';
             }
           }
         }
 
-        // 移除 [] 後綴來判斷基礎類型
+        // Remove [] suffix to determine base type
         const baseType = type.replace(/\[\]/g, '');
         const isClassType = baseType && baseType[0] === baseType[0].toUpperCase() &&
                            !['String', 'Number', 'Boolean', 'Array'].includes(baseType);
@@ -136,12 +136,12 @@ function extractClassesSimple(node) {
       }
     });
 
-    // 提取繼承
+    // Extract inheritance
     if (node.superClass?.type === 'Identifier') {
       classInfo.extends = node.superClass.name;
     }
 
-    // 提取介面實作
+    // Extract interface implementations
     if (node.implements && node.implements.length > 0) {
       classInfo.implements = node.implements
         .filter((impl) => impl.expression?.type === 'Identifier')
@@ -151,7 +151,7 @@ function extractClassesSimple(node) {
     classes.push(classInfo);
   }
 
-  // 遞迴處理子節點
+  // Recursively process child nodes
   for (const key in node) {
     const child = node[key];
     if (child && typeof child === 'object') {
@@ -171,7 +171,7 @@ function extractClassesSimple(node) {
 extractClassesSimple(ast.program);
 
 console.log('\n' + '='.repeat(80));
-console.log('🏗️  類別結構');
+console.log('🏗️  Class Structure');
 console.log('='.repeat(80));
 classes.forEach((cls) => {
   console.log(`\n📦 ${cls.name}`);
@@ -182,51 +182,51 @@ classes.forEach((cls) => {
   console.log(`   └─ Constructor params: ${cls.constructorParams.length}`);
 });
 
-// OO 關係分析
+// OO relationship analysis
 console.log('\n' + '='.repeat(80));
-console.log('🔗 OO 關係分析');
+console.log('🔗 OO Relationship Analysis');
 console.log('='.repeat(80));
 
 const ooAnalysis = service.analyze(classes, imports);
 
 // Composition
-console.log('\n💎 Composition (組合 - 實心菱形 ◆):');
+console.log('\n💎 Composition (solid diamond ◆):');
 ooAnalysis.compositions.forEach((dep, idx) => {
   console.log(`${idx + 1}. ${dep.from} *-- "${dep.cardinality}" ${dep.to} : ${dep.context}`);
   console.log(`   └─ Line ${dep.lineNumber}`);
 });
 
 // Aggregation
-console.log('\n◇ Aggregation (聚合 - 空心菱形 ◇):');
+console.log('\n◇ Aggregation (hollow diamond ◇):');
 ooAnalysis.aggregations.forEach((dep, idx) => {
   console.log(`${idx + 1}. ${dep.from} o-- "${dep.cardinality}" ${dep.to} : ${dep.context}`);
   console.log(`   └─ Line ${dep.lineNumber}`);
 });
 
 // Association
-console.log('\n→ Association (關聯 - 實線箭頭):');
+console.log('\n→ Association (solid arrow):');
 ooAnalysis.associations.forEach((dep, idx) => {
   console.log(`${idx + 1}. ${dep.from} --> "${dep.cardinality}" ${dep.to} : ${dep.context}`);
   console.log(`   └─ Line ${dep.lineNumber}`);
 });
 
 // Dependency
-console.log('\n··> Dependency (依賴 - 虛線箭頭):');
+console.log('\n··> Dependency (dashed arrow):');
 ooAnalysis.dependencies.forEach((dep, idx) => {
   console.log(`${idx + 1}. ${dep.from} ..> ${dep.to}`);
   console.log(`   └─ ${dep.context} (Line ${dep.lineNumber})`);
 });
 
 // Injection
-console.log('\n💉 Dependency Injection (依賴注入):');
+console.log('\n💉 Dependency Injection:');
 ooAnalysis.injections.forEach((dep, idx) => {
   console.log(`${idx + 1}. ${dep.from} ..> ${dep.to} : <<inject>>`);
   console.log(`   └─ ${dep.context} (Line ${dep.lineNumber})`);
 });
 
-// 總結
+// Summary
 console.log('\n' + '='.repeat(80));
-console.log('📊 統計摘要');
+console.log('📊 Statistical Summary');
 console.log('='.repeat(80));
 console.log(`Classes: ${classes.length}`);
 console.log(`Imports: ${imports.length}`);
@@ -239,5 +239,5 @@ console.log(`  ├─ Dependencies: ${ooAnalysis.dependencies.length}`);
 console.log(`  └─ Injections: ${ooAnalysis.injections.length}`);
 
 console.log('\n' + '='.repeat(80));
-console.log('✅ 分析完成！');
+console.log('✅ Analysis Complete!');
 console.log('='.repeat(80));

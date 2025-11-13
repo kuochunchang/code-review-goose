@@ -8,13 +8,13 @@ import type {
   ImportInfo,
   ExportInfo,
   DependencyInfo,
-  PropertyInfo,
-  MethodInfo,
-  ParameterInfo,
+  // PropertyInfo,
+  // MethodInfo,
+  // ParameterInfo,
   ResolvedTypeInfo,
   ClassInfo,
   OOAnalysisResult,
-  OORelationshipType,
+  // OORelationshipType,
 } from '../types/ast.js';
 
 /**
@@ -348,11 +348,6 @@ export class OOAnalysisService {
     if (genericMatch) {
       typeName = genericMatch[1];
       genericArgs = genericMatch[2].split(',').map((arg) => arg.trim());
-
-      // For Array<T>, use T as the actual type name for class type checking
-      if (typeName === 'Array' && genericArgs.length === 1) {
-        typeName = genericArgs[0];
-      }
     }
 
     const isPrimitive = primitiveTypes.includes(typeName.toLowerCase());

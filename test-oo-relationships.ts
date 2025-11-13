@@ -4,8 +4,8 @@
  */
 
 // 外部依賴（用於測試 import 分析）
-import { EventEmitter } from 'events';
-import type { Request, Response } from 'express';
+// import { EventEmitter } from 'events';
+// import type { Request, Response } from 'express';
 
 /**
  * 基礎引擎類別（被組合使用）
