@@ -190,65 +190,312 @@ classDiagram
 
 ## 未來工作 (Future Work)
 
-### 🚀 Phase 1.5: 跨檔案分析 (Cross-File Analysis)
+### 🚀 Phase 1.5: 跨檔案雙向依賴分析 (Cross-File Bidirectional Analysis)
 
-**目標**: 追蹤 import 依賴並載入相關檔案的類別定義
+**目標**: 支援正向、反向、雙向追蹤，提供完整的依賴關係視圖
 
-**重要性**: ⭐⭐⭐⭐⭐ **CRITICAL**
+**重要性**: ⭐⭐⭐⭐⭐ **CRITICAL - 重構與影響評估的必要功能**
 
-**時程**: 1-2 週 | **測試覆蓋率**: ≥90%
+**時程**: 2-3 週 | **測試覆蓋率**: ≥90%
+
+---
 
 #### 問題現況
 
+**單向追蹤的限制**:
+
 ```typescript
-// src/models/Engine.ts
+// models/Engine.ts
 export class Engine { }
 
-// src/models/Car.ts
+// models/Car.ts
 import { Engine } from './Engine';
 export class Car {
-  private engine: Engine;  // ⚠️ Engine 不在 classes 陣列中
+  private engine: Engine;
+}
+
+// models/Truck.ts
+import { Engine } from './Engine';
+export class Truck {
+  private engine: Engine;  // ⚠️ 從 Car.ts 分析時看不到 Truck
+}
+
+// models/Bus.ts
+import { Engine } from './Engine';
+export class Bus {
+  private engine: Engine;  // ⚠️ 從 Car.ts 分析時看不到 Bus
 }
 ```
 
-#### 解決方案架構
+**從 Car.ts 分析** → 只看到 `Car`, `Engine`（遺漏 `Truck`, `Bus`）
+**從 Engine.ts 分析** → 只看到 `Engine`（看不到誰在用它）
+
+---
+
+#### 解決方案：三種分析模式
+
+| 模式 | 說明 | 使用情境 | 需要掃描專案 |
+|------|------|----------|--------------|
+| **Forward** (正向) | 追蹤當前檔案依賴的類別 | 理解類別的依賴關係 | ❌ No |
+| **Reverse** (反向) | 找出誰依賴當前檔案 | 重構前影響評估 | ✅ Yes |
+| **Bidirectional** (雙向) | 結合正向 + 反向 | 完整的依賴網路 | ✅ Yes |
+
+---
+
+#### 架構設計
 
 ```
-UMLService.generateCrossFileClassDiagram()
-  ├─ Parse current file
-  ├─ CrossFileAnalysisService.resolveImports()
-  │   ├─ Resolve import paths (relative, TS alias)
-  │   ├─ Parse imported files (AST)
-  │   ├─ Extract classes from each file
-  │   ├─ Recursive (depth limit)
-  │   └─ Circular dependency handling
-  └─ Merge all classes & generate Mermaid
+┌─────────────────────────────────────────────────────┐
+│  UMLService.generateCrossFileClassDiagram()         │
+│                                                      │
+│  ┌────────────────────────────────────────────┐    │
+│  │ Mode Selection                             │    │
+│  │                                             │    │
+│  │  [Forward]  → CrossFileAnalysisService     │    │
+│  │                • resolveImports()          │    │
+│  │                • depth 1-3                 │    │
+│  │                                             │    │
+│  │  [Reverse]  → ProjectScanner               │    │
+│  │                • scanProjectFiles()        │    │
+│  │                • findReverseDependencies() │    │
+│  │                • depth 1-3                 │    │
+│  │                                             │    │
+│  │  [Bidirectional] → Forward + Reverse       │    │
+│  │                  • merge results           │    │
+│  │                  • deduplicate classes     │    │
+│  └────────────────────────────────────────────┘    │
+│                                                      │
+│  └─→ Merge all classes & generate Mermaid          │
+└─────────────────────────────────────────────────────┘
 ```
+
+---
 
 #### 核心元件
 
-**CrossFileAnalysisService**
-- `resolveImports(filePath, imports, projectPath, maxDepth)`
-- 支援相對路徑、TS path aliases (`@/models`)
+**1. CrossFileAnalysisService (Forward Mode)**
+```typescript
+resolveImports(filePath, imports, projectPath, maxDepth)
+  → Map<moduleName, { classes, imports, filePath, depth }>
+```
+
+**功能**:
+- 遞迴追蹤 import 依賴
+- 解析相對路徑 (`./`, `../`)、TS path aliases (`@/models`)
 - 避免循環依賴、可設定深度限制
 
-**API 新增參數**
+**2. ProjectScanner (Reverse Mode)** - **新增**
+```typescript
+findReverseDependencies(targetFile, projectPath, maxDepth)
+  → Array<{ filePath, classes, dependencyType }>
+```
+
+**功能**:
+- 掃描專案所有檔案（使用 ignore patterns）
+- 解析每個檔案的 import 語句
+- 過濾出引用 targetFile 的檔案
+- 提取這些檔案的類別定義
+- 支援深度控制（depth 1 = 直接依賴者，depth 2 = 間接依賴者）
+
+**3. BidirectionalAnalyzer** - **新增**
+```typescript
+analyze(filePath, projectPath, options)
+  → {
+      forwardDeps: ClassInfo[],   // 當前檔案依賴誰
+      reverseDeps: ClassInfo[],   // 誰依賴當前檔案
+      allClasses: ClassInfo[],    // 合併去重
+      relationships: DependencyInfo[]
+    }
+```
+
+---
+
+#### API 設計
+
+**新增參數**:
+
 ```typescript
 POST /api/uml/generate
 {
   crossFileAnalysis: boolean,
+  analysisMode: 'forward' | 'reverse' | 'bidirectional',  // ⬅️ 新增
   analysisDepth: 1-3,
   includeExternalTypes: boolean
 }
 ```
 
+**使用範例**:
+
+**Forward Mode** (預設):
+```json
+{
+  "filePath": "/project/models/Car.ts",
+  "analysisMode": "forward",
+  "analysisDepth": 1
+}
+// 結果: Car → Engine, Wheel, Driver
+```
+
+**Reverse Mode**:
+```json
+{
+  "filePath": "/project/models/Engine.ts",
+  "analysisMode": "reverse",
+  "analysisDepth": 1
+}
+// 結果: Engine ← Car, Truck, Bus
+```
+
+**Bidirectional Mode**:
+```json
+{
+  "filePath": "/project/models/Engine.ts",
+  "analysisMode": "bidirectional",
+  "analysisDepth": 1
+}
+// 結果:
+//   Forward: Engine → (無依賴)
+//   Reverse: Engine ← Car, Truck, Bus
+//   合併: Engine, Car, Truck, Bus (完整視圖)
+```
+
+---
+
+#### 實作細節
+
+**Reverse Mode 實作流程**:
+
+```typescript
+class ProjectScanner {
+  async findReverseDependencies(
+    targetFile: string,
+    projectPath: string,
+    maxDepth: number
+  ): Promise<ReverseDependencyResult> {
+    const results: FileInfo[] = [];
+    const visited = new Set<string>();
+
+    // 1. 掃描專案所有原始檔
+    const allFiles = await this.scanProjectFiles(projectPath, {
+      extensions: ['.ts', '.tsx', '.js', '.jsx'],
+      ignorePatterns: ['node_modules', 'dist', '.git']
+    });
+
+    // 2. 找出直接依賴 targetFile 的檔案
+    const directDependents = await this.findDirectDependents(
+      targetFile,
+      allFiles
+    );
+
+    // 3. 如果 depth > 1，遞迴找出間接依賴者
+    if (maxDepth > 1) {
+      for (const dep of directDependents) {
+        const indirectDeps = await this.findReverseDependencies(
+          dep.filePath,
+          projectPath,
+          maxDepth - 1
+        );
+        results.push(...indirectDeps);
+      }
+    }
+
+    return { dependents: results, depth: maxDepth };
+  }
+
+  private async findDirectDependents(
+    targetFile: string,
+    candidateFiles: string[]
+  ): Promise<FileInfo[]> {
+    const dependents: FileInfo[] = [];
+
+    for (const file of candidateFiles) {
+      const code = await fs.readFile(file, 'utf-8');
+      const ast = parse(code);
+      const imports = this.extractImports(ast);
+
+      // 檢查是否 import targetFile
+      for (const imp of imports) {
+        const resolvedPath = this.resolveImportPath(file, imp.source);
+        if (resolvedPath === targetFile) {
+          const classes = this.extractClasses(ast);
+          dependents.push({ filePath: file, classes, imports });
+          break;
+        }
+      }
+    }
+
+    return dependents;
+  }
+}
+```
+
+---
+
 #### 效能評估
+
+**Forward Mode**:
 
 | 深度 | 檔案數 | 預估時間 | 優化 |
 |------|--------|----------|------|
 | 1 | 1-10 | ~100-500ms | 平行解析 |
-| 2 | 10-50 | ~500ms-2s | AST 快取 (Phase 3) |
+| 2 | 10-50 | ~500ms-2s | AST 快取 |
 | 3 | 50-200 | ~2-5s | 限制預設值 |
+
+**Reverse Mode**:
+
+| 專案規模 | 檔案數 | 掃描時間 | 優化 |
+|----------|--------|----------|------|
+| 小型 | 50-200 | ~500ms-1s | 快取 import map |
+| 中型 | 200-1000 | ~2-5s | 增量掃描 |
+| 大型 | 1000+ | ~5-10s | 背景索引 |
+
+**Bidirectional Mode**: Forward + Reverse 時間總和
+
+---
+
+#### 優化策略
+
+1. **Import Map 快取** - Phase 3
+   - 建立專案級 import 索引
+   - `Map<filePath, Array<importedFiles>>`
+   - 檔案修改時增量更新
+
+2. **平行掃描**
+   - 使用 `Promise.all()` 平行解析多個檔案
+   - Worker threads for 大型專案
+
+3. **智慧過濾**
+   - 預設排除 `node_modules`, `dist`, `test`
+   - 使用者可自訂 ignore patterns
+
+4. **深度限制**
+   - Forward mode: 預設 depth=1
+   - Reverse mode: 預設 depth=1（避免掃描過多）
+   - Bidirectional mode: 預設 depth=1
+
+---
+
+#### UI 設計
+
+**Web UI 控制項**:
+
+```vue
+<v-select v-model="analysisMode" label="Analysis Mode">
+  <v-option value="forward">Forward (追蹤依賴)</v-option>
+  <v-option value="reverse">Reverse (影響分析)</v-option>
+  <v-option value="bidirectional">Bidirectional (完整視圖)</v-option>
+</v-select>
+
+<v-slider
+  v-model="analysisDepth"
+  :min="1" :max="3"
+  :label="`Depth: ${analysisDepth}`"
+/>
+
+<v-alert v-if="analysisMode !== 'forward'" type="info">
+  Reverse/Bidirectional mode will scan project files (may be slower)
+</v-alert>
+```
 
 ---
 
