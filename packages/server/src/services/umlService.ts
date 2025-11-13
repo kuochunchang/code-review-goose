@@ -566,6 +566,15 @@ export class UMLService {
   ): string {
     let mermaid = 'classDiagram\n';
 
+    // If no classes found, generate a placeholder to avoid empty diagram
+    if (classes.length === 0) {
+      mermaid += '  class NoClassesFound\n';
+      mermaid += '  NoClassesFound : <<No classes or interfaces found>>\n';
+      mermaid += '  NoClassesFound : +This file may not contain\n';
+      mermaid += '  NoClassesFound : +any class definitions\n';
+      return mermaid;
+    }
+
     // Generate each class/interface
     classes.forEach((classInfo) => {
       const prefix = classInfo.type === 'interface' ? '<<interface>>' : '';
