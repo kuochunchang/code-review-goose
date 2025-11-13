@@ -1,7 +1,12 @@
 import fs from 'fs-extra';
 import path from 'path';
 import crypto from 'crypto';
-import type { InsightRecord, InsightCheckResult, DiagramType, UMLDiagrams } from '../types/insight.js';
+import type {
+  InsightRecord,
+  InsightCheckResult,
+  DiagramType,
+  UMLDiagrams,
+} from '../types/insight.js';
 import type { AnalysisResult, ExplainResult } from '../types/ai.js';
 import type { UMLResult } from './umlService.js';
 

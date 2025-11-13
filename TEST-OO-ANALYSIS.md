@@ -15,6 +15,7 @@ node test-oo-analysis.js
 ```
 
 **預期輸出：**
+
 ```
 ================================================================================
 📦 IMPORT 分析
@@ -212,6 +213,7 @@ npm run test:coverage -w @code-review-goose/server
 ```
 
 **預期結果：**
+
 ```
 ✓ src/__tests__/unit/services/ooAnalysisService.test.ts (22 tests) 32ms
   ✓ extractImports (2 tests)
@@ -237,41 +239,51 @@ Coverage: 95.27%
 ### 在 Mermaid 圖表中，您會看到：
 
 #### 1️⃣ **組合關係（Composition）**
+
 ```
 Car *-- "1" Engine : engine
 ```
+
 - **符號**: `*--` (實心菱形)
 - **意義**: Car **擁有** Engine，Engine 的生命週期由 Car 控制
 - **範例**: 私有屬性 `private engine: Engine`
 
 #### 2️⃣ **聚合關係（Aggregation）**
+
 ```
 Car o-- "*" Wheel : wheels
 ```
+
 - **符號**: `o--` (空心菱形)
 - **意義**: Car **使用** Wheels，但 Wheels 可以獨立存在
 - **範例**: 公開陣列屬性 `public wheels: Wheel[]`
 
 #### 3️⃣ **關聯關係（Association）**
+
 ```
 Car --> "1" Driver : driver
 ```
+
 - **符號**: `-->` (實線箭頭)
 - **意義**: Car **引用** Driver，但不擁有
 - **範例**: 公開屬性 `public driver: Driver`
 
 #### 4️⃣ **依賴關係（Dependency）**
+
 ```
 Car ..> Insurance : registerInsurance(insurance)
 ```
+
 - **符號**: `..>` (虛線箭頭)
 - **意義**: Car 的方法**使用** Insurance 作為參數或回傳值
 - **範例**: 方法參數 `registerInsurance(insurance: Insurance)`
 
 #### 5️⃣ **依賴注入（Injection）**
+
 ```
 Car ..> Logger : <<inject>> constructor(logger)
 ```
+
 - **符號**: `..>` + `<<inject>>` 標記
 - **意義**: Car 透過 constructor **注入** Logger
 - **範例**: 建構子參數 `constructor(private logger: Logger)`
@@ -286,10 +298,10 @@ Car ..> Logger : <<inject>> constructor(logger)
 
 ```typescript
 // 推薦測試的檔案
-packages/server/src/services/aiService.ts         // 服務模式
-packages/server/src/services/umlService.ts         // 複雜類別結構
-packages/server/src/routes/analysis.ts             // Express routes
-packages/web/src/stores/fileStore.ts               // Pinia stores (Vue)
+packages / server / src / services / aiService.ts; // 服務模式
+packages / server / src / services / umlService.ts; // 複雜類別結構
+packages / server / src / routes / analysis.ts; // Express routes
+packages / web / src / stores / fileStore.ts; // Pinia stores (Vue)
 ```
 
 ### 驗證準確性
@@ -307,6 +319,7 @@ packages/web/src/stores/fileStore.ts               // Pinia stores (Vue)
 ## 📊 預期改進效果
 
 ### 之前（舊版本）：
+
 - ❌ **只顯示繼承關係**（extends, implements）
 - ❌ **無法分析 import/export**
 - ❌ **無法識別組合/聚合/依賴關係**
@@ -319,6 +332,7 @@ classDiagram
 ```
 
 ### 現在（新版本）：
+
 - ✅ **完整的 OO 關係分析**
 - ✅ **Import/Export 追蹤**
 - ✅ **基於 AST 的精確分析**
@@ -342,6 +356,7 @@ classDiagram
 ## 🐛 故障排除
 
 ### 問題 1: 測試腳本執行失敗
+
 ```bash
 # 確保 server 已編譯
 npm run build -w @code-review-goose/server
@@ -352,6 +367,7 @@ ls -la test-oo-analysis.js
 ```
 
 ### 問題 2: Web UI 沒有顯示新關係
+
 ```bash
 # 清除快取並重新編譯
 npm run clean
@@ -365,13 +381,13 @@ npm run dev
 
 檢查程式碼是否符合偵測條件：
 
-| 關係 | 必要條件 |
-|------|---------|
-| Composition | private + 類別類型 |
+| 關係        | 必要條件                           |
+| ----------- | ---------------------------------- |
+| Composition | private + 類別類型                 |
 | Aggregation | public/protected + 陣列 + 類別類型 |
-| Association | public + 非陣列 + 類別類型 |
-| Dependency | 方法參數或回傳值為類別類型 |
-| Injection | constructor 參數為類別類型 |
+| Association | public + 非陣列 + 類別類型         |
+| Dependency  | 方法參數或回傳值為類別類型         |
+| Injection   | constructor 參數為類別類型         |
 
 ---
 

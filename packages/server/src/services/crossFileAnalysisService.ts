@@ -1,23 +1,23 @@
 import * as fs from 'fs-extra';
-import * as path from 'path';
 import { parse } from '@babel/parser';
 import traverseDefault from '@babel/traverse';
 import * as t from '@babel/types';
 
 // Handle CommonJS/ESM compatibility for @babel/traverse
-const traverse = typeof traverseDefault === 'function' 
-  ? traverseDefault 
-  : (traverseDefault as any).default;
+const traverse =
+  typeof traverseDefault === 'function' ? traverseDefault : (traverseDefault as any).default;
 import { PathResolver } from './pathResolver.js';
 import { OOAnalysisService } from './ooAnalysisService.js';
+import { ImportIndexBuilder } from './importIndexBuilder.js';
 import type {
   FileAnalysisResult,
   ClassInfo,
-  ImportInfo,
-  DependencyInfo,
   PropertyInfo,
   MethodInfo,
   ParameterInfo,
+  ImportIndex,
+  BidirectionalAnalysisResult,
+  DependencyInfo,
 } from '../types/ast.js';
 
 /**
@@ -25,9 +25,11 @@ import type {
  *
  * 功能：
  * - Forward mode: 追蹤檔案的正向依賴（該檔案 import 了哪些檔案）
+ * - Reverse mode: 追蹤檔案的反向依賴（誰 import 了該檔案）
  * - 支援多層深度追蹤（depth 1-3）
  * - 循環依賴偵測
  * - AST 快取（基於檔案 mtime）
+ * - Import index 快取（用於 reverse mode）
  */
 export class CrossFileAnalysisService {
   private readonly projectPath: string;
@@ -43,6 +45,10 @@ export class CrossFileAnalysisService {
       analysis: FileAnalysisResult;
     }
   >;
+
+  // Import index 快取（用於 reverse mode）
+  private importIndexCache: { index: ImportIndex; timestamp: number } | null = null;
+  private readonly INDEX_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   // 已訪問的檔案（用於避免循環依賴）
   private visited: Set<string>;
@@ -62,7 +68,10 @@ export class CrossFileAnalysisService {
    * @param maxDepth - 最大追蹤深度（1-3）
    * @returns Map<filePath, FileAnalysisResult> - 所有分析過的檔案
    */
-  async analyzeForward(filePath: string, maxDepth: 1 | 2 | 3): Promise<Map<string, FileAnalysisResult>> {
+  async analyzeForward(
+    filePath: string,
+    maxDepth: 1 | 2 | 3
+  ): Promise<Map<string, FileAnalysisResult>> {
     // 驗證深度參數
     if (maxDepth < 1 || maxDepth > 3) {
       throw new Error('Depth must be between 1 and 3');
@@ -83,6 +92,211 @@ export class CrossFileAnalysisService {
     await this.analyzeFileRecursive(filePath, 0, maxDepth, results);
 
     return results;
+  }
+
+  /**
+   * 分析反向依賴（Reverse mode）
+   *
+   * @param filePath - 要分析的檔案路徑
+   * @param maxDepth - 最大追蹤深度（1-3）
+   * @returns Map<filePath, FileAnalysisResult> - 所有分析過的檔案
+   */
+  async analyzeReverse(
+    filePath: string,
+    maxDepth: 1 | 2 | 3
+  ): Promise<Map<string, FileAnalysisResult>> {
+    // 驗證深度參數
+    if (maxDepth < 1 || maxDepth > 3) {
+      throw new Error('Depth must be between 1 and 3');
+    }
+
+    // 驗證檔案存在
+    if (!(await fs.pathExists(filePath))) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    // 重置訪問記錄
+    this.visited.clear();
+
+    // 建立結果 Map
+    const results = new Map<string, FileAnalysisResult>();
+
+    // 首先分析目標檔案本身（depth 0）
+    const targetAnalysis = await this.analyzeFile(filePath, 0);
+    results.set(filePath, targetAnalysis);
+    this.visited.add(filePath);
+
+    // 取得或建立 import index
+    const importIndex = await this.getOrBuildImportIndex();
+
+    // 使用 BFS 追蹤反向依賴
+    await this.analyzeReverseDependencies(filePath, maxDepth, importIndex, results);
+
+    return results;
+  }
+
+  /**
+   * 分析雙向依賴（Bidirectional mode）
+   *
+   * 結合 Forward 與 Reverse 分析，提供完整的依賴關係視圖
+   *
+   * @param filePath - 要分析的檔案路徑
+   * @param maxDepth - 最大追蹤深度（1-3）
+   * @returns BidirectionalAnalysisResult - 包含正向、反向依賴與統計資訊
+   */
+  async analyzeBidirectional(
+    filePath: string,
+    maxDepth: 1 | 2 | 3
+  ): Promise<BidirectionalAnalysisResult> {
+    // 驗證深度參數
+    if (maxDepth < 1 || maxDepth > 3) {
+      throw new Error('Depth must be between 1 and 3');
+    }
+
+    // 驗證檔案存在
+    if (!(await fs.pathExists(filePath))) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    // 1. 執行正向分析
+    const forwardResults = await this.analyzeForward(filePath, maxDepth);
+
+    // 2. 執行反向分析
+    const reverseResults = await this.analyzeReverse(filePath, maxDepth);
+
+    // 3. 合併結果
+    const allResults = new Map<string, FileAnalysisResult>();
+
+    // 加入正向依賴（排除目標檔案）
+    const forwardDeps: FileAnalysisResult[] = [];
+    for (const [path, result] of forwardResults.entries()) {
+      if (path !== filePath) {
+        forwardDeps.push(result);
+      }
+      allResults.set(path, result);
+    }
+
+    // 加入反向依賴（排除目標檔案和已存在的）
+    const reverseDeps: FileAnalysisResult[] = [];
+    for (const [path, result] of reverseResults.entries()) {
+      if (path !== filePath) {
+        reverseDeps.push(result);
+      }
+      if (!allResults.has(path)) {
+        allResults.set(path, result);
+      }
+    }
+
+    // 4. 提取所有類別（去重）
+    const allClasses: ClassInfo[] = [];
+    const classSet = new Set<string>(); // 用於去重（filePath:className）
+
+    for (const result of allResults.values()) {
+      for (const cls of result.classes) {
+        const key = `${result.filePath}:${cls.name}`;
+        if (!classSet.has(key)) {
+          classSet.add(key);
+          allClasses.push(cls);
+        }
+      }
+    }
+
+    // 5. 提取所有關係（去重）
+    const allRelationships: DependencyInfo[] = [];
+    const relationshipSet = new Set<string>(); // 用於去重
+
+    for (const result of allResults.values()) {
+      for (const rel of result.relationships) {
+        // 建立唯一鍵：from:to:type:context
+        const key = `${rel.from}:${rel.to}:${rel.type}:${rel.context || ''}`;
+        if (!relationshipSet.has(key)) {
+          relationshipSet.add(key);
+          allRelationships.push(rel);
+        }
+      }
+    }
+
+    // 6. 計算統計資訊
+    const maxDepthFound = Math.max(...Array.from(allResults.values()).map((r) => r.depth));
+
+    return {
+      targetFile: filePath,
+      forwardDeps,
+      reverseDeps,
+      allClasses,
+      relationships: allRelationships,
+      stats: {
+        totalFiles: allResults.size,
+        totalClasses: allClasses.length,
+        totalRelationships: allRelationships.length,
+        maxDepth: maxDepthFound,
+      },
+    };
+  }
+
+  /**
+   * 取得或建立 import index（帶快取）
+   */
+  private async getOrBuildImportIndex(): Promise<ImportIndex> {
+    const now = Date.now();
+
+    // 檢查快取是否有效
+    if (this.importIndexCache && now - this.importIndexCache.timestamp < this.INDEX_CACHE_TTL) {
+      return this.importIndexCache.index;
+    }
+
+    // 建立新的 import index
+    const builder = new ImportIndexBuilder(this.projectPath);
+    const index = await builder.buildIndex();
+
+    // 快取結果
+    this.importIndexCache = {
+      index,
+      timestamp: now,
+    };
+
+    return index;
+  }
+
+  /**
+   * 使用 BFS 分析反向依賴
+   */
+  private async analyzeReverseDependencies(
+    targetFile: string,
+    maxDepth: number,
+    importIndex: ImportIndex,
+    results: Map<string, FileAnalysisResult>
+  ): Promise<void> {
+    // BFS 佇列：[filePath, currentDepth]
+    const queue: Array<[string, number]> = [[targetFile, 0]];
+
+    while (queue.length > 0) {
+      const [currentFile, currentDepth] = queue.shift()!;
+
+      // 達到最大深度，停止
+      if (currentDepth >= maxDepth) {
+        continue;
+      }
+
+      // 找出誰 import 了 currentFile
+      const importers = importIndex.importToFiles.get(currentFile) || [];
+
+      for (const importer of importers) {
+        // 跳過已訪問的檔案
+        if (this.visited.has(importer)) {
+          continue;
+        }
+
+        this.visited.add(importer);
+
+        // 分析 importer 檔案
+        const importerAnalysis = await this.analyzeFile(importer, currentDepth + 1);
+        results.set(importer, importerAnalysis);
+
+        // 加入佇列以繼續追蹤
+        queue.push([importer, currentDepth + 1]);
+      }
+    }
   }
 
   /**
@@ -209,7 +423,11 @@ export class CrossFileAnalysisService {
   /**
    * 快取分析結果
    */
-  private async cacheAnalysis(filePath: string, ast: any, analysis: FileAnalysisResult): Promise<void> {
+  private async cacheAnalysis(
+    filePath: string,
+    ast: any,
+    analysis: FileAnalysisResult
+  ): Promise<void> {
     const stats = await fs.stat(filePath);
 
     this.astCache.set(filePath, {
@@ -232,6 +450,7 @@ export class CrossFileAnalysisService {
   clearCache(): void {
     this.astCache.clear();
     this.visited.clear();
+    this.importIndexCache = null; // 清除 import index 快取
   }
 
   /**
@@ -248,7 +467,8 @@ export class CrossFileAnalysisService {
     let constructorParams: ParameterInfo[] = [];
 
     // 提取 superClass (extends)
-    const extendsClass = node.superClass && t.isIdentifier(node.superClass) ? node.superClass.name : undefined;
+    const extendsClass =
+      node.superClass && t.isIdentifier(node.superClass) ? node.superClass.name : undefined;
 
     // 提取 implements
     const implementsInterfaces: string[] = [];
@@ -344,7 +564,9 @@ export class CrossFileAnalysisService {
 
     const name = member.key.name;
     const visibility = this.getVisibility(member);
-    const type = member.typeAnnotation ? this.getTypeString(member.typeAnnotation.typeAnnotation) : undefined;
+    const type = member.typeAnnotation
+      ? this.getTypeString(member.typeAnnotation.typeAnnotation)
+      : undefined;
 
     return {
       name,
@@ -364,7 +586,9 @@ export class CrossFileAnalysisService {
     }
 
     const name = member.key.name;
-    const type = member.typeAnnotation ? this.getTypeString(member.typeAnnotation.typeAnnotation) : undefined;
+    const type = member.typeAnnotation
+      ? this.getTypeString(member.typeAnnotation.typeAnnotation)
+      : undefined;
 
     return {
       name,
@@ -385,7 +609,9 @@ export class CrossFileAnalysisService {
     const name = member.key.name;
     const visibility = this.getVisibility(member);
     const parameters = member.params.map((param: any) => this.extractParameterInfo(param));
-    const returnType = member.returnType ? this.getTypeString(member.returnType.typeAnnotation) : undefined;
+    const returnType = member.returnType
+      ? this.getTypeString(member.returnType.typeAnnotation)
+      : undefined;
 
     return {
       name,
@@ -408,7 +634,9 @@ export class CrossFileAnalysisService {
 
     const name = member.key.name;
     const parameters = member.parameters.map((param: any) => this.extractParameterInfo(param));
-    const returnType = member.typeAnnotation ? this.getTypeString(member.typeAnnotation.typeAnnotation) : undefined;
+    const returnType = member.typeAnnotation
+      ? this.getTypeString(member.typeAnnotation.typeAnnotation)
+      : undefined;
 
     return {
       name,
@@ -428,15 +656,17 @@ export class CrossFileAnalysisService {
 
     if (t.isIdentifier(param)) {
       name = param.name;
-      type = param.typeAnnotation && 'typeAnnotation' in param.typeAnnotation 
-        ? this.getTypeString((param.typeAnnotation as any).typeAnnotation) 
-        : undefined;
+      type =
+        param.typeAnnotation && 'typeAnnotation' in param.typeAnnotation
+          ? this.getTypeString((param.typeAnnotation as any).typeAnnotation)
+          : undefined;
       isOptional = param.optional ?? false;
     } else if (t.isAssignmentPattern(param) && t.isIdentifier(param.left)) {
       name = param.left.name;
-      type = param.left.typeAnnotation && 'typeAnnotation' in param.left.typeAnnotation 
-        ? this.getTypeString((param.left.typeAnnotation as any).typeAnnotation) 
-        : undefined;
+      type =
+        param.left.typeAnnotation && 'typeAnnotation' in param.left.typeAnnotation
+          ? this.getTypeString((param.left.typeAnnotation as any).typeAnnotation)
+          : undefined;
       isOptional = true;
     }
 

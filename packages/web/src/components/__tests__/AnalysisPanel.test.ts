@@ -180,9 +180,9 @@ describe('AnalysisPanel - Sequence Diagram Feature', () => {
 
       await nextTick();
 
-      const enlargeBtn = wrapper.findAll('button').find((btn: any) =>
-        btn.text().includes('Enlarge')
-      );
+      const enlargeBtn = wrapper
+        .findAll('button')
+        .find((btn: any) => btn.text().includes('Enlarge'));
 
       expect(enlargeBtn).toBeDefined();
     });

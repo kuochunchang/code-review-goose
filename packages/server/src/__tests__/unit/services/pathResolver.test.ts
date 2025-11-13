@@ -24,7 +24,10 @@ describe('PathResolver', () => {
     await fs.writeFile(path.join(tempDir, 'src/models/Profile.ts'), '// Profile model');
     await fs.writeFile(path.join(tempDir, 'src/models/index.ts'), '// Re-exports');
     await fs.writeFile(path.join(tempDir, 'src/services/UserService.ts'), '// User service');
-    await fs.writeFile(path.join(tempDir, 'src/services/AuthService.tsx'), '// Auth service with TSX');
+    await fs.writeFile(
+      path.join(tempDir, 'src/services/AuthService.tsx'),
+      '// Auth service with TSX'
+    );
     await fs.writeFile(path.join(tempDir, 'src/App.jsx'), '// React app');
     await fs.writeFile(path.join(tempDir, 'lib/utils.js'), '// Utilities');
   });

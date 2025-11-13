@@ -123,7 +123,7 @@ class Car {
     model: string,
     year: number,
     horsepower: number,
-    private logger: Logger  // Injection
+    private logger: Logger // Injection
   ) {
     this.brand = brand;
     this.model = model;
@@ -134,12 +134,7 @@ class Car {
     this.engine = new Engine(horsepower);
 
     // Aggregation: Wheels 可以從外部傳入或內部創建
-    this.wheels = [
-      new Wheel(18),
-      new Wheel(18),
-      new Wheel(18),
-      new Wheel(18),
-    ];
+    this.wheels = [new Wheel(18), new Wheel(18), new Wheel(18), new Wheel(18)];
 
     this.logger.log(`Car created: ${brand} ${model}`);
   }
@@ -183,13 +178,7 @@ class Car {
 class ElectricCar extends Car {
   private batteryCapacity: number;
 
-  constructor(
-    brand: string,
-    model: string,
-    year: number,
-    batteryCapacity: number,
-    logger: Logger
-  ) {
+  constructor(brand: string, model: string, year: number, batteryCapacity: number, logger: Logger) {
     super(brand, model, year, 0, logger);
     this.batteryCapacity = batteryCapacity;
   }

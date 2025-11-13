@@ -123,7 +123,9 @@ test.describe('UML Generation', () => {
       await page.waitForTimeout(1000);
 
       // Switch to Explain tab if not already there
-      const explainTab = page.locator('button:has-text("Explain"), [role="tab"]:has-text("Explain")').first();
+      const explainTab = page
+        .locator('button:has-text("Explain"), [role="tab"]:has-text("Explain")')
+        .first();
 
       if ((await explainTab.count()) > 0) {
         await explainTab.click();
@@ -169,7 +171,9 @@ test.describe('UML Generation', () => {
       await page.waitForTimeout(1000);
 
       // Switch to Explain tab
-      const explainTab = page.locator('button:has-text("Explain"), [role="tab"]:has-text("Explain")').first();
+      const explainTab = page
+        .locator('button:has-text("Explain"), [role="tab"]:has-text("Explain")')
+        .first();
 
       if ((await explainTab.count()) > 0) {
         await explainTab.click();
@@ -200,7 +204,9 @@ test.describe('UML Generation', () => {
             await expect(largeMermaidContainer).toBeVisible();
 
             // Close modal
-            const closeButton = page.locator('button[icon="mdi-close"], button:has-text("Close")').last();
+            const closeButton = page
+              .locator('button[icon="mdi-close"], button:has-text("Close")')
+              .last();
 
             if ((await closeButton.count()) > 0) {
               await closeButton.click();

@@ -3,11 +3,14 @@ import traverseModule from '@babel/traverse';
 import * as t from '@babel/types';
 import { MermaidValidator } from './uml/mermaidValidator.js';
 import { OOAnalysisService } from './ooAnalysisService.js';
+import { CrossFileAnalysisService } from './crossFileAnalysisService.js';
 import type { AIService } from './aiService.js';
 import type { ProjectConfig } from '../types/config.js';
 import type {
   ImportInfo,
   DependencyInfo as ASTDependencyInfo,
+  CrossFileAnalysisMode,
+  BidirectionalAnalysisResult,
 } from '../types/ast.js';
 
 // Correct way to import @babel/traverse
@@ -142,6 +145,177 @@ export class UMLService {
       }
 
       throw new Error(`Failed to generate UML diagram: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Generate cross-file class diagram using bidirectional dependency analysis
+   *
+   * @param filePath - Target file path to analyze
+   * @param projectPath - Project root path
+   * @param mode - Analysis mode (forward/reverse/bidirectional)
+   * @param depth - Maximum traversal depth (1-3)
+   * @returns UML class diagram with cross-file relationships
+   */
+  async generateCrossFileClassDiagram(
+    filePath: string,
+    projectPath: string,
+    mode: CrossFileAnalysisMode = 'bidirectional',
+    depth: 1 | 2 | 3 = 1
+  ): Promise<UMLResult> {
+    try {
+      // Initialize cross-file analysis service
+      const crossFileService = new CrossFileAnalysisService(projectPath);
+
+      // Analyze based on mode
+      let result: BidirectionalAnalysisResult;
+
+      if (mode === 'bidirectional') {
+        result = await crossFileService.analyzeBidirectional(filePath, depth);
+      } else if (mode === 'forward') {
+        const forwardResults = await crossFileService.analyzeForward(filePath, depth);
+        // Convert forward results to bidirectional format
+        result = {
+          targetFile: filePath,
+          forwardDeps: Array.from(forwardResults.values()).filter((r) => r.filePath !== filePath),
+          reverseDeps: [],
+          allClasses: [],
+          relationships: [],
+          stats: {
+            totalFiles: forwardResults.size,
+            totalClasses: 0,
+            totalRelationships: 0,
+            maxDepth: depth,
+          },
+        };
+        // Extract classes and relationships
+        for (const fileResult of forwardResults.values()) {
+          result.allClasses.push(...fileResult.classes);
+          result.relationships.push(...fileResult.relationships);
+        }
+        result.stats.totalClasses = result.allClasses.length;
+        result.stats.totalRelationships = result.relationships.length;
+      } else {
+        // reverse mode
+        const reverseResults = await crossFileService.analyzeReverse(filePath, depth);
+        result = {
+          targetFile: filePath,
+          forwardDeps: [],
+          reverseDeps: Array.from(reverseResults.values()).filter((r) => r.filePath !== filePath),
+          allClasses: [],
+          relationships: [],
+          stats: {
+            totalFiles: reverseResults.size,
+            totalClasses: 0,
+            totalRelationships: 0,
+            maxDepth: depth,
+          },
+        };
+        // Extract classes and relationships
+        for (const fileResult of reverseResults.values()) {
+          result.allClasses.push(...fileResult.classes);
+          result.relationships.push(...fileResult.relationships);
+        }
+        result.stats.totalClasses = result.allClasses.length;
+        result.stats.totalRelationships = result.relationships.length;
+      }
+
+      // Generate Mermaid diagram
+      const mermaidCode = this.generateCrossFileMermaidDiagram(result);
+
+      // Validate
+      const validation = await this.validator.validate(mermaidCode);
+      if (!validation.valid) {
+        console.warn('Cross-file class diagram validation warnings:', validation.errors);
+      }
+
+      return {
+        type: 'class',
+        mermaidCode: mermaidCode,
+        generationMode: 'native',
+        metadata: {
+          mode,
+          depth,
+          analysis: {
+            targetFile: result.targetFile,
+            totalFiles: result.stats.totalFiles,
+            totalClasses: result.stats.totalClasses,
+            totalRelationships: result.stats.totalRelationships,
+            forwardDeps: result.forwardDeps.length,
+            reverseDeps: result.reverseDeps.length,
+          },
+          validation,
+        },
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to generate cross-file class diagram: ${(error as Error).message}`
+      );
+    }
+  }
+
+  /**
+   * Generate Mermaid class diagram from bidirectional analysis result
+   */
+  private generateCrossFileMermaidDiagram(result: BidirectionalAnalysisResult): string {
+    let diagram = 'classDiagram\n';
+
+    // Add note about analysis scope
+    diagram += `  note "Analysis: ${result.stats.totalFiles} files, ${result.stats.totalClasses} classes, ${result.stats.totalRelationships} relationships"\n\n`;
+
+    // Add all classes
+    for (const cls of result.allClasses) {
+      diagram += `  class ${cls.name} {\n`;
+
+      // Add properties
+      for (const prop of cls.properties) {
+        const visibility = prop.visibility === 'private' ? '-' : prop.visibility === 'protected' ? '#' : '+';
+        diagram += `    ${visibility}${prop.type} ${prop.name}\n`;
+      }
+
+      // Add methods
+      for (const method of cls.methods) {
+        const visibility = method.visibility === 'private' ? '-' : method.visibility === 'protected' ? '#' : '+';
+        const params = method.parameters.map((p) => `${p.name}: ${p.type}`).join(', ');
+        diagram += `    ${visibility}${method.name}(${params}): ${method.returnType}\n`;
+      }
+
+      diagram += `  }\n\n`;
+    }
+
+    // Add relationships
+    for (const rel of result.relationships) {
+      const symbol = this.getRelationshipSymbol(rel.type);
+      const cardinality = rel.cardinality ? `"${rel.cardinality}"` : '';
+      const label = rel.context ? `: ${rel.context}` : '';
+
+      diagram += `  ${rel.from} ${symbol} ${cardinality} ${rel.to}${label}\n`;
+    }
+
+    return diagram;
+  }
+
+  /**
+   * Get Mermaid relationship symbol
+   */
+  private getRelationshipSymbol(type: string): string {
+    switch (type) {
+      case 'inheritance':
+        return '<|--';
+      case 'realization':
+        return '<|..';
+      case 'composition':
+        return '*--';
+      case 'aggregation':
+        return 'o--';
+      case 'association':
+        return '-->';
+      case 'dependency':
+        return '..>';
+      case 'injection':
+        return '..>';
+      default:
+        return '-->';
     }
   }
 

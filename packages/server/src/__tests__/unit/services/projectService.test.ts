@@ -282,11 +282,7 @@ describe('ProjectService', () => {
     });
 
     it('should prefer README.md over other variants', async () => {
-      vi.mocked(fs.readdir).mockResolvedValueOnce([
-        'readme.txt',
-        'README.md',
-        'README',
-      ] as any);
+      vi.mocked(fs.readdir).mockResolvedValueOnce(['readme.txt', 'README.md', 'README'] as any);
       vi.mocked(fs.stat).mockResolvedValueOnce({
         isFile: () => true,
         size: 1234,

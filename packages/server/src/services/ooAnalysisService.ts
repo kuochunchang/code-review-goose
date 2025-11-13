@@ -166,9 +166,7 @@ export class OOAnalysisService {
         if (node.specifiers.length > 0) {
           node.specifiers.forEach((spec) => {
             if (t.isExportSpecifier(spec)) {
-              const name = t.isIdentifier(spec.exported)
-                ? spec.exported.name
-                : spec.exported.value;
+              const name = t.isIdentifier(spec.exported) ? spec.exported.name : spec.exported.value;
 
               exports.push({
                 name,
@@ -354,7 +352,10 @@ export class OOAnalysisService {
     const isBuiltIn = builtInTypes.includes(typeName);
     const isClassType = !isPrimitive && !isBuiltIn && typeName[0] === typeName[0].toUpperCase();
     const isInterfaceType =
-      !isPrimitive && !isBuiltIn && typeName.startsWith('I') && typeName[1] === typeName[1].toUpperCase();
+      !isPrimitive &&
+      !isBuiltIn &&
+      typeName.startsWith('I') &&
+      typeName[1] === typeName[1].toUpperCase();
 
     // Check if type is imported
     const importedFrom = imports.find((imp) => imp.specifiers.includes(typeName));
@@ -474,7 +475,11 @@ export class OOAnalysisService {
         // Check return type
         const returnTypeResolved = this.resolveTypeInfo(method.returnType, imports);
 
-        if (returnTypeResolved && returnTypeResolved.isClassType && !returnTypeResolved.isPrimitive) {
+        if (
+          returnTypeResolved &&
+          returnTypeResolved.isClassType &&
+          !returnTypeResolved.isPrimitive
+        ) {
           dependencies.push({
             from: cls.name,
             to: returnTypeResolved.typeName,
