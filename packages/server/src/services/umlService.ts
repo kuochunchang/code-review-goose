@@ -2,8 +2,13 @@ import { parse } from '@babel/parser';
 import traverseModule from '@babel/traverse';
 import * as t from '@babel/types';
 import { MermaidValidator } from './uml/mermaidValidator.js';
+import { OOAnalysisService } from './ooAnalysisService.js';
 import type { AIService } from './aiService.js';
 import type { ProjectConfig } from '../types/config.js';
+import type {
+  ImportInfo,
+  DependencyInfo as ASTDependencyInfo,
+} from '../types/ast.js';
 
 // Correct way to import @babel/traverse
 const traverse = (traverseModule as any).default || traverseModule;
@@ -22,6 +27,8 @@ export interface ClassInfo {
   methods: MethodInfo[];
   extends?: string;
   implements?: string[];
+  lineNumber?: number;
+  constructorParams?: ParameterInfo[];
 }
 
 // Property information
@@ -29,6 +36,9 @@ export interface PropertyInfo {
   name: string;
   type?: string;
   visibility: 'public' | 'private' | 'protected';
+  lineNumber?: number;
+  isArray?: boolean;
+  isClassType?: boolean;
 }
 
 // Method information
@@ -37,6 +47,7 @@ export interface MethodInfo {
   parameters: ParameterInfo[];
   returnType?: string;
   visibility: 'public' | 'private' | 'protected';
+  lineNumber?: number;
 }
 
 // Parameter information
@@ -61,8 +72,9 @@ export interface UMLResult {
   metadata?: {
     classes?: ClassInfo[];
     functions?: string[];
-    dependencies?: DependencyInfo[];
+    dependencies?: DependencyInfo[] | ASTDependencyInfo[];
     sequences?: SequenceInfo[];
+    imports?: ImportInfo[];
     fallbackReason?: string;
     autoFixed?: boolean;
     [key: string]: any;
@@ -280,6 +292,10 @@ export class UMLService {
    */
   private generateClassDiagram(ast: t.File, _code: string): UMLResult {
     const classes: ClassInfo[] = [];
+    const ooAnalysisService = new OOAnalysisService();
+
+    // Extract imports for dependency analysis
+    const imports = ooAnalysisService.extractImports(ast);
 
     // Traverse AST to extract class information
     traverse(ast, {
@@ -299,14 +315,21 @@ export class UMLService {
       },
     });
 
-    // Generate Mermaid class diagram syntax
-    const mermaidCode = this.generateMermaidClassDiagram(classes);
+    // Analyze OO relationships (composition, aggregation, dependency, etc.)
+    const ooAnalysis = ooAnalysisService.analyze(classes, imports);
+
+    // Generate Mermaid class diagram syntax with OO relationships
+    const mermaidCode = this.generateMermaidClassDiagram(classes, ooAnalysis.relationships);
 
     return {
       type: 'class',
       mermaidCode,
       generationMode: 'native',
-      metadata: { classes },
+      metadata: {
+        classes,
+        dependencies: ooAnalysis.relationships,
+        imports,
+      },
     };
   }
 
@@ -319,6 +342,7 @@ export class UMLService {
     const className = node.id.name;
     const properties: PropertyInfo[] = [];
     const methods: MethodInfo[] = [];
+    let constructorParams: ParameterInfo[] | undefined;
 
     // Extract inheritance relationship
     let extendsClass: string | undefined;
@@ -344,6 +368,10 @@ export class UMLService {
       } else if (t.isClassMethod(member)) {
         const method = this.extractMethod(member);
         if (method) methods.push(method);
+        // Extract constructor parameters for dependency injection analysis
+        if (method && method.name === 'constructor') {
+          constructorParams = method.parameters;
+        }
       }
     });
 
@@ -354,6 +382,8 @@ export class UMLService {
       methods,
       extends: extendsClass,
       implements: implementsInterfaces.length > 0 ? implementsInterfaces : undefined,
+      lineNumber: node.loc?.start.line,
+      constructorParams,
     };
   }
 
@@ -412,10 +442,19 @@ export class UMLService {
   private extractProperty(node: t.ClassProperty): PropertyInfo | null {
     if (!t.isIdentifier(node.key)) return null;
 
+    const typeStr = this.getTypeAnnotation(node.typeAnnotation);
+    const isArray = typeStr
+      ? typeStr.endsWith('[]') || typeStr.startsWith('Array<') || typeStr === 'Array'
+      : false;
+    const isClassType = typeStr ? this.isClassTypeName(typeStr) : false;
+
     return {
       name: node.key.name,
-      type: this.getTypeAnnotation(node.typeAnnotation),
+      type: typeStr,
       visibility: this.getVisibility(node),
+      lineNumber: node.loc?.start.line,
+      isArray,
+      isClassType,
     };
   }
 
@@ -430,6 +469,7 @@ export class UMLService {
       parameters: this.extractParameters(node.params),
       returnType: this.getTypeAnnotation(node.returnType),
       visibility: this.getVisibility(node),
+      lineNumber: node.loc?.start.line,
     };
   }
 
@@ -449,28 +489,65 @@ export class UMLService {
   }
 
   /**
-   * Get type annotation
+   * Get type annotation from TypeScript type annotation node
    */
   private getTypeAnnotation(typeAnnotation: any): string | undefined {
     if (!typeAnnotation) return undefined;
 
     if (t.isTSTypeAnnotation(typeAnnotation)) {
-      const tsType = typeAnnotation.typeAnnotation;
+      return this.getTSTypeString(typeAnnotation.typeAnnotation);
+    }
 
-      if (t.isTSStringKeyword(tsType)) return 'string';
-      if (t.isTSNumberKeyword(tsType)) return 'number';
-      if (t.isTSBooleanKeyword(tsType)) return 'boolean';
-      if (t.isTSVoidKeyword(tsType)) return 'void';
-      if (t.isTSAnyKeyword(tsType)) return 'any';
+    return undefined;
+  }
 
-      if (t.isTSTypeReference(tsType) && t.isIdentifier(tsType.typeName)) {
-        return tsType.typeName.name;
+  /**
+   * Get string representation of TypeScript type
+   */
+  private getTSTypeString(tsType: any): string | undefined {
+    if (!tsType) return undefined;
+
+    // Primitive types
+    if (t.isTSStringKeyword(tsType)) return 'string';
+    if (t.isTSNumberKeyword(tsType)) return 'number';
+    if (t.isTSBooleanKeyword(tsType)) return 'boolean';
+    if (t.isTSVoidKeyword(tsType)) return 'void';
+    if (t.isTSAnyKeyword(tsType)) return 'any';
+    if (t.isTSNullKeyword(tsType)) return 'null';
+    if (t.isTSUndefinedKeyword(tsType)) return 'undefined';
+
+    // Type reference (e.g., Wheel, Engine, Array<T>)
+    if (t.isTSTypeReference(tsType) && t.isIdentifier(tsType.typeName)) {
+      const typeName = tsType.typeName.name;
+
+      // Handle generic types like Array<Wheel>
+      if (tsType.typeParameters && tsType.typeParameters.params.length > 0) {
+        const typeArgs = tsType.typeParameters.params
+          .map((param: any) => this.getTSTypeString(param))
+          .filter((arg: string | undefined) => arg !== undefined)
+          .join(', ');
+
+        if (typeArgs) {
+          return `${typeName}<${typeArgs}>`;
+        }
       }
 
-      if (t.isTSArrayType(tsType)) {
-        const elementType = this.getTypeAnnotation({ typeAnnotation: tsType.elementType });
-        return elementType ? `${elementType}[]` : 'Array';
-      }
+      return typeName;
+    }
+
+    // Array type (e.g., Wheel[])
+    if (t.isTSArrayType(tsType)) {
+      const elementType = this.getTSTypeString(tsType.elementType);
+      return elementType ? `${elementType}[]` : 'Array';
+    }
+
+    // Union type (e.g., string | null)
+    if (t.isTSUnionType(tsType)) {
+      const types = tsType.types
+        .map((type: any) => this.getTSTypeString(type))
+        .filter((t: string | undefined) => t !== undefined)
+        .join(' | ');
+      return types || undefined;
     }
 
     return undefined;
@@ -490,10 +567,69 @@ export class UMLService {
   }
 
   /**
+   * Check if a type name represents a class (not a primitive type)
+   */
+  private isClassTypeName(typeName: string): boolean {
+    const primitiveTypes = [
+      'string',
+      'number',
+      'boolean',
+      'null',
+      'undefined',
+      'void',
+      'any',
+      'unknown',
+      'never',
+      'bigint',
+      'symbol',
+    ];
+
+    const builtInTypes = [
+      'Array',
+      'Map',
+      'Set',
+      'WeakMap',
+      'WeakSet',
+      'Promise',
+      'Date',
+      'RegExp',
+      'Error',
+    ];
+
+    // Remove array brackets and generic type arguments
+    const baseType = typeName.replace(/\[\]/g, '').replace(/<.*>/g, '').trim();
+
+    // Check if it's a primitive type
+    if (primitiveTypes.includes(baseType.toLowerCase())) {
+      return false;
+    }
+
+    // Check if it's a built-in type
+    if (builtInTypes.includes(baseType)) {
+      return false;
+    }
+
+    // Class names typically start with uppercase letter
+    return baseType.length > 0 && baseType[0] === baseType[0].toUpperCase();
+  }
+
+  /**
    * Generate Mermaid class diagram syntax
    */
-  private generateMermaidClassDiagram(classes: ClassInfo[]): string {
+  private generateMermaidClassDiagram(
+    classes: ClassInfo[],
+    dependencies?: ASTDependencyInfo[]
+  ): string {
     let mermaid = 'classDiagram\n';
+
+    // If no classes found, generate a placeholder to avoid empty diagram
+    if (classes.length === 0) {
+      mermaid += '  class NoClassesFound\n';
+      mermaid += '  NoClassesFound : <<No classes or interfaces found>>\n';
+      mermaid += '  NoClassesFound : +This file may not contain\n';
+      mermaid += '  NoClassesFound : +any class definitions\n';
+      return mermaid;
+    }
 
     // Generate each class/interface
     classes.forEach((classInfo) => {
@@ -534,14 +670,14 @@ export class UMLService {
       mermaid += '\n';
     });
 
-    // Generate relationships
+    // Generate inheritance and implementation relationships
     classes.forEach((classInfo) => {
-      // Inheritance relationship
+      // Inheritance relationship (solid line with hollow arrow)
       if (classInfo.extends) {
         mermaid += `  ${classInfo.extends} <|-- ${classInfo.name}\n`;
       }
 
-      // Implementation relationship
+      // Implementation relationship (dashed line with hollow arrow)
       if (classInfo.implements) {
         classInfo.implements.forEach((interfaceName) => {
           mermaid += `  ${interfaceName} <|.. ${classInfo.name}\n`;
@@ -549,7 +685,78 @@ export class UMLService {
       }
     });
 
+    // Generate OO relationship dependencies (composition, aggregation, etc.)
+    if (dependencies && dependencies.length > 0) {
+      // Filter out external dependencies (only show internal class relationships)
+      const internalDeps = dependencies.filter(
+        (dep) => !dep.isExternal && this.classExists(dep.to, classes)
+      );
+
+      internalDeps.forEach((dep) => {
+        const { from, to, type, cardinality, context } = dep;
+
+        // Generate Mermaid syntax based on relationship type
+        switch (type) {
+          case 'composition': // Solid diamond ◆ (strong ownership)
+            // A *-- B : cardinality (A owns B, B's lifecycle controlled by A)
+            mermaid += `  ${from} *-- "${cardinality || '1'}" ${to}`;
+            if (context) {
+              mermaid += ` : ${context}`;
+            }
+            mermaid += '\n';
+            break;
+
+          case 'aggregation': // Hollow diamond ◇ (weak ownership)
+            // A o-- B : cardinality (A uses B, but B can exist independently)
+            mermaid += `  ${from} o-- "${cardinality || '*'}" ${to}`;
+            if (context) {
+              mermaid += ` : ${context}`;
+            }
+            mermaid += '\n';
+            break;
+
+          case 'dependency': // Dashed arrow (uses/depends on)
+            // A ..> B (method uses B as parameter or return type)
+            mermaid += `  ${from} ..> ${to}`;
+            if (context) {
+              mermaid += ` : ${context}`;
+            }
+            mermaid += '\n';
+            break;
+
+          case 'association': // Solid arrow (references)
+            // A --> B : cardinality (A references B)
+            mermaid += `  ${from} --> "${cardinality || '1'}" ${to}`;
+            if (context) {
+              mermaid += ` : ${context}`;
+            }
+            mermaid += '\n';
+            break;
+
+          case 'injection': // Dependency injection (special dependency)
+            // A ..> B : <<inject>> (dependency injection)
+            mermaid += `  ${from} ..> ${to} : <<inject>>`;
+            if (context) {
+              mermaid += ` ${context}`;
+            }
+            mermaid += '\n';
+            break;
+
+          default:
+            // Fallback to basic dependency
+            mermaid += `  ${from} ..> ${to}\n`;
+        }
+      });
+    }
+
     return mermaid;
+  }
+
+  /**
+   * Check if a class exists in the classes list
+   */
+  private classExists(className: string, classes: ClassInfo[]): boolean {
+    return classes.some((cls) => cls.name === className);
   }
 
   /**
