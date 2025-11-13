@@ -26,7 +26,7 @@ npx @kuochunchang/goose-code-review
 
 ```bash
 # Clone the repository
-git clone https://github.com/kuochunchang/code-review-goose.git
+git clone https://github.com/kuochunchang/goose-sight.git
 cd code-review-goose
 
 # Install dependencies

@@ -155,8 +155,8 @@ All routes under `packages/server/src/routes/`:
 
 Must build in this specific order due to dependencies:
 
-1. `npm run build -w @code-review-goose/server` (builds server)
-2. `npm run build -w @code-review-goose/web` (builds web UI)
+1. `npm run build -w @goose-sight/server` (builds server)
+2. `npm run build -w @goose-sight/web` (builds web UI)
 3. `npm run build -w @kuochunchang/goose-code-review` (builds CLI, copies server-dist & web-dist)
 
 Or simply: `npm run build` (handles order automatically)
@@ -439,7 +439,7 @@ git checkout -b feature/add-new-analysis-type
 ## Additional Resources
 
 - Development guide: `docs/DEVELOPMENT.md`
-- GitHub repo: https://github.com/kuochunchang/code-review-goose
+- GitHub repo: https://github.com/kuochunchang/goose-sight
 - OpenAI API docs: https://platform.openai.com/docs
 - Mermaid syntax: https://mermaid.js.org/
 - Vuetify docs: https://vuetifyjs.com/

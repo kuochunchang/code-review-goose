@@ -1,5 +1,5 @@
 {
-  "name": "@code-review-goose/server",
+  "name": "@goose-sight/server",
   "version": "1.0.1",
   "description": "Goose Code Review Tool - Server",
   "main": "dist/index.js",

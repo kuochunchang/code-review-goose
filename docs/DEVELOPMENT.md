@@ -8,7 +8,7 @@
 
 ## Getting Started
 
-1. Clone repo: `git clone https://github.com/kuochunchang/code-review-goose.git`
+1. Clone repo: `git clone https://github.com/kuochunchang/goose-sight.git`
 2. Install: `npm install`
 3. Build: `npm run build`
 4. Dev mode: `npm run dev`

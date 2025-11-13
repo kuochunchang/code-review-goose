@@ -8,7 +8,7 @@
 
 ```bash
 # 1. 確保 server 已經編譯
-npm run build -w @code-review-goose/server
+npm run build -w @goose-sight/server
 
 # 2. 執行測試腳本
 node test-oo-analysis.js
@@ -117,7 +117,7 @@ http://localhost:5173
 
 #### 步驟 3: 分析測試檔案
 
-1. **選擇專案目錄**: 選擇 `/home/user/code-review-goose`
+1. **選擇專案目錄**: 選擇 `/home/user/goose-sight`
 2. **找到測試檔案**: `test-oo-relationships.ts`
 3. **點擊「Generate UML」按鈕**
 4. **選擇「Class Diagram」類型**
@@ -206,10 +206,10 @@ classDiagram
 
 ```bash
 # 執行 OOAnalysisService 測試
-npm test -w @code-review-goose/server -- ooAnalysisService.test.ts
+npm test -w @goose-sight/server -- ooAnalysisService.test.ts
 
 # 查看測試覆蓋率
-npm run test:coverage -w @code-review-goose/server
+npm run test:coverage -w @goose-sight/server
 ```
 
 **預期結果：**
@@ -359,7 +359,7 @@ classDiagram
 
 ```bash
 # 確保 server 已編譯
-npm run build -w @code-review-goose/server
+npm run build -w @goose-sight/server
 
 # 檢查檔案存在
 ls -la test-oo-relationships.ts

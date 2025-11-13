@@ -1,5 +1,5 @@
 {
-  "name": "@kuochunchang/goose-code-review",
+  "name": "@kuochunchang/goose-sight",
   "version": "1.0.2",
   "description": "AI-assisted code review tool with local web UI - View, analyze and review code with AI-powered insights",
   "main": "dist/index.js",
@@ -60,13 +60,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/kuochunchang/code-review-goose.git",
+    "url": "https://github.com/kuochunchang/goose-sight.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "url": "https://github.com/kuochunchang/code-review-goose/issues"
+    "url": "https://github.com/kuochunchang/goose-sight/issues"
   },
-  "homepage": "https://github.com/kuochunchang/code-review-goose#readme",
+  "homepage": "https://github.com/kuochunchang/goose-sight#readme",
   "author": "Kuo-Chun Chang",
   "license": "MIT",
   "engines": {
