@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  * Note: These tests require the backend server to be running on port 3456
  */
 test.describe('Smoke Tests', () => {
-  test.beforeEach(async ({ _page }) => {
+  test.beforeEach(async () => {
     // Set a longer timeout for these tests
     test.setTimeout(60000);
   });
