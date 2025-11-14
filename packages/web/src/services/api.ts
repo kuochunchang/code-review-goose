@@ -275,7 +275,12 @@ export const insightsApi = {
     code: string,
     filePath: string,
     diagramType: DiagramType,
-    forceRefresh?: boolean
+    options?: {
+      forceRefresh?: boolean;
+      crossFileAnalysis?: boolean;
+      analysisMode?: 'forward' | 'reverse' | 'bidirectional';
+      analysisDepth?: 1 | 2 | 3;
+    }
   ): Promise<UMLResult & { fromInsights?: boolean; hashMatched?: boolean }> {
     const response = await api.post<
       ApiResponse<UMLResult & { fromInsights?: boolean; hashMatched?: boolean }>
@@ -283,7 +288,10 @@ export const insightsApi = {
       code,
       filePath,
       type: diagramType,
-      forceRefresh,
+      forceRefresh: options?.forceRefresh,
+      crossFileAnalysis: options?.crossFileAnalysis,
+      analysisMode: options?.analysisMode,
+      analysisDepth: options?.analysisDepth,
     });
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || 'UML generation failed');
@@ -323,9 +331,14 @@ export const umlApi = {
     code: string,
     filePath: string,
     type: DiagramType,
-    forceRefresh?: boolean
+    options?: {
+      forceRefresh?: boolean;
+      crossFileAnalysis?: boolean;
+      analysisMode?: 'forward' | 'reverse' | 'bidirectional';
+      analysisDepth?: 1 | 2 | 3;
+    }
   ): Promise<UMLResult & { fromInsights?: boolean; hashMatched?: boolean }> {
-    return insightsApi.generateUML(code, filePath, type, forceRefresh);
+    return insightsApi.generateUML(code, filePath, type, options);
   },
 
   async getSupportedTypes(): Promise<{
