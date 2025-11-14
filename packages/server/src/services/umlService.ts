@@ -263,6 +263,9 @@ export class UMLService {
     // Add note about analysis scope
     diagram += `  note "Analysis: ${result.stats.totalFiles} files, ${result.stats.totalClasses} classes, ${result.stats.totalRelationships} relationships"\n\n`;
 
+    // Create a set of class names that exist in the diagram
+    const classNames = new Set(result.allClasses.map((cls) => cls.name));
+
     // Add all classes
     for (const cls of result.allClasses) {
       diagram += `  class ${cls.name} {\n`;
@@ -283,8 +286,13 @@ export class UMLService {
       diagram += `  }\n\n`;
     }
 
-    // Add relationships
+    // Add relationships - only include relationships where both ends exist in the diagram
     for (const rel of result.relationships) {
+      // Skip relationships that reference classes not included in this depth
+      if (!classNames.has(rel.from) || !classNames.has(rel.to)) {
+        continue;
+      }
+
       const symbol = this.getRelationshipSymbol(rel.type);
       const cardinality = rel.cardinality ? `"${rel.cardinality}"` : '';
       const label = rel.context ? `: ${rel.context}` : '';

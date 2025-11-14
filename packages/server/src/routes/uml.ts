@@ -100,18 +100,42 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
     if (!forceRefresh) {
       const checkResult = await insightService.check(filePath, codeHash);
 
-      // If hash matches and UML diagram exists, return cached result
+      // If hash matches and UML diagram exists, check if it's still valid
       if (checkResult.hashMatched && checkResult.insight?.uml?.[type]) {
         const cachedDiagram = checkResult.insight.uml[type];
-        res.json({
-          success: true,
-          data: {
-            ...cachedDiagram,
-            fromInsights: true,
-            hashMatched: true,
-          },
-        });
-        return;
+
+        // For cross-file analysis, verify that mode and depth match
+        if (crossFileAnalysis) {
+          const cachedMode = cachedDiagram.metadata?.mode;
+          const cachedDepth = cachedDiagram.metadata?.depth;
+          const requestedMode = analysisMode || 'bidirectional';
+          const requestedDepth = analysisDepth || 1;
+
+          // Only use cache if cross-file parameters match
+          if (cachedMode === requestedMode && cachedDepth === requestedDepth) {
+            res.json({
+              success: true,
+              data: {
+                ...cachedDiagram,
+                fromInsights: true,
+                hashMatched: true,
+              },
+            });
+            return;
+          }
+          // If parameters don't match, regenerate (fall through)
+        } else {
+          // For non-cross-file analysis, use cache directly
+          res.json({
+            success: true,
+            data: {
+              ...cachedDiagram,
+              fromInsights: true,
+              hashMatched: true,
+            },
+          });
+          return;
+        }
       }
     }
 

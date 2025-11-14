@@ -285,10 +285,17 @@ watch(selectedType, async () => {
 });
 
 // Watch for cross-file analysis settings changes
-watch([crossFileAnalysis, analysisMode, analysisDepth], () => {
-  // Reset diagram when settings change
-  diagram.value = null;
-  insightStatus.value = 'none';
+watch([crossFileAnalysis, analysisMode, analysisDepth], async () => {
+  // When cross-file settings change, force regenerate the diagram
+  // to ensure the new parameters are applied
+  if (crossFileAnalysis.value && currentCode.value && currentFilePath.value) {
+    // Force refresh to bypass cache and apply new depth/mode
+    await generateDiagram(true);
+  } else {
+    // If cross-file is disabled, just reset
+    diagram.value = null;
+    insightStatus.value = 'none';
+  }
 });
 
 // Toggle cross-file analysis
