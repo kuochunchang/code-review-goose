@@ -20,7 +20,11 @@
         <!-- Left: File Tree -->
         <Pane v-if="showFileTree" :size="20" :min-size="10" :max-size="40">
           <div class="panel-content">
-            <FileTree @select-file="handleSelectFile" @collapse="toggleFileTree" />
+            <FileTree
+              :selected-file-path="selectedFile"
+              @select-file="handleSelectFile"
+              @collapse="toggleFileTree"
+            />
           </div>
         </Pane>
 
@@ -44,7 +48,7 @@
     <div v-else class="mobile-layout">
       <!-- Mobile Navigation Drawer for File Tree -->
       <v-navigation-drawer v-model="mobileDrawer" location="left" temporary width="300">
-        <FileTree @select-file="handleMobileSelectFile" />
+        <FileTree :selected-file-path="selectedFile" @select-file="handleMobileSelectFile" />
       </v-navigation-drawer>
 
       <!-- Mobile FAB for File Tree -->

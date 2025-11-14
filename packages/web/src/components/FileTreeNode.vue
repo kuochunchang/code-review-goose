@@ -25,6 +25,7 @@
         :key="child.path"
         :node="child"
         :level="level + 1"
+        :selected-file-path="selectedFilePath"
         @select-file="$emit('selectFile', $event)"
       />
     </div>
@@ -45,6 +46,7 @@ interface FileNode {
 interface Props {
   node: FileNode;
   level: number;
+  selectedFilePath?: string;
 }
 
 const props = defineProps<Props>();
@@ -53,10 +55,10 @@ const emit = defineEmits<{
 }>();
 
 const expanded = ref(props.level === 0); // Root directory expanded by default
-const isSelected = ref(false);
 
 const isDirectory = computed(() => props.node.type === 'directory');
 const isFile = computed(() => props.node.type === 'file');
+const isSelected = computed(() => isFile.value && props.node.path === props.selectedFilePath);
 
 const nodeIcon = computed(() => {
   if (isDirectory.value) {
@@ -99,7 +101,6 @@ const handleClick = () => {
   if (isDirectory.value) {
     expanded.value = !expanded.value;
   } else {
-    isSelected.value = true;
     emit('selectFile', props.node.path);
   }
 };
