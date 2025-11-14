@@ -19,6 +19,23 @@
           DEPENDENCY
         </v-btn>
       </v-btn-toggle>
+
+      <!-- Cross-file analysis toggle (only for class diagrams) -->
+      <v-tooltip v-if="selectedType === 'class'" location="bottom">
+        <template v-slot:activator="{ props: tooltipProps }">
+          <v-btn
+            v-bind="tooltipProps"
+            :icon="crossFileAnalysis ? 'mdi-file-tree' : 'mdi-file-document-outline'"
+            size="small"
+            :color="crossFileAnalysis ? 'primary' : undefined"
+            @click="toggleCrossFileAnalysis"
+            class="mr-1"
+          >
+          </v-btn>
+        </template>
+        <span>{{ crossFileAnalysis ? 'Cross-file analysis enabled' : 'Single file only' }}</span>
+      </v-tooltip>
+
       <v-spacer></v-spacer>
       <!-- Insight status indicator -->
       <span v-if="insightStatus === 'up-to-date'" class="text-caption text-success mr-2">
@@ -53,6 +70,46 @@
       <v-btn icon="mdi-download" size="small" :disabled="!diagram" @click="exportDiagram"></v-btn>
       <v-btn icon="mdi-close" size="small" @click="$emit('close')"></v-btn>
     </v-toolbar>
+
+    <!-- Cross-file analysis options panel -->
+    <v-expand-transition>
+      <v-card
+        v-if="selectedType === 'class' && crossFileAnalysis"
+        class="cross-file-options"
+        flat
+        color="grey-lighten-4"
+      >
+        <v-card-text class="py-2 px-4">
+          <v-row dense align="center">
+            <v-col cols="12" sm="6">
+              <v-select
+                v-model="analysisMode"
+                :items="analysisModeOptions"
+                label="Analysis Mode"
+                density="compact"
+                variant="outlined"
+                hide-details
+              >
+                <template v-slot:item="{ props: itemProps, item }">
+                  <v-list-item v-bind="itemProps" :title="item.title" :subtitle="item.value.subtitle">
+                  </v-list-item>
+                </template>
+              </v-select>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <div class="d-flex align-center">
+                <span class="text-caption mr-2">Depth:</span>
+                <v-btn-toggle v-model="analysisDepth" mandatory density="compact" color="primary">
+                  <v-btn :value="1" size="small">1</v-btn>
+                  <v-btn :value="2" size="small">2</v-btn>
+                  <v-btn :value="3" size="small">3</v-btn>
+                </v-btn-toggle>
+              </div>
+            </v-col>
+          </v-row>
+        </v-card-text>
+      </v-card>
+    </v-expand-transition>
 
     <v-card-text class="pa-0 diagram-content">
       <div v-if="error" class="error-container pa-4">
@@ -140,6 +197,30 @@ const aiAvailable = ref(false);
 const generationMode = ref<string>('hybrid');
 const supportedTypes = ref<any[]>([]);
 
+// Cross-file analysis state
+const crossFileAnalysis = ref(false);
+const analysisMode = ref<'forward' | 'reverse' | 'bidirectional'>('forward');
+const analysisDepth = ref<1 | 2 | 3>(1);
+
+// Analysis mode options for v-select
+const analysisModeOptions = [
+  {
+    title: 'Forward',
+    value: 'forward',
+    subtitle: 'Track dependencies',
+  },
+  {
+    title: 'Reverse',
+    value: 'reverse',
+    subtitle: 'Impact analysis',
+  },
+  {
+    title: 'Bidirectional',
+    value: 'bidirectional',
+    subtitle: 'Complete view',
+  },
+];
+
 // Insight status tracking
 const insightStatus = ref<'none' | 'up-to-date' | 'outdated'>('none');
 const currentCodeHash = ref<string>('');
@@ -202,6 +283,23 @@ watch(selectedType, async () => {
     await checkInsights();
   }
 });
+
+// Watch for cross-file analysis settings changes
+watch([crossFileAnalysis, analysisMode, analysisDepth], () => {
+  // Reset diagram when settings change
+  diagram.value = null;
+  insightStatus.value = 'none';
+});
+
+// Toggle cross-file analysis
+function toggleCrossFileAnalysis() {
+  crossFileAnalysis.value = !crossFileAnalysis.value;
+  if (!crossFileAnalysis.value) {
+    // Reset to defaults when disabling
+    analysisMode.value = 'forward';
+    analysisDepth.value = 1;
+  }
+}
 
 // Check if insights exist for current file and diagram type
 async function checkInsights() {
@@ -273,11 +371,28 @@ async function generateDiagram(forceRefresh = false) {
   diagram.value = null;
 
   try {
+    // Build options object
+    const options: {
+      forceRefresh?: boolean;
+      crossFileAnalysis?: boolean;
+      analysisMode?: 'forward' | 'reverse' | 'bidirectional';
+      analysisDepth?: 1 | 2 | 3;
+    } = {
+      forceRefresh,
+    };
+
+    // Add cross-file analysis options only for class diagrams
+    if (selectedType.value === 'class' && crossFileAnalysis.value) {
+      options.crossFileAnalysis = true;
+      options.analysisMode = analysisMode.value;
+      options.analysisDepth = analysisDepth.value;
+    }
+
     const result = await umlApi.generateDiagram(
       currentCode.value,
       currentFilePath.value,
       selectedType.value,
-      forceRefresh
+      options
     );
 
     diagram.value = result.mermaidCode;
@@ -559,5 +674,15 @@ async function exportDiagram() {
 :deep(.node polygon) {
   fill: #e3f2fd !important;
   stroke: #1976d2 !important;
+}
+
+/* Cross-file analysis options panel */
+.cross-file-options {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.v-theme--dark .cross-file-options {
+  background-color: #1e1e1e !important;
+  border-bottom-color: rgba(255, 255, 255, 0.12);
 }
 </style>
