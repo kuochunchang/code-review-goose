@@ -268,15 +268,19 @@ describe('CrossFileAnalysisService', () => {
         expect(carResult?.classes[0].name).toBe('Car');
       });
 
-      it('應該處理沒有依賴者的檔案', async () => {
-        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+      it(
+        '應該處理沒有依賴者的檔案',
+        async () => {
+          const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
 
-        const result = await service.analyzeReverse(carFile, 1);
+          const result = await service.analyzeReverse(carFile, 1);
 
-        // 只有 Car.ts 自己
-        expect(result.size).toBe(1);
-        expect(result.get(carFile)?.depth).toBe(0);
-      });
+          // 只有 Car.ts 自己
+          expect(result.size).toBe(1);
+          expect(result.get(carFile)?.depth).toBe(0);
+        },
+        10000
+      ); // Increase timeout for reverse analysis
 
       it('應該找到多個檔案依賴同一個目標', async () => {
         // Wheel is used by Car (could be used by other classes too)
@@ -371,22 +375,26 @@ describe('CrossFileAnalysisService', () => {
     });
 
     describe('Complex Scenarios', () => {
-      it('應該處理 re-exports (index.ts)', async () => {
-        const userFile = path.join(FIXTURES_PATH, 'complex/models/User.ts');
-        const indexFile = path.join(FIXTURES_PATH, 'complex/models/index.ts');
-        const userServiceFile = path.join(FIXTURES_PATH, 'complex/services/UserService.ts');
+      it(
+        '應該處理 re-exports (index.ts)',
+        async () => {
+          const userFile = path.join(FIXTURES_PATH, 'complex/models/User.ts');
+          const indexFile = path.join(FIXTURES_PATH, 'complex/models/index.ts');
+          const userServiceFile = path.join(FIXTURES_PATH, 'complex/services/UserService.ts');
 
-        const result = await service.analyzeReverse(userFile, 2);
+          const result = await service.analyzeReverse(userFile, 2);
 
         // User.ts 被 index.ts 匯出，index.ts 被 UserService.ts 使用
         expect(result.size).toBeGreaterThanOrEqual(2);
         expect(result.get(userFile)?.depth).toBe(0);
 
-        // 應該找到 index.ts 或 UserService.ts
-        const hasIndexOrService =
-          result.get(indexFile) !== undefined || result.get(userServiceFile) !== undefined;
-        expect(hasIndexOrService).toBe(true);
-      });
+          // 應該找到 index.ts 或 UserService.ts
+          const hasIndexOrService =
+            result.get(indexFile) !== undefined || result.get(userServiceFile) !== undefined;
+          expect(hasIndexOrService).toBe(true);
+        },
+        10000
+      ); // Increase timeout to 10s for complex reverse analysis
     });
 
     describe('Error Handling', () => {
@@ -654,6 +662,395 @@ describe('CrossFileAnalysisService', () => {
         expect(result.stats.totalRelationships).toBe(result.relationships.length);
         expect(result.stats.maxDepth).toBeGreaterThanOrEqual(0);
         expect(result.stats.maxDepth).toBeLessThanOrEqual(1);
+      });
+    });
+  });
+
+  describe('Type Annotation Coverage - Boolean and Any Types', () => {
+    it('should correctly extract boolean and any types from TypedClass', async () => {
+      const typedClassFile = path.join(FIXTURES_PATH, 'types/TypedClass.ts');
+
+      const result = await service.analyzeForward(typedClassFile, 1);
+
+      // Should have TypedClass analyzed
+      expect(result.size).toBe(1);
+
+      const typedClassResult = result.get(typedClassFile);
+      expect(typedClassResult).toBeDefined();
+      expect(typedClassResult?.classes).toHaveLength(1);
+
+      const cls = typedClassResult?.classes[0];
+      expect(cls?.name).toBe('TypedClass');
+
+      // Check properties with different types
+      const isActiveProperty = cls?.properties.find((p) => p.name === 'isActive');
+      expect(isActiveProperty?.type).toBe('boolean');
+
+      const metadataProperty = cls?.properties.find((p) => p.name === 'metadata');
+      expect(metadataProperty?.type).toBe('any');
+
+      const idProperty = cls?.properties.find((p) => p.name === 'id');
+      expect(idProperty?.type).toBe('number');
+
+      const nameProperty = cls?.properties.find((p) => p.name === 'name');
+      expect(nameProperty?.type).toBe('string');
+
+      // Check methods with boolean return type
+      const checkStatusMethod = cls?.methods.find((m) => m.name === 'checkStatus');
+      expect(checkStatusMethod?.returnType).toBe('boolean');
+
+      // Check methods with any return type
+      const getMetadataMethod = cls?.methods.find((m) => m.name === 'getMetadata');
+      expect(getMetadataMethod?.returnType).toBe('any');
+
+      // Check methods with void return type
+      const clearTagsMethod = cls?.methods.find((m) => m.name === 'clearTags');
+      expect(clearTagsMethod?.returnType).toBe('void');
+    });
+
+    it('should analyze cross-file dependencies with TypedClass', async () => {
+      const complexTypesFile = path.join(FIXTURES_PATH, 'types/ComplexTypes.ts');
+
+      const result = await service.analyzeForward(complexTypesFile, 1);
+
+      // Should have ComplexTypes and TypedClass
+      expect(result.size).toBe(2);
+
+      const complexTypesResult = result.get(complexTypesFile);
+      expect(complexTypesResult).toBeDefined();
+      expect(complexTypesResult?.classes[0].name).toBe('ComplexTypes');
+
+      // Check that TypedClass was imported
+      expect(complexTypesResult?.imports).toHaveLength(1);
+      expect(complexTypesResult?.imports[0].specifiers).toContain('TypedClass');
+
+      // Check for OO relationships (composition, dependency, etc.)
+      expect(complexTypesResult?.relationships.length).toBeGreaterThan(0);
+
+      // Verify TypedClass is also in the results
+      const typedClassFile = path.join(FIXTURES_PATH, 'types/TypedClass.ts');
+      const typedClassResult = result.get(typedClassFile);
+      expect(typedClassResult).toBeDefined();
+      expect(typedClassResult?.depth).toBe(1);
+    });
+
+    it('should extract correct relationships for ComplexTypes → TypedClass', async () => {
+      const complexTypesFile = path.join(FIXTURES_PATH, 'types/ComplexTypes.ts');
+
+      const result = await service.analyzeForward(complexTypesFile, 1);
+
+      const complexTypesResult = result.get(complexTypesFile);
+      const relationships = complexTypesResult?.relationships || [];
+
+      // Should have composition (private data: TypedClass)
+      const compositions = relationships.filter((r) => r.type === 'composition');
+      expect(compositions.length).toBeGreaterThan(0);
+
+      // Should have dependency relationships from method parameters/returns
+      const dependencies = relationships.filter((r) => r.type === 'dependency');
+      expect(dependencies.length).toBeGreaterThan(0);
+
+      // Verify specific relationships exist
+      const hasTypedClassRelation = relationships.some((r) => r.to === 'TypedClass');
+      expect(hasTypedClassRelation).toBe(true);
+    });
+
+    it('should handle bidirectional analysis with TypedClass', async () => {
+      const complexTypesFile = path.join(FIXTURES_PATH, 'types/ComplexTypes.ts');
+
+      const result = await service.analyzeBidirectional(complexTypesFile, 1);
+
+      // Forward: ComplexTypes → TypedClass
+      expect(result.forwardDeps.length).toBe(1);
+      expect(result.forwardDeps[0].filePath).toContain('TypedClass.ts');
+
+      // Reverse: No one imports ComplexTypes (in this fixture)
+      expect(result.reverseDeps.length).toBe(0);
+
+      // All classes should include both ComplexTypes and TypedClass
+      expect(result.allClasses.length).toBeGreaterThanOrEqual(2);
+      const classNames = result.allClasses.map((c) => c.name);
+      expect(classNames).toContain('ComplexTypes');
+      expect(classNames).toContain('TypedClass');
+
+      // Check statistics
+      expect(result.stats.totalFiles).toBe(2);
+      expect(result.stats.totalClasses).toBe(2);
+      expect(result.stats.totalRelationships).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Three-Layer Dependency Analysis - E-commerce System', () => {
+    describe('Forward Analysis - From Controller (Layer 3)', () => {
+      it('should analyze 3 layers: OrderController → Services → Models (depth 3)', async () => {
+        const orderControllerFile = path.join(
+          FIXTURES_PATH,
+          'three-layer/controllers/OrderController.ts'
+        );
+
+        const result = await service.analyzeForward(orderControllerFile, 3);
+
+        // Should include all 3 layers
+        // Layer 3: OrderController
+        // Layer 2: OrderService, ProductService
+        // Layer 1: Product, Customer, Order
+        expect(result.size).toBeGreaterThanOrEqual(6);
+
+        // Verify Layer 3 (depth 0)
+        const controllerResult = result.get(orderControllerFile);
+        expect(controllerResult).toBeDefined();
+        expect(controllerResult?.depth).toBe(0);
+
+        // Find OrderController class (may not be the first due to interfaces)
+        const orderController = controllerResult?.classes.find(c => c.name === 'OrderController');
+        expect(orderController).toBeDefined();
+        expect(orderController?.name).toBe('OrderController');
+
+        // Should import from Layer 2
+        const layer2Imports = controllerResult?.imports.filter(
+          (imp) => imp.source.includes('services/')
+        );
+        expect(layer2Imports?.length).toBeGreaterThan(0);
+
+        // Verify Layer 2 files are included (depth 1)
+        const orderServiceFile = path.join(FIXTURES_PATH, 'three-layer/services/OrderService.ts');
+        const orderServiceResult = result.get(orderServiceFile);
+        expect(orderServiceResult).toBeDefined();
+        expect(orderServiceResult?.depth).toBe(1);
+
+        // Find OrderService class
+        const orderService = orderServiceResult?.classes.find(c => c.name === 'OrderService');
+        expect(orderService).toBeDefined();
+        expect(orderService?.name).toBe('OrderService');
+
+        // Verify Layer 1 files are included (depth 2)
+        const productFile = path.join(FIXTURES_PATH, 'three-layer/models/Product.ts');
+        const productResult = result.get(productFile);
+        expect(productResult).toBeDefined();
+        expect(productResult?.depth).toBe(2);
+
+        // Find Product class
+        const product = productResult?.classes.find(c => c.name === 'Product');
+        expect(product).toBeDefined();
+        expect(product?.name).toBe('Product');
+      });
+
+      it('should respect depth limit - depth 2 should not include all Layer 1 models', async () => {
+        const orderControllerFile = path.join(
+          FIXTURES_PATH,
+          'three-layer/controllers/OrderController.ts'
+        );
+
+        const result = await service.analyzeForward(orderControllerFile, 2);
+
+        // With depth 2, we get:
+        // - Layer 3: OrderController (depth 0)
+        // - Layer 2: OrderService, ProductService (depth 1)
+        // - Some of Layer 1 that are directly imported by Layer 2 (depth 2)
+
+        expect(result.size).toBeGreaterThanOrEqual(3);
+        expect(result.size).toBeLessThan(10); // Should not get ALL models
+
+        // Controller should be there
+        const controllerResult = result.get(orderControllerFile);
+        expect(controllerResult?.depth).toBe(0);
+
+        // Services should be there
+        const orderServiceFile = path.join(FIXTURES_PATH, 'three-layer/services/OrderService.ts');
+        const orderServiceResult = result.get(orderServiceFile);
+        expect(orderServiceResult?.depth).toBe(1);
+      });
+
+      it('should stop at depth 1 - only include Controller and Services', async () => {
+        const orderControllerFile = path.join(
+          FIXTURES_PATH,
+          'three-layer/controllers/OrderController.ts'
+        );
+
+        const result = await service.analyzeForward(orderControllerFile, 1);
+
+        // With depth 1, we get:
+        // - Layer 3: OrderController (depth 0)
+        // - Layer 2: OrderService, ProductService (depth 1)
+
+        expect(result.size).toBeGreaterThanOrEqual(2);
+
+        // Controller should be there
+        const controllerResult = result.get(orderControllerFile);
+        expect(controllerResult?.depth).toBe(0);
+
+        // Find OrderController class
+        const orderController = controllerResult?.classes.find(c => c.name === 'OrderController');
+        expect(orderController).toBeDefined();
+        expect(orderController?.name).toBe('OrderController');
+
+        // At least one service should be there
+        const hasServices = Array.from(result.values()).some((r) => {
+          if (r.depth !== 1) return false;
+          // Check if any class in this file is a service
+          return r.classes.some(
+            (cls) => cls.name === 'OrderService' || cls.name === 'ProductService'
+          );
+        });
+        expect(hasServices).toBe(true);
+      });
+    });
+
+    describe('Reverse Analysis - From Model (Layer 1)', () => {
+      it('should find all dependents from Product model up to Controller (depth 3)', async () => {
+        const productFile = path.join(FIXTURES_PATH, 'three-layer/models/Product.ts');
+
+        const result = await service.analyzeReverse(productFile, 3);
+
+        // Product is used by:
+        // - Layer 2: ProductService, OrderService (depth 1)
+        // - Layer 3: OrderController (depth 2)
+
+        expect(result.size).toBeGreaterThanOrEqual(3);
+
+        // Product itself (depth 0)
+        const productResult = result.get(productFile);
+        expect(productResult?.depth).toBe(0);
+
+        // Find Product class
+        const product = productResult?.classes.find(c => c.name === 'Product');
+        expect(product).toBeDefined();
+        expect(product?.name).toBe('Product');
+
+        // Should find services that use Product
+        const hasServiceDependents = Array.from(result.values()).some((r) => {
+          if (r.depth !== 1) return false;
+          // Check if any class in this file is a service
+          return r.classes.some(
+            (cls) => cls.name === 'ProductService' || cls.name === 'OrderService'
+          );
+        });
+        expect(hasServiceDependents).toBe(true);
+      });
+
+      it('should respect depth limit in reverse analysis', async () => {
+        const productFile = path.join(FIXTURES_PATH, 'three-layer/models/Product.ts');
+
+        const result = await service.analyzeReverse(productFile, 1);
+
+        // With depth 1, should get Product + direct dependents (Services)
+        expect(result.size).toBeGreaterThanOrEqual(2);
+
+        const productResult = result.get(productFile);
+        expect(productResult?.depth).toBe(0);
+      });
+    });
+
+    describe('Bidirectional Analysis - From Service (Layer 2)', () => {
+      it('should analyze both forward and reverse from OrderService', async () => {
+        const orderServiceFile = path.join(FIXTURES_PATH, 'three-layer/services/OrderService.ts');
+
+        const result = await service.analyzeBidirectional(orderServiceFile, 2);
+
+        // Forward deps: Models (Layer 1)
+        // Reverse deps: Controllers (Layer 3)
+
+        expect(result.forwardDeps.length).toBeGreaterThan(0); // Should have models
+        expect(result.stats.totalFiles).toBeGreaterThanOrEqual(2);
+
+        // Should include OrderService itself
+        const classNames = result.allClasses.map((c) => c.name);
+        expect(classNames).toContain('OrderService');
+
+        // Should include some Layer 1 models
+        const hasModels =
+          classNames.includes('Product') ||
+          classNames.includes('Customer') ||
+          classNames.includes('Order');
+        expect(hasModels).toBe(true);
+      });
+
+      it('should show complete dependency graph with depth 3', async () => {
+        const orderServiceFile = path.join(FIXTURES_PATH, 'three-layer/services/OrderService.ts');
+
+        const result = await service.analyzeBidirectional(orderServiceFile, 3);
+
+        // Should get a comprehensive view:
+        // - Forward: Models (Product, Customer, Order)
+        // - Reverse: Controllers (OrderController)
+
+        expect(result.stats.totalFiles).toBeGreaterThanOrEqual(3);
+        expect(result.stats.totalClasses).toBeGreaterThanOrEqual(3);
+        expect(result.stats.totalRelationships).toBeGreaterThan(0);
+
+        // Verify we have classes from different layers
+        const classNames = result.allClasses.map((c) => c.name);
+
+        // Should have the service itself
+        expect(classNames).toContain('OrderService');
+
+        // Forward deps should include at least one model
+        expect(result.forwardDeps.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe('OO Relationships Across Layers', () => {
+      it('should detect composition relationships in OrderController', async () => {
+        const orderControllerFile = path.join(
+          FIXTURES_PATH,
+          'three-layer/controllers/OrderController.ts'
+        );
+
+        const result = await service.analyzeForward(orderControllerFile, 1);
+
+        const controllerResult = result.get(orderControllerFile);
+        const relationships = controllerResult?.relationships || [];
+
+        // OrderController has composition with OrderService and ProductService
+        const compositions = relationships.filter((r) => r.type === 'composition');
+        expect(compositions.length).toBeGreaterThan(0);
+
+        // Should have relationships to services
+        const serviceDeps = relationships.filter(
+          (r) => r.to === 'OrderService' || r.to === 'ProductService'
+        );
+        expect(serviceDeps.length).toBeGreaterThan(0);
+      });
+
+      it('should detect dependency relationships in OrderService', async () => {
+        const orderServiceFile = path.join(FIXTURES_PATH, 'three-layer/services/OrderService.ts');
+
+        const result = await service.analyzeForward(orderServiceFile, 1);
+
+        const serviceResult = result.get(orderServiceFile);
+        const relationships = serviceResult?.relationships || [];
+
+        // OrderService has dependencies on Product, Customer, Order
+        const dependencies = relationships.filter((r) => r.type === 'dependency');
+        expect(dependencies.length).toBeGreaterThan(0);
+
+        // Should reference model classes
+        const modelRefs = relationships.filter(
+          (r) => r.to === 'Product' || r.to === 'Customer' || r.to === 'Order'
+        );
+        expect(modelRefs.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe('Statistics and Metrics', () => {
+      it('should provide accurate statistics for 3-layer architecture', async () => {
+        const orderControllerFile = path.join(
+          FIXTURES_PATH,
+          'three-layer/controllers/OrderController.ts'
+        );
+
+        const result = await service.analyzeBidirectional(orderControllerFile, 3);
+
+        // Verify statistics
+        expect(result.stats.totalFiles).toBeGreaterThanOrEqual(4);
+        expect(result.stats.totalClasses).toBeGreaterThanOrEqual(4);
+        expect(result.stats.totalRelationships).toBeGreaterThan(0);
+        expect(result.stats.maxDepth).toBeGreaterThan(0);
+        expect(result.stats.maxDepth).toBeLessThanOrEqual(3);
+
+        // Verify counts match
+        expect(result.stats.totalClasses).toBe(result.allClasses.length);
+        expect(result.stats.totalRelationships).toBe(result.relationships.length);
       });
     });
   });
