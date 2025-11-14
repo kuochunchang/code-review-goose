@@ -137,10 +137,153 @@ All routes under `packages/server/src/routes/`:
 
 ### E2E Tests (Playwright)
 
-- Located in `packages/web/e2e/`
-- Test scenarios: smoke tests, file analysis, review workflow, UML generation
-- Run single test: `npm run test:e2e -- simple-load.spec.ts`
-- Debug mode: `npm run test:e2e:debug` for interactive debugging
+**Framework**: Playwright - A modern, reliable end-to-end testing framework for web applications.
+
+**Location**: `packages/web/e2e/`
+
+**Configuration**: `playwright.config.ts` at the root of the project
+
+#### Playwright Commands
+
+```bash
+# Run all E2E tests
+npm run test:e2e
+
+# Run E2E tests with Playwright UI (visual test runner)
+npm run test:e2e:ui
+
+# Debug E2E tests interactively
+npm run test:e2e:debug
+
+# Run a single test file
+npm run test:e2e -- simple-load.spec.ts
+
+# Run tests with specific options
+npm run test:e2e -- --repeat-each=3  # Repeat each test 3 times (for flaky test detection)
+npm run test:e2e -- --headed          # Run tests in headed mode (visible browser)
+npm run test:e2e -- --project=chromium # Run only on Chromium browser
+```
+
+#### Test Scenarios Coverage
+
+The project requires E2E tests for the following critical workflows:
+
+1. **Smoke Tests** - Basic application loading and navigation
+2. **File Analysis** - File tree navigation, file selection, content display
+3. **Review Workflow** - Code review generation, AI analysis, review display
+4. **UML Generation** - UML diagram generation, rendering, and interaction
+5. **Search Functionality** - Code search, result display, navigation
+6. **Configuration Management** - Settings update, API key configuration
+
+#### Playwright Test Structure
+
+E2E tests should follow this structure:
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Feature Name', () => {
+  test.beforeEach(async ({ page }) => {
+    // Setup: Navigate to the page, set up test data
+    await page.goto('http://localhost:3000');
+  });
+
+  test('should do something', async ({ page }) => {
+    // Arrange: Set up test conditions
+
+    // Act: Perform user actions
+    await page.click('button#submit');
+
+    // Assert: Verify expected outcomes
+    await expect(page.locator('.result')).toBeVisible();
+  });
+
+  test.afterEach(async ({ page }) => {
+    // Cleanup if necessary
+  });
+});
+```
+
+#### Playwright Best Practices
+
+**Selectors**:
+- Prefer user-facing attributes: `data-testid`, `aria-label`, `role`
+- Avoid brittle selectors: CSS classes, complex XPath
+- Use Playwright's built-in locators: `page.getByRole()`, `page.getByText()`, `page.getByTestId()`
+
+**Waiting**:
+- Use auto-waiting: Playwright waits for elements automatically
+- Avoid hard waits: Don't use `setTimeout()` or `page.waitForTimeout()`
+- Use explicit waits when necessary: `page.waitForSelector()`, `page.waitForResponse()`
+
+**Assertions**:
+- Use Playwright's expect API: `expect(locator).toBeVisible()`
+- Test user-visible behavior, not implementation details
+- Assert on multiple conditions to ensure complete validation
+
+**Test Isolation**:
+- Each test should be independent and can run in any order
+- Don't rely on test execution order
+- Clean up state between tests
+
+**Page Object Model (POM)**:
+- Consider using POM for complex pages to reduce duplication
+- Keep page objects simple and focused on user interactions
+- Example: Create `FileTreePage`, `ReviewPage`, `SettingsPage` classes
+
+#### Playwright-Specific Requirements
+
+**MANDATORY for all UI changes**:
+- Any change to Vue components, views, or user interactions **MUST** include Playwright E2E tests
+- Tests must verify the complete user workflow, not just component rendering
+- Tests must run in real browser environment (Chromium, Firefox, WebKit)
+
+**Browser Coverage**:
+- Tests run on Chromium by default
+- Critical workflows should be tested on multiple browsers
+- Configure in `playwright.config.ts` if multi-browser testing is needed
+
+**Visual Testing** (Optional but Recommended):
+- Use `await expect(page).toHaveScreenshot()` for visual regression testing
+- Useful for UML diagrams, Monaco editor, complex layouts
+- Store screenshots in `e2e/__screenshots__/`
+
+**Network Mocking**:
+- Mock external API calls (OpenAI API) in E2E tests when appropriate
+- Use `page.route()` to intercept and mock network requests
+- Example:
+  ```typescript
+  await page.route('**/api/analysis', route => {
+    route.fulfill({
+      status: 200,
+      body: JSON.stringify({ analysis: 'Mocked result' })
+    });
+  });
+  ```
+
+**Timeouts**:
+- Default timeout: 30 seconds (configurable in `playwright.config.ts`)
+- Increase timeout for slow operations (AI analysis, large file loading)
+- Use `test.setTimeout()` for specific tests that need longer execution time
+
+**Debugging Tips**:
+- Use `npm run test:e2e:ui` for visual debugging
+- Use `await page.pause()` to pause test execution and inspect the page
+- Use `DEBUG=pw:api npm run test:e2e` for verbose logging
+- Check trace files: `npx playwright show-trace trace.zip`
+
+#### Playwright Test Checklist
+
+Before committing E2E tests, verify:
+
+- ✅ Tests run successfully with `npm run test:e2e`
+- ✅ Tests are deterministic (not flaky) - run multiple times to verify
+- ✅ Tests use proper selectors (user-facing attributes, not brittle CSS classes)
+- ✅ Tests validate complete user workflows end-to-end
+- ✅ Tests cover both success and error scenarios
+- ✅ Tests are well-documented with clear test descriptions
+- ✅ Tests run in reasonable time (avoid unnecessarily long tests)
+- ✅ Tests don't leave side effects (clean up after themselves)
 
 ### Testing Best Practices
 
@@ -432,9 +575,41 @@ git checkout -b feature/add-new-analysis-type
 
 ### Test failures
 
-- E2E tests may fail if server not running: E2E tests start own server
-- Timeout issues: Increase timeout in playwright.config.ts
-- Flaky tests: Run with `--repeat-each=3` to identify intermittent failures
+**Unit test failures (Vitest)**:
+- Mock issues: Ensure all external dependencies are properly mocked
+- Import errors: Check module resolution and TypeScript configuration
+- Coverage drops: Run `npm run test:coverage` to identify uncovered code
+
+**E2E test failures (Playwright)**:
+- **Server startup**: E2E tests automatically start their own server - no manual server needed
+- **Timeout issues**:
+  - Increase timeout in `playwright.config.ts` for slow operations
+  - Use `test.setTimeout(60000)` for specific tests needing more time
+  - Check if CI environment needs different timeout values
+- **Flaky tests**:
+  - Run with `--repeat-each=3` to identify intermittent failures
+  - Check for race conditions in async operations
+  - Ensure proper wait conditions before assertions
+  - Avoid hard-coded waits (`waitForTimeout`) - use `waitForSelector` instead
+- **Selector failures**:
+  - Use Playwright Inspector: `npm run test:e2e:debug`
+  - Check if selectors are too brittle (CSS classes changed)
+  - Prefer `data-testid` attributes for test stability
+  - Use `page.pause()` to inspect the page during test execution
+- **Network errors**:
+  - Check if API mocking is set up correctly
+  - Verify backend routes are accessible
+  - Use `page.route()` to mock external API calls if needed
+- **Screenshot mismatches** (visual testing):
+  - Update baseline screenshots: `npm run test:e2e -- --update-snapshots`
+  - Check if UI changes are intentional
+  - Different OS may produce slightly different screenshots
+- **Debugging tips**:
+  - Visual debugging: `npm run test:e2e:ui`
+  - Verbose logging: `DEBUG=pw:api npm run test:e2e`
+  - Pause execution: Add `await page.pause()` in test code
+  - View trace files: `npx playwright show-trace trace.zip`
+  - Run headed mode: `npm run test:e2e -- --headed`
 
 ## Additional Resources
 
@@ -444,3 +619,5 @@ git checkout -b feature/add-new-analysis-type
 - Mermaid syntax: https://mermaid.js.org/
 - Vuetify docs: https://vuetifyjs.com/
 - Monaco Editor API: https://microsoft.github.io/monaco-editor/
+- Playwright docs: https://playwright.dev/
+- Playwright best practices: https://playwright.dev/docs/best-practices
