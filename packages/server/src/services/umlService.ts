@@ -2,10 +2,10 @@ import { parse } from '@babel/parser';
 import traverseModule from '@babel/traverse';
 import * as t from '@babel/types';
 import type {
-    DependencyInfo as ASTDependencyInfo,
-    BidirectionalAnalysisResult,
-    FileAnalysisResult,
-    ImportInfo,
+  DependencyInfo as ASTDependencyInfo,
+  BidirectionalAnalysisResult,
+  FileAnalysisResult,
+  ImportInfo,
 } from '../types/ast.js';
 import type { ProjectConfig } from '../types/config.js';
 import type { AIService } from './aiService.js';
