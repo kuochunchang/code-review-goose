@@ -1,9 +1,8 @@
-import { Router, Request, Response } from 'express';
-import { UMLService, DiagramType } from '../services/umlService.js';
+import { Request, Response, Router } from 'express';
 import { AIService } from '../services/aiService.js';
 import { ConfigService } from '../services/configService.js';
 import { InsightService } from '../services/insightService.js';
-import type { CrossFileAnalysisMode } from '../types/ast.js';
+import { DiagramType, UMLService } from '../services/umlService.js';
 
 export const umlRouter = Router();
 
@@ -19,16 +18,16 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       filePath,
       forceRefresh,
       crossFileAnalysis,
-      analysisMode,
       analysisDepth,
+      analysisMode,
     } = req.body as {
       code: string;
       type: DiagramType;
       filePath: string;
       forceRefresh?: boolean;
       crossFileAnalysis?: boolean;
-      analysisMode?: CrossFileAnalysisMode;
       analysisDepth?: 1 | 2 | 3;
+      analysisMode?: 'forward' | 'reverse' | 'bidirectional';
     };
 
     const projectPath = req.app.locals.projectPath;
@@ -70,16 +69,6 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
         return;
       }
 
-      // Validate analysisMode
-      const validModes: CrossFileAnalysisMode[] = ['forward', 'reverse', 'bidirectional'];
-      if (analysisMode && !validModes.includes(analysisMode)) {
-        res.status(400).json({
-          success: false,
-          error: `analysisMode must be one of: ${validModes.join(', ')}`,
-        });
-        return;
-      }
-
       // Validate analysisDepth
       if (analysisDepth && (analysisDepth < 1 || analysisDepth > 3)) {
         res.status(400).json({
@@ -104,15 +93,19 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       if (checkResult.hashMatched && checkResult.insight?.uml?.[type]) {
         const cachedDiagram = checkResult.insight.uml[type];
 
-        // For cross-file analysis, verify that mode and depth match
+        // For cross-file analysis, verify that depth matches
         if (crossFileAnalysis) {
-          const cachedMode = cachedDiagram.metadata?.mode;
           const cachedDepth = cachedDiagram.metadata?.depth;
-          const requestedMode = analysisMode || 'bidirectional';
           const requestedDepth = analysisDepth || 1;
 
-          // Only use cache if cross-file parameters match
-          if (cachedMode === requestedMode && cachedDepth === requestedDepth) {
+          // Check if this is old cache with 'mode' field (from forward/reverse mode era)
+          // New bidirectional-only cache should NOT have a 'mode' field
+          const hasOldModeField = cachedDiagram.metadata && 'mode' in cachedDiagram.metadata;
+
+          // Only use cache if:
+          // 1. Depth matches
+          // 2. It's NOT an old cache with mode field
+          if (cachedDepth === requestedDepth && !hasOldModeField) {
             res.json({
               success: true,
               data: {
@@ -123,7 +116,7 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
             });
             return;
           }
-          // If parameters don't match, regenerate (fall through)
+          // If parameters don't match or it's old cache, regenerate (fall through)
         } else {
           // For non-cross-file analysis, use cache directly
           res.json({
@@ -161,10 +154,10 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
     let result;
 
     if (crossFileAnalysis && type === 'class') {
-      // Use cross-file analysis for class diagrams
-      const mode = analysisMode || 'bidirectional';
+      // Use cross-file analysis for class diagrams with specified mode
       const depth = analysisDepth || 1;
-      result = await umlService.generateCrossFileClassDiagram(filePath, projectPath, mode, depth);
+      const mode = analysisMode || 'bidirectional';
+      result = await umlService.generateCrossFileClassDiagram(filePath, projectPath, depth, mode);
     } else {
       // Use standard single-file analysis
       result = await umlService.generateDiagram(code, type);

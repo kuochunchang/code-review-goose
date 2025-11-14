@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
  *
  * This test suite covers the complete cross-file analysis workflow:
  * - Depth selection (1, 2, 3)
- * - Mode selection (forward, reverse, bidirectional)
+ * - Bidirectional dependency analysis
  * - UML diagram generation
  * - File tree navigation
  * - Analysis result display
@@ -68,7 +68,7 @@ test.describe('Cross-File Analysis Workflow', () => {
     }
   });
 
-  test('should allow mode selection (forward/reverse/bidirectional)', async ({ page }) => {
+  test('should show bidirectional analysis mode', async ({ page }) => {
     // Wait for file tree to load
     await expect(page.locator('[data-testid="file-tree"]')).toBeVisible({ timeout: 10000 });
 
@@ -77,24 +77,11 @@ test.describe('Cross-File Analysis Workflow', () => {
     await firstFile.click();
     await page.waitForTimeout(1000);
 
-    // Look for mode selector
-    const modeSelector = page.locator('[data-testid="analysis-mode-selector"]');
+    // Look for bidirectional analysis indicator
+    const bidirectionalIndicator = page.getByText('Bidirectional analysis', { exact: false });
 
-    if (await modeSelector.count() > 0) {
-      await expect(modeSelector).toBeVisible();
-
-      // Check available modes
-      const forwardMode = page.getByText('Forward', { exact: false });
-      const reverseMode = page.getByText('Reverse', { exact: false });
-      const bidirectionalMode = page.getByText('Bidirectional', { exact: false });
-
-      // At least one mode should be visible
-      const hasAnyMode =
-        (await forwardMode.count()) > 0 ||
-        (await reverseMode.count()) > 0 ||
-        (await bidirectionalMode.count()) > 0;
-
-      expect(hasAnyMode).toBe(true);
+    if (await bidirectionalIndicator.count() > 0) {
+      await expect(bidirectionalIndicator).toBeVisible();
     }
   });
 
@@ -296,7 +283,7 @@ test.describe('Cross-File Analysis Workflow', () => {
     expect(hasStats || true).toBe(true);
   });
 
-  test('should display dropdown menu clearly in dark mode', async ({ page }) => {
+  test('should display analysis controls clearly in dark mode', async ({ page }) => {
     // Navigate to the review page
     await page.goto('/');
     await page.waitForLoadState('networkidle');
@@ -339,39 +326,27 @@ test.describe('Cross-File Analysis Workflow', () => {
             await crossFileToggle.click();
             await page.waitForTimeout(500);
 
-            // Check if analysis mode dropdown is visible
-            const analysisDropdown = page.locator('label:has-text("Analysis Mode")').locator('..');
-            if ((await analysisDropdown.count()) > 0) {
-              await expect(analysisDropdown).toBeVisible();
+            // Verify depth selector and bidirectional indicator are visible
+            const depthLabel = page.getByText('Analysis Depth:', { exact: false });
+            const bidirectionalLabel = page.getByText('Bidirectional analysis', { exact: false });
 
-              // Click dropdown to open options
-              await analysisDropdown.click();
-              await page.waitForTimeout(300);
+            if ((await depthLabel.count()) > 0) {
+              await expect(depthLabel).toBeVisible();
+            }
 
-              // Verify dropdown options are visible in dark mode
-              const forwardOption = page.getByText('Forward', { exact: false });
-              const reverseOption = page.getByText('Reverse', { exact: false });
-              const bidirectionalOption = page.getByText('Bidirectional', { exact: false });
+            if ((await bidirectionalLabel.count()) > 0) {
+              await expect(bidirectionalLabel).toBeVisible();
+            }
 
-              // At least one option should be visible and readable
-              const hasVisibleOptions =
-                (await forwardOption.count()) > 0 ||
-                (await reverseOption.count()) > 0 ||
-                (await bidirectionalOption.count()) > 0;
-
-              expect(hasVisibleOptions).toBe(true);
-
-              // Verify dropdown background has proper contrast in dark mode
-              // The dropdown should have grey-darken-4 background color
-              const optionsPanel = page.locator('.v-card.cross-file-options');
-              if ((await optionsPanel.count()) > 0) {
-                const backgroundColor = await optionsPanel.evaluate((el) => {
-                  return window.getComputedStyle(el).backgroundColor;
-                });
-                // In dark mode, should have a dark background (not light grey)
-                // rgb values should be low (dark colors)
-                expect(backgroundColor).toBeTruthy();
-              }
+            // Verify options panel has proper contrast in dark mode
+            const optionsPanel = page.locator('.v-card.cross-file-options');
+            if ((await optionsPanel.count()) > 0) {
+              const backgroundColor = await optionsPanel.evaluate((el) => {
+                return window.getComputedStyle(el).backgroundColor;
+              });
+              // In dark mode, should have a dark background (not light grey)
+              // rgb values should be low (dark colors)
+              expect(backgroundColor).toBeTruthy();
             }
           }
         }

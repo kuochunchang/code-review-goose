@@ -11,16 +11,10 @@ export type DiagramType = 'class' | 'flowchart' | 'sequence' | 'dependency';
 export type DiagramGenerationMode = 'native' | 'ai' | 'hybrid';
 
 /**
- * Cross-file analysis mode
- */
-export type CrossFileAnalysisMode = 'forward' | 'reverse' | 'bidirectional';
-
-/**
  * UML generation options
  */
 export interface UMLGenerationOptions {
   crossFileAnalysis?: boolean;
-  analysisMode?: CrossFileAnalysisMode;
   analysisDepth?: 1 | 2 | 3;
   forceRefresh?: boolean;
 }

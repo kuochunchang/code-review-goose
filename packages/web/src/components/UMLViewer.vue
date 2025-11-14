@@ -81,22 +81,17 @@
       >
         <v-card-text class="py-2 px-4">
           <v-row dense align="center">
-            <v-col cols="12" sm="6">
-              <v-select
-                v-model="analysisMode"
-                :items="analysisModeOptions"
-                label="Analysis Mode"
-                density="compact"
-                variant="outlined"
-                hide-details
-              >
-                <template v-slot:item="{ props: itemProps, item }">
-                  <v-list-item v-bind="itemProps" :title="item.title" :subtitle="item.value.subtitle">
-                  </v-list-item>
-                </template>
-              </v-select>
+            <v-col cols="6">
+              <div class="d-flex align-center">
+                <span class="text-caption mr-2">Analysis Mode:</span>
+                <v-btn-toggle v-model="analysisMode" mandatory density="compact" color="primary">
+                  <v-btn value="forward" size="small">Forward</v-btn>
+                  <v-btn value="reverse" size="small">Reverse</v-btn>
+                  <v-btn value="bidirectional" size="small">Bidirectional</v-btn>
+                </v-btn-toggle>
+              </div>
             </v-col>
-            <v-col cols="12" sm="6">
+            <v-col cols="6">
               <div class="d-flex align-center">
                 <span class="text-caption mr-2">Depth:</span>
                 <v-btn-toggle v-model="analysisDepth" mandatory density="compact" color="primary">
@@ -165,12 +160,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, computed } from 'vue';
-import { useTheme } from 'vuetify';
 import mermaid from 'mermaid';
-import { umlApi, insightsApi } from '../services/api';
-import { computeHash } from '../utils/hash';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { useTheme } from 'vuetify';
+import { insightsApi, umlApi } from '../services/api';
 import type { DiagramType } from '../types/insight';
+import { computeHash } from '../utils/hash';
 
 // Props
 interface Props {
@@ -199,27 +194,8 @@ const supportedTypes = ref<any[]>([]);
 
 // Cross-file analysis state
 const crossFileAnalysis = ref(false);
-const analysisMode = ref<'forward' | 'reverse' | 'bidirectional'>('forward');
 const analysisDepth = ref<1 | 2 | 3>(1);
-
-// Analysis mode options for v-select
-const analysisModeOptions = [
-  {
-    title: 'Forward',
-    value: 'forward',
-    subtitle: 'Track dependencies',
-  },
-  {
-    title: 'Reverse',
-    value: 'reverse',
-    subtitle: 'Impact analysis',
-  },
-  {
-    title: 'Bidirectional',
-    value: 'bidirectional',
-    subtitle: 'Complete view',
-  },
-];
+const analysisMode = ref<'forward' | 'reverse' | 'bidirectional'>('bidirectional');
 
 // Insight status tracking
 const insightStatus = ref<'none' | 'up-to-date' | 'outdated'>('none');
@@ -285,11 +261,11 @@ watch(selectedType, async () => {
 });
 
 // Watch for cross-file analysis settings changes
-watch([crossFileAnalysis, analysisMode, analysisDepth], async () => {
+watch([crossFileAnalysis, analysisDepth, analysisMode], async () => {
   // When cross-file settings change, force regenerate the diagram
   // to ensure the new parameters are applied
   if (crossFileAnalysis.value && currentCode.value && currentFilePath.value) {
-    // Force refresh to bypass cache and apply new depth/mode
+    // Force refresh to bypass cache and apply new depth
     await generateDiagram(true);
   } else {
     // If cross-file is disabled, just reset
@@ -303,7 +279,6 @@ function toggleCrossFileAnalysis() {
   crossFileAnalysis.value = !crossFileAnalysis.value;
   if (!crossFileAnalysis.value) {
     // Reset to defaults when disabling
-    analysisMode.value = 'forward';
     analysisDepth.value = 1;
   }
 }
@@ -382,8 +357,8 @@ async function generateDiagram(forceRefresh = false) {
     const options: {
       forceRefresh?: boolean;
       crossFileAnalysis?: boolean;
-      analysisMode?: 'forward' | 'reverse' | 'bidirectional';
       analysisDepth?: 1 | 2 | 3;
+      analysisMode?: 'forward' | 'reverse' | 'bidirectional';
     } = {
       forceRefresh,
     };
@@ -391,8 +366,8 @@ async function generateDiagram(forceRefresh = false) {
     // Add cross-file analysis options only for class diagrams
     if (selectedType.value === 'class' && crossFileAnalysis.value) {
       options.crossFileAnalysis = true;
-      options.analysisMode = analysisMode.value;
       options.analysisDepth = analysisDepth.value;
+      options.analysisMode = analysisMode.value;
     }
 
     const result = await umlApi.generateDiagram(

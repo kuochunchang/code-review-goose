@@ -1,35 +1,37 @@
-import fs from 'fs-extra';
 import { parse } from '@babel/parser';
 import traverseDefault from '@babel/traverse';
 import * as t from '@babel/types';
+import fs from 'fs-extra';
+import * as path from 'path';
+import type {
+  BidirectionalAnalysisResult,
+  ClassInfo,
+  DependencyInfo,
+  FileAnalysisResult,
+  ImportIndex,
+  MethodInfo,
+  ParameterInfo,
+  PropertyInfo,
+} from '../types/ast.js';
+import { ImportIndexBuilder } from './importIndexBuilder.js';
+import { OOAnalysisService } from './ooAnalysisService.js';
+import { PathResolver } from './pathResolver.js';
 
 // Handle CommonJS/ESM compatibility for @babel/traverse
 const traverse =
   typeof traverseDefault === 'function' ? traverseDefault : (traverseDefault as any).default;
-import { PathResolver } from './pathResolver.js';
-import { OOAnalysisService } from './ooAnalysisService.js';
-import { ImportIndexBuilder } from './importIndexBuilder.js';
-import type {
-  FileAnalysisResult,
-  ClassInfo,
-  PropertyInfo,
-  MethodInfo,
-  ParameterInfo,
-  ImportIndex,
-  BidirectionalAnalysisResult,
-  DependencyInfo,
-} from '../types/ast.js';
 
 /**
  * CrossFileAnalysisService - 跨檔案依賴分析服務
  *
  * 功能：
- * - Forward mode: 追蹤檔案的正向依賴（該檔案 import 了哪些檔案）
- * - Reverse mode: 追蹤檔案的反向依賴（誰 import 了該檔案）
+ * - 雙向依賴分析：同時追蹤正向與反向依賴
+ * - 正向依賴：追蹤該檔案 import 了哪些檔案
+ * - 反向依賴：追蹤誰 import 了該檔案
  * - 支援多層深度追蹤（depth 1-3）
  * - 循環依賴偵測
  * - AST 快取（基於檔案 mtime）
- * - Import index 快取（用於 reverse mode）
+ * - Import index 快取（用於反向依賴查詢）
  */
 export class CrossFileAnalysisService {
   private readonly projectPath: string;
@@ -46,7 +48,7 @@ export class CrossFileAnalysisService {
     }
   >;
 
-  // Import index 快取（用於 reverse mode）
+  // Import index 快取（用於反向依賴查詢）
   private importIndexCache: { index: ImportIndex; timestamp: number } | null = null;
   private readonly INDEX_CACHE_TTL = 30 * 60 * 1000; // 30 minutes (increased from 5)
 
@@ -62,7 +64,7 @@ export class CrossFileAnalysisService {
   }
 
   /**
-   * 分析正向依賴（Forward mode）
+   * 分析正向依賴（內部方法）
    *
    * @param filePath - 要分析的檔案路徑
    * @param maxDepth - 最大追蹤深度（1-3）
@@ -82,6 +84,9 @@ export class CrossFileAnalysisService {
       throw new Error(`File not found: ${filePath}`);
     }
 
+    // 將 filePath 解析為絕對路徑
+    const absoluteFilePath = path.resolve(filePath);
+
     // 重置訪問記錄
     this.visited.clear();
 
@@ -89,13 +94,13 @@ export class CrossFileAnalysisService {
     const results = new Map<string, FileAnalysisResult>();
 
     // 遞迴分析
-    await this.analyzeFileRecursive(filePath, 0, maxDepth, results);
+    await this.analyzeFileRecursive(absoluteFilePath, 0, maxDepth, results);
 
     return results;
   }
 
   /**
-   * 分析反向依賴（Reverse mode）
+   * 分析反向依賴（內部方法）
    *
    * @param filePath - 要分析的檔案路徑
    * @param maxDepth - 最大追蹤深度（1-3）
@@ -115,6 +120,9 @@ export class CrossFileAnalysisService {
       throw new Error(`File not found: ${filePath}`);
     }
 
+    // 將 filePath 解析為絕對路徑
+    const absoluteFilePath = path.resolve(filePath);
+
     // 重置訪問記錄
     this.visited.clear();
 
@@ -122,15 +130,15 @@ export class CrossFileAnalysisService {
     const results = new Map<string, FileAnalysisResult>();
 
     // 首先分析目標檔案本身（depth 0）
-    const targetAnalysis = await this.analyzeFile(filePath, 0);
-    results.set(filePath, targetAnalysis);
-    this.visited.add(filePath);
+    const targetAnalysis = await this.analyzeFile(absoluteFilePath, 0);
+    results.set(absoluteFilePath, targetAnalysis);
+    this.visited.add(absoluteFilePath);
 
     // 取得或建立 import index
     const importIndex = await this.getOrBuildImportIndex();
 
     // 使用 BFS 追蹤反向依賴
-    await this.analyzeReverseDependencies(filePath, maxDepth, importIndex, results);
+    await this.analyzeReverseDependencies(absoluteFilePath, maxDepth, importIndex, results);
 
     return results;
   }
@@ -158,11 +166,14 @@ export class CrossFileAnalysisService {
       throw new Error(`File not found: ${filePath}`);
     }
 
+    // 將 filePath 解析為絕對路徑
+    const absoluteFilePath = path.resolve(filePath);
+
     // 1. 執行正向分析
-    const forwardResults = await this.analyzeForward(filePath, maxDepth);
+    const forwardResults = await this.analyzeForward(absoluteFilePath, maxDepth);
 
     // 2. 執行反向分析
-    const reverseResults = await this.analyzeReverse(filePath, maxDepth);
+    const reverseResults = await this.analyzeReverse(absoluteFilePath, maxDepth);
 
     // 3. 合併結果
     const allResults = new Map<string, FileAnalysisResult>();
@@ -170,7 +181,7 @@ export class CrossFileAnalysisService {
     // 加入正向依賴（排除目標檔案）
     const forwardDeps: FileAnalysisResult[] = [];
     for (const [path, result] of forwardResults.entries()) {
-      if (path !== filePath) {
+      if (path !== absoluteFilePath) {
         forwardDeps.push(result);
       }
       allResults.set(path, result);
@@ -179,7 +190,7 @@ export class CrossFileAnalysisService {
     // 加入反向依賴（排除目標檔案和已存在的）
     const reverseDeps: FileAnalysisResult[] = [];
     for (const [path, result] of reverseResults.entries()) {
-      if (path !== filePath) {
+      if (path !== absoluteFilePath) {
         reverseDeps.push(result);
       }
       if (!allResults.has(path)) {
@@ -220,7 +231,7 @@ export class CrossFileAnalysisService {
     const maxDepthFound = Math.max(...Array.from(allResults.values()).map((r) => r.depth));
 
     return {
-      targetFile: filePath,
+      targetFile: absoluteFilePath,
       forwardDeps,
       reverseDeps,
       allClasses,
@@ -296,12 +307,69 @@ export class CrossFileAnalysisService {
 
         // 分析 importer 檔案
         const importerAnalysis = await this.analyzeFile(importer, currentDepth + 1);
+
+        // 建立 reverse dependencies：從 importer 中的類別到 target 中的類別
+        const reverseDeps = await this.createReverseDependencies(importerAnalysis, currentFile, results);
+
+        // 合併 reverse dependencies 到 importer 的分析結果
+        importerAnalysis.relationships.push(...reverseDeps);
+
         results.set(importer, importerAnalysis);
 
         // 加入佇列以繼續追蹤
         queue.push([importer, currentDepth + 1]);
       }
     }
+  }
+
+  /**
+   * 建立反向依賴關係：從 importer 中的類別到 target 中的類別
+   */
+  private async createReverseDependencies(
+    importerAnalysis: FileAnalysisResult,
+    targetFile: string,
+    allResults: Map<string, FileAnalysisResult>
+  ): Promise<DependencyInfo[]> {
+    const reverseDeps: DependencyInfo[] = [];
+
+    // 取得 target 檔案的分析結果
+    const targetAnalysis = allResults.get(targetFile);
+    if (!targetAnalysis) {
+      return reverseDeps;
+    }
+
+    // 檢查 importer 是否真的 import 了 target
+    let hasImport = false;
+    for (const imp of importerAnalysis.imports) {
+      const resolvedPath = await this.pathResolver.resolveImportPath(importerAnalysis.filePath, imp.source);
+      if (resolvedPath === targetFile) {
+        hasImport = true;
+        break;
+      }
+    }
+
+    if (!hasImport) {
+      return reverseDeps;
+    }
+
+    // 對於 importer 中的每個類別，建立到 target 中每個類別的依賴關係
+    for (const importerClass of importerAnalysis.classes) {
+      for (const targetClass of targetAnalysis.classes) {
+        // 建立 association 關係，表示 importerClass 使用了 targetClass
+        reverseDeps.push({
+          from: importerClass.name,
+          to: targetClass.name,
+          type: 'association',
+          cardinality: '1',
+          lineNumber: importerClass.lineNumber ?? 0,
+          context: `imports from ${targetFile}`,
+          isExternal: false,
+          sourceModule: targetFile,
+        });
+      }
+    }
+
+    return reverseDeps;
   }
 
   /**

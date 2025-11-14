@@ -1,27 +1,27 @@
 import axios from 'axios';
-import type { ProjectInfo, FileNode } from '../types/project';
 import type {
-  AnalysisResult,
   AnalysisOptions,
+  AnalysisResult,
   AnalysisStatus,
   ProjectConfig,
 } from '../types/analysis';
 import type {
-  SearchOptions,
-  SearchResult,
+  DiagramType,
+  ExplainResult,
+  InsightCheckResult,
+  InsightRecord,
+  InsightStats,
+  UMLDiagrams,
+  UMLResult,
+} from '../types/insight';
+import type { FileNode, ProjectInfo } from '../types/project';
+import type {
   SearchFileResultWithContext,
   SearchHistoryItem,
+  SearchOptions,
+  SearchResult,
   SearchStats,
 } from '../types/search';
-import type {
-  InsightRecord,
-  InsightCheckResult,
-  InsightStats,
-  UMLResult,
-  DiagramType,
-  UMLDiagrams,
-  ExplainResult,
-} from '../types/insight';
 
 const api = axios.create({
   baseURL: '/api',
@@ -278,8 +278,8 @@ export const insightsApi = {
     options?: {
       forceRefresh?: boolean;
       crossFileAnalysis?: boolean;
-      analysisMode?: 'forward' | 'reverse' | 'bidirectional';
       analysisDepth?: 1 | 2 | 3;
+      analysisMode?: 'forward' | 'reverse' | 'bidirectional';
     }
   ): Promise<UMLResult & { fromInsights?: boolean; hashMatched?: boolean }> {
     const response = await api.post<
@@ -290,8 +290,8 @@ export const insightsApi = {
       type: diagramType,
       forceRefresh: options?.forceRefresh,
       crossFileAnalysis: options?.crossFileAnalysis,
-      analysisMode: options?.analysisMode,
       analysisDepth: options?.analysisDepth,
+      analysisMode: options?.analysisMode,
     });
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || 'UML generation failed');
@@ -334,8 +334,8 @@ export const umlApi = {
     options?: {
       forceRefresh?: boolean;
       crossFileAnalysis?: boolean;
-      analysisMode?: 'forward' | 'reverse' | 'bidirectional';
       analysisDepth?: 1 | 2 | 3;
+      analysisMode?: 'forward' | 'reverse' | 'bidirectional';
     }
   ): Promise<UMLResult & { fromInsights?: boolean; hashMatched?: boolean }> {
     return insightsApi.generateUML(code, filePath, type, options);
