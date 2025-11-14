@@ -170,14 +170,16 @@ export class UMLService {
       // Use specified analysis mode
       let result;
       switch (mode) {
-        case 'forward':
+        case 'forward': {
           const forwardResults = await crossFileService.analyzeForward(filePath, depth);
           result = this.convertForwardResultsToBidirectional(filePath, forwardResults);
           break;
-        case 'reverse':
+        }
+        case 'reverse': {
           const reverseResults = await crossFileService.analyzeReverse(filePath, depth);
           result = this.convertReverseResultsToBidirectional(filePath, reverseResults);
           break;
+        }
         case 'bidirectional':
         default:
           result = await crossFileService.analyzeBidirectional(filePath, depth);
