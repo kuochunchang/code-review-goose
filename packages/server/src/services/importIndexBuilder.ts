@@ -1,4 +1,4 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
 import ignoreModule from 'ignore';
 import type { Ignore } from 'ignore';
@@ -38,8 +38,9 @@ const DEFAULT_MAX_FILES = 5000;
 
 /**
  * Default concurrency limit for parallel processing
+ * Increased from 10 to 20 for better performance on modern systems
  */
-const DEFAULT_CONCURRENCY = 10;
+const DEFAULT_CONCURRENCY = 20;
 
 /**
  * Import index entry for internal processing
@@ -83,18 +84,23 @@ export class ImportIndexBuilder {
 
   /**
    * Build import index by scanning all project files
+   * @param onProgress - Optional callback for progress updates (current, total, message)
    */
-  async buildIndex(): Promise<ImportIndex> {
+  async buildIndex(
+    onProgress?: (current: number, total: number, message: string) => void
+  ): Promise<ImportIndex> {
     // Verify project path exists
     if (!(await fs.pathExists(this.projectPath))) {
       throw new Error(`Project path does not exist: ${this.projectPath}`);
     }
 
     // Scan all project files
+    onProgress?.(0, 100, 'Scanning project files...');
     const allFiles = await this.scanProjectFiles();
+    onProgress?.(20, 100, `Found ${allFiles.length} files`);
 
     // Process files in parallel with p-limit
-    const entries = await this.processFilesParallel(allFiles);
+    const entries = await this.processFilesParallel(allFiles, onProgress);
 
     // Build forward and reverse maps
     const fileToImports = new Map<string, string[]>();
@@ -119,6 +125,8 @@ export class ImportIndexBuilder {
       }
     }
 
+    onProgress?.(100, 100, 'Import index built successfully');
+
     return {
       fileToImports,
       importToFiles,
@@ -129,59 +137,86 @@ export class ImportIndexBuilder {
 
   /**
    * Scan project directory recursively for source files
+   * Uses BFS with early exit for better performance
    */
   private async scanProjectFiles(): Promise<string[]> {
     const files: string[] = [];
+    const dirsToScan: string[] = [this.projectPath];
     const limit = pLimit(this.concurrency);
 
-    const scanDir = async (dirPath: string): Promise<void> => {
-      try {
-        const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    // BFS: process directories level by level
+    while (dirsToScan.length > 0 && files.length < this.maxFiles) {
+      const currentDirs = dirsToScan.splice(0); // Take all current dirs
 
-        const tasks = entries.map((entry) =>
-          limit(async () => {
-            // Check if we've reached max files limit
-            if (files.length >= this.maxFiles) {
-              return;
-            }
+      // Process all directories in current level in parallel
+      const levelTasks = currentDirs.map((dirPath) =>
+        limit(async () => {
+          try {
+            const entries = await fs.readdir(dirPath, { withFileTypes: true });
+            const newDirs: string[] = [];
+            const newFiles: string[] = [];
 
-            const fullPath = path.join(dirPath, entry.name);
-            const relativePath = path.relative(this.projectPath, fullPath);
+            for (const entry of entries) {
+              // Early exit if we've reached max files
+              if (files.length + newFiles.length >= this.maxFiles) {
+                break;
+              }
 
-            // Skip if matches ignore patterns
-            if (this.ig.ignores(relativePath)) {
-              return;
-            }
+              const fullPath = path.join(dirPath, entry.name);
+              const relativePath = path.relative(this.projectPath, fullPath);
 
-            if (entry.isDirectory()) {
-              await scanDir(fullPath);
-            } else if (entry.isFile()) {
-              // Check file extension
-              const ext = path.extname(entry.name);
-              if (this.extensions.includes(ext)) {
-                files.push(fullPath);
+              // Skip if matches ignore patterns (check early)
+              if (this.ig.ignores(relativePath)) {
+                continue;
+              }
+
+              if (entry.isDirectory()) {
+                newDirs.push(fullPath);
+              } else if (entry.isFile()) {
+                // Check file extension
+                const ext = path.extname(entry.name);
+                if (this.extensions.includes(ext)) {
+                  newFiles.push(fullPath);
+                }
               }
             }
-          })
-        );
 
-        await Promise.all(tasks);
-      } catch (error) {
-        // Skip directories that can't be read
-        console.warn(`Failed to scan directory: ${dirPath}`, error);
+            return { dirs: newDirs, files: newFiles };
+          } catch (error) {
+            // Skip directories that can't be read
+            console.warn(`Failed to scan directory: ${dirPath}`, error);
+            return { dirs: [], files: [] };
+          }
+        })
+      );
+
+      // Collect results from this level
+      const results = await Promise.all(levelTasks);
+      for (const result of results) {
+        dirsToScan.push(...result.dirs);
+        files.push(...result.files);
+
+        // Early exit if we've reached max files
+        if (files.length >= this.maxFiles) {
+          break;
+        }
       }
-    };
+    }
 
-    await scanDir(this.projectPath);
-    return files.slice(0, this.maxFiles); // Ensure max limit
+    return files.slice(0, this.maxFiles); // Ensure exact max limit
   }
 
   /**
    * Process files in parallel with p-limit
    */
-  private async processFilesParallel(files: string[]): Promise<ImportIndexEntry[]> {
+  private async processFilesParallel(
+    files: string[],
+    onProgress?: (current: number, total: number, message: string) => void
+  ): Promise<ImportIndexEntry[]> {
     const limit = pLimit(this.concurrency);
     const entries: ImportIndexEntry[] = [];
+    const totalFiles = files.length;
+    let processedFiles = 0;
 
     const tasks = files.map((filePath) =>
       limit(async () => {
@@ -192,11 +227,19 @@ export class ImportIndexBuilder {
         } catch (error) {
           // Skip files that can't be read or parsed
           console.warn(`Failed to process file: ${filePath}`, error);
+        } finally {
+          processedFiles++;
+          // Report progress every 10% or every 100 files
+          if (onProgress && (processedFiles % 100 === 0 || processedFiles === totalFiles)) {
+            const progress = 20 + Math.floor((processedFiles / totalFiles) * 70);
+            onProgress(progress, 100, `Processing files: ${processedFiles}/${totalFiles}`);
+          }
         }
       })
     );
 
     await Promise.all(tasks);
+    onProgress?.(90, 100, 'Building import index...');
     return entries;
   }
 

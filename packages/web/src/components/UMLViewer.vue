@@ -77,7 +77,7 @@
         v-if="selectedType === 'class' && crossFileAnalysis"
         class="cross-file-options"
         flat
-        color="grey-lighten-4"
+        :color="theme.global.current.value.dark ? 'grey-darken-4' : 'grey-lighten-4'"
       >
         <v-card-text class="py-2 px-4">
           <v-row dense align="center">

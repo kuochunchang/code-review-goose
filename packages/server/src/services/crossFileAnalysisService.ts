@@ -1,4 +1,4 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import { parse } from '@babel/parser';
 import traverseDefault from '@babel/traverse';
 import * as t from '@babel/types';
@@ -48,7 +48,7 @@ export class CrossFileAnalysisService {
 
   // Import index 快取（用於 reverse mode）
   private importIndexCache: { index: ImportIndex; timestamp: number } | null = null;
-  private readonly INDEX_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly INDEX_CACHE_TTL = 30 * 60 * 1000; // 30 minutes (increased from 5)
 
   // 已訪問的檔案（用於避免循環依賴）
   private visited: Set<string>;
@@ -242,12 +242,17 @@ export class CrossFileAnalysisService {
 
     // 檢查快取是否有效
     if (this.importIndexCache && now - this.importIndexCache.timestamp < this.INDEX_CACHE_TTL) {
+      console.log('[Import Index] Using cached index');
       return this.importIndexCache.index;
     }
 
     // 建立新的 import index
+    console.log('[Import Index] Building new index...');
     const builder = new ImportIndexBuilder(this.projectPath);
-    const index = await builder.buildIndex();
+    const index = await builder.buildIndex((current, _total, message) => {
+      console.log(`[Import Index] Progress: ${current}% - ${message}`);
+    });
+    console.log(`[Import Index] Index built: ${index.fileCount} files indexed`);
 
     // 快取結果
     this.importIndexCache = {

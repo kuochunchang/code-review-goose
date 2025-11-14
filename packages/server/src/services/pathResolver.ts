@@ -1,5 +1,5 @@
 import * as path from 'path';
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 
 /**
  * PathResolver - 解析 import 路徑到實際檔案系統路徑
