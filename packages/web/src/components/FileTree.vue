@@ -26,6 +26,7 @@
             v-if="fileTree"
             :node="fileTree"
             :level="0"
+            :selected-file-path="selectedFilePath"
             @select-file="handleSelectFile"
           />
           <v-alert v-else type="info" variant="tonal" class="ma-2"> No files found </v-alert>
@@ -39,6 +40,12 @@
 import { ref, onMounted } from 'vue';
 import { useProjectStore } from '../stores/project';
 import FileTreeNode from './FileTreeNode.vue';
+
+interface Props {
+  selectedFilePath?: string;
+}
+
+defineProps<Props>();
 
 const projectStore = useProjectStore();
 const loading = ref(false);
