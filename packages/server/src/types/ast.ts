@@ -372,17 +372,9 @@ export interface OOAnalysisResult {
 }
 
 /**
- * Cross-file analysis mode
- */
-export type CrossFileAnalysisMode = 'forward' | 'reverse' | 'bidirectional';
-
-/**
  * Cross-file analysis options
  */
 export interface CrossFileAnalysisOptions {
-  /** Analysis mode: forward (dependencies), reverse (dependents), bidirectional (both) */
-  mode: CrossFileAnalysisMode;
-
   /** Maximum depth to traverse (1-3) */
   depth: 1 | 2 | 3;
 
@@ -497,9 +489,6 @@ export interface CrossFileDependencyGraph {
 
   /** Entry point file */
   entryPoint: string;
-
-  /** Analysis mode used */
-  mode: CrossFileAnalysisMode;
 
   /** Maximum depth reached */
   maxDepth: number;

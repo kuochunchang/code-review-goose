@@ -1,10 +1,10 @@
 import fs from 'fs-extra';
-import * as path from 'path';
-import ignoreModule from 'ignore';
 import type { Ignore } from 'ignore';
+import ignoreModule from 'ignore';
 import pLimit from 'p-limit';
-import { PathResolver } from './pathResolver.js';
+import * as path from 'path';
 import type { ImportIndex, ImportIndexOptions } from '../types/ast.js';
+import { PathResolver } from './pathResolver.js';
 
 // Compatibility workaround for ESM/CommonJS interop
 const ignore = (ignoreModule as any).default || ignoreModule;
@@ -34,7 +34,7 @@ const DEFAULT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
 /**
  * Default maximum number of files to process
  */
-const DEFAULT_MAX_FILES = 5000;
+const DEFAULT_MAX_FILES = 15000;
 
 /**
  * Default concurrency limit for parallel processing

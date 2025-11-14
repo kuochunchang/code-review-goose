@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import request from 'supertest';
 import express from 'express';
+import request from 'supertest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { umlRouter } from '../../../routes/uml.js';
-import { UMLService } from '../../../services/umlService.js';
 import { AIService } from '../../../services/aiService.js';
 import { ConfigService } from '../../../services/configService.js';
 import { InsightService } from '../../../services/insightService.js';
 import type { UMLResult } from '../../../services/umlService.js';
+import { UMLService } from '../../../services/umlService.js';
 
 // Mock services
 vi.mock('../../../services/umlService.js');
@@ -207,10 +207,11 @@ describe('UML API', () => {
     describe('Cross-file analysis', () => {
       const mockCrossFileUMLResult: UMLResult = {
         type: 'class',
-        diagram: 'classDiagram\n  class Car\n  class Engine\n  Car *-- Engine',
+        mermaidCode: 'classDiagram\n  class Car\n  class Engine\n  Car *-- Engine',
+        generationMode: 'native',
         metadata: {
-          mode: 'bidirectional',
           depth: 1,
+          mode: 'bidirectional',
           analysis: {
             targetFile: '/test/file.ts',
             totalFiles: 3,
@@ -219,11 +220,11 @@ describe('UML API', () => {
             forwardDeps: 2,
             reverseDeps: 0,
           },
+          validation: { valid: true, errors: [] },
         },
-        validation: { isValid: true, errors: [] },
       };
 
-      it('should generate cross-file class diagram with bidirectional mode', async () => {
+      it('should generate cross-file class diagram with bidirectional analysis', async () => {
         const mockGenerateCrossFile = vi.fn().mockResolvedValue(mockCrossFileUMLResult);
 
         vi.mocked(InsightService).mockImplementation(
@@ -262,24 +263,17 @@ describe('UML API', () => {
           type: 'class',
           filePath: '/test/file.ts',
           crossFileAnalysis: true,
-          analysisMode: 'bidirectional',
           analysisDepth: 1,
         });
 
         expect(response.status).toBe(200);
         expect(response.body.success).toBe(true);
         expect(response.body.data.crossFileAnalysis).toBe(true);
-        expect(response.body.data.metadata.mode).toBe('bidirectional');
         expect(response.body.data.metadata.analysis).toBeDefined();
-        expect(mockGenerateCrossFile).toHaveBeenCalledWith(
-          '/test/file.ts',
-          '/test/project',
-          'bidirectional',
-          1
-        );
+        expect(mockGenerateCrossFile).toHaveBeenCalledWith('/test/file.ts', '/test/project', 1, 'bidirectional');
       });
 
-      it('should use default values for analysisMode and analysisDepth', async () => {
+      it('should use default value for analysisDepth', async () => {
         const mockGenerateCrossFile = vi.fn().mockResolvedValue(mockCrossFileUMLResult);
 
         vi.mocked(InsightService).mockImplementation(
@@ -321,122 +315,7 @@ describe('UML API', () => {
         });
 
         expect(response.status).toBe(200);
-        expect(mockGenerateCrossFile).toHaveBeenCalledWith(
-          '/test/file.ts',
-          '/test/project',
-          'bidirectional',
-          1
-        );
-      });
-
-      it('should support forward mode', async () => {
-        const mockGenerateCrossFile = vi.fn().mockResolvedValue({
-          ...mockCrossFileUMLResult,
-          metadata: { ...mockCrossFileUMLResult.metadata, mode: 'forward' },
-        });
-
-        vi.mocked(InsightService).mockImplementation(
-          () =>
-            ({
-              check: vi
-                .fn()
-                .mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
-              setUML: vi.fn().mockResolvedValue(undefined),
-            }) as any
-        );
-
-        vi.mocked(ConfigService).mockImplementation(
-          () =>
-            ({
-              get: vi.fn().mockResolvedValue({}),
-            }) as any
-        );
-
-        vi.mocked(AIService).mockImplementation(
-          () =>
-            ({
-              isConfigured: vi.fn().mockResolvedValue(false),
-            }) as any
-        );
-
-        vi.mocked(UMLService).mockImplementation(
-          () =>
-            ({
-              generateCrossFileClassDiagram: mockGenerateCrossFile,
-            }) as any
-        );
-
-        const response = await request(app).post('/api/uml/generate').send({
-          code: 'class Test {}',
-          type: 'class',
-          filePath: '/test/file.ts',
-          crossFileAnalysis: true,
-          analysisMode: 'forward',
-          analysisDepth: 2,
-        });
-
-        expect(response.status).toBe(200);
-        expect(mockGenerateCrossFile).toHaveBeenCalledWith(
-          '/test/file.ts',
-          '/test/project',
-          'forward',
-          2
-        );
-      });
-
-      it('should support reverse mode', async () => {
-        const mockGenerateCrossFile = vi.fn().mockResolvedValue({
-          ...mockCrossFileUMLResult,
-          metadata: { ...mockCrossFileUMLResult.metadata, mode: 'reverse' },
-        });
-
-        vi.mocked(InsightService).mockImplementation(
-          () =>
-            ({
-              check: vi
-                .fn()
-                .mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
-              setUML: vi.fn().mockResolvedValue(undefined),
-            }) as any
-        );
-
-        vi.mocked(ConfigService).mockImplementation(
-          () =>
-            ({
-              get: vi.fn().mockResolvedValue({}),
-            }) as any
-        );
-
-        vi.mocked(AIService).mockImplementation(
-          () =>
-            ({
-              isConfigured: vi.fn().mockResolvedValue(false),
-            }) as any
-        );
-
-        vi.mocked(UMLService).mockImplementation(
-          () =>
-            ({
-              generateCrossFileClassDiagram: mockGenerateCrossFile,
-            }) as any
-        );
-
-        const response = await request(app).post('/api/uml/generate').send({
-          code: 'class Test {}',
-          type: 'class',
-          filePath: '/test/file.ts',
-          crossFileAnalysis: true,
-          analysisMode: 'reverse',
-          analysisDepth: 3,
-        });
-
-        expect(response.status).toBe(200);
-        expect(mockGenerateCrossFile).toHaveBeenCalledWith(
-          '/test/file.ts',
-          '/test/project',
-          'reverse',
-          3
-        );
+        expect(mockGenerateCrossFile).toHaveBeenCalledWith('/test/file.ts', '/test/project', 1, 'bidirectional');
       });
 
       it('should return 400 when crossFileAnalysis is used with non-class diagram', async () => {
@@ -450,20 +329,6 @@ describe('UML API', () => {
         expect(response.status).toBe(400);
         expect(response.body.success).toBe(false);
         expect(response.body.error).toContain('only supported for class diagrams');
-      });
-
-      it('should return 400 for invalid analysisMode', async () => {
-        const response = await request(app).post('/api/uml/generate').send({
-          code: 'class Test {}',
-          type: 'class',
-          filePath: '/test/file.ts',
-          crossFileAnalysis: true,
-          analysisMode: 'invalid',
-        });
-
-        expect(response.status).toBe(400);
-        expect(response.body.success).toBe(false);
-        expect(response.body.error).toContain('analysisMode must be one of');
       });
 
       it('should return 400 for invalid analysisDepth', async () => {

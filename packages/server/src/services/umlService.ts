@@ -1,17 +1,17 @@
 import { parse } from '@babel/parser';
 import traverseModule from '@babel/traverse';
 import * as t from '@babel/types';
-import { MermaidValidator } from './uml/mermaidValidator.js';
-import { OOAnalysisService } from './ooAnalysisService.js';
-import { CrossFileAnalysisService } from './crossFileAnalysisService.js';
-import type { AIService } from './aiService.js';
-import type { ProjectConfig } from '../types/config.js';
 import type {
-  ImportInfo,
   DependencyInfo as ASTDependencyInfo,
-  CrossFileAnalysisMode,
   BidirectionalAnalysisResult,
+  FileAnalysisResult,
+  ImportInfo,
 } from '../types/ast.js';
+import type { ProjectConfig } from '../types/config.js';
+import type { AIService } from './aiService.js';
+import { CrossFileAnalysisService } from './crossFileAnalysisService.js';
+import { OOAnalysisService } from './ooAnalysisService.js';
+import { MermaidValidator } from './uml/mermaidValidator.js';
 
 // Correct way to import @babel/traverse
 const traverse = (traverseModule as any).default || traverseModule;
@@ -149,75 +149,41 @@ export class UMLService {
   }
 
   /**
-   * Generate cross-file class diagram using bidirectional dependency analysis
+   * Generate cross-file class diagram with specified analysis mode
    *
    * @param filePath - Target file path to analyze
    * @param projectPath - Project root path
-   * @param mode - Analysis mode (forward/reverse/bidirectional)
    * @param depth - Maximum traversal depth (1-3)
+   * @param mode - Analysis mode: 'forward', 'reverse', or 'bidirectional'
    * @returns UML class diagram with cross-file relationships
    */
   async generateCrossFileClassDiagram(
     filePath: string,
     projectPath: string,
-    mode: CrossFileAnalysisMode = 'bidirectional',
-    depth: 1 | 2 | 3 = 1
+    depth: 1 | 2 | 3 = 1,
+    mode: 'forward' | 'reverse' | 'bidirectional' = 'bidirectional'
   ): Promise<UMLResult> {
     try {
       // Initialize cross-file analysis service
       const crossFileService = new CrossFileAnalysisService(projectPath);
 
-      // Analyze based on mode
-      let result: BidirectionalAnalysisResult;
-
-      if (mode === 'bidirectional') {
-        result = await crossFileService.analyzeBidirectional(filePath, depth);
-      } else if (mode === 'forward') {
-        const forwardResults = await crossFileService.analyzeForward(filePath, depth);
-        // Convert forward results to bidirectional format
-        result = {
-          targetFile: filePath,
-          forwardDeps: Array.from(forwardResults.values()).filter((r) => r.filePath !== filePath),
-          reverseDeps: [],
-          allClasses: [],
-          relationships: [],
-          stats: {
-            totalFiles: forwardResults.size,
-            totalClasses: 0,
-            totalRelationships: 0,
-            maxDepth: depth,
-          },
-        };
-        // Extract classes and relationships
-        for (const fileResult of forwardResults.values()) {
-          result.allClasses.push(...fileResult.classes);
-          result.relationships.push(...fileResult.relationships);
+      // Use specified analysis mode
+      let result;
+      switch (mode) {
+        case 'forward': {
+          const forwardResults = await crossFileService.analyzeForward(filePath, depth);
+          result = this.convertForwardResultsToBidirectional(filePath, forwardResults);
+          break;
         }
-        result.stats.totalClasses = result.allClasses.length;
-        result.stats.totalRelationships = result.relationships.length;
-      } else {
-        // reverse mode
-        const reverseResults = await crossFileService.analyzeReverse(filePath, depth);
-        result = {
-          targetFile: filePath,
-          forwardDeps: [],
-          reverseDeps: Array.from(reverseResults.values()).filter((r) => r.filePath !== filePath),
-          allClasses: [],
-          relationships: [],
-          stats: {
-            totalFiles: reverseResults.size,
-            totalClasses: 0,
-            totalRelationships: 0,
-            maxDepth: depth,
-          },
-        };
-        // Extract classes and relationships
-        for (const fileResult of reverseResults.values()) {
-          result.allClasses.push(...fileResult.classes);
-          result.relationships.push(...fileResult.relationships);
+        case 'reverse': {
+          const reverseResults = await crossFileService.analyzeReverse(filePath, depth);
+          result = this.convertReverseResultsToBidirectional(filePath, reverseResults);
+          break;
         }
-        result.stats.totalClasses = result.allClasses.length;
-        result.stats.totalRelationships = result.relationships.length;
+        case 'bidirectional':
+        default:
+          result = await crossFileService.analyzeBidirectional(filePath, depth);
+          break;
       }
 
       // Generate Mermaid diagram
@@ -234,8 +200,8 @@ export class UMLService {
         mermaidCode: mermaidCode,
         generationMode: 'native',
         metadata: {
-          mode,
           depth,
+          mode,
           analysis: {
             targetFile: result.targetFile,
             totalFiles: result.stats.totalFiles,
@@ -304,6 +270,122 @@ export class UMLService {
   }
 
   /**
+   * Convert forward analysis results to bidirectional format
+   */
+  private convertForwardResultsToBidirectional(
+    targetFile: string,
+    forwardResults: Map<string, FileAnalysisResult>
+  ): BidirectionalAnalysisResult {
+    const forwardDeps: FileAnalysisResult[] = [];
+    const allClasses: ClassInfo[] = [];
+    const allRelationships: ASTDependencyInfo[] = [];
+    const classSet = new Set<string>();
+    const relationshipSet = new Set<string>();
+
+    for (const [path, result] of forwardResults.entries()) {
+      if (path !== targetFile) {
+        forwardDeps.push(result);
+      }
+
+      for (const cls of result.classes) {
+        const key = `${result.filePath}:${cls.name}`;
+        if (!classSet.has(key)) {
+          classSet.add(key);
+          allClasses.push(cls);
+        }
+      }
+
+      for (const rel of result.relationships) {
+        const key = `${rel.from}:${rel.to}:${rel.type}:${rel.context || ''}`;
+        if (!relationshipSet.has(key)) {
+          relationshipSet.add(key);
+          allRelationships.push(rel);
+        }
+      }
+    }
+
+    const maxDepth = Math.max(...Array.from(forwardResults.values()).map((r) => r.depth));
+
+    return {
+      targetFile,
+      forwardDeps,
+      reverseDeps: [],
+      allClasses,
+      relationships: allRelationships,
+      stats: {
+        totalFiles: forwardResults.size,
+        totalClasses: allClasses.length,
+        totalRelationships: allRelationships.length,
+        maxDepth,
+      },
+    };
+  }
+
+  /**
+   * Convert reverse analysis results to bidirectional format
+   */
+  private convertReverseResultsToBidirectional(
+    targetFile: string,
+    reverseResults: Map<string, FileAnalysisResult>
+  ): BidirectionalAnalysisResult {
+    const reverseDeps: FileAnalysisResult[] = [];
+    const allClasses: ClassInfo[] = [];
+    const allRelationships: ASTDependencyInfo[] = [];
+    const classSet = new Set<string>();
+    const relationshipSet = new Set<string>();
+
+    for (const [path, result] of reverseResults.entries()) {
+      if (path !== targetFile) {
+        reverseDeps.push(result);
+      }
+
+      for (const cls of result.classes) {
+        const key = `${result.filePath}:${cls.name}`;
+        if (!classSet.has(key)) {
+          classSet.add(key);
+          allClasses.push(cls);
+        }
+      }
+
+      for (const rel of result.relationships) {
+        const key = `${rel.from}:${rel.to}:${rel.type}:${rel.context || ''}`;
+        if (!relationshipSet.has(key)) {
+          relationshipSet.add(key);
+          allRelationships.push(rel);
+        }
+      }
+    }
+
+    const maxDepth = Math.max(...Array.from(reverseResults.values()).map((r) => r.depth));
+
+    return {
+      targetFile,
+      forwardDeps: [],
+      reverseDeps,
+      allClasses,
+      relationships: allRelationships,
+      stats: {
+        totalFiles: reverseResults.size,
+        totalClasses: allClasses.length,
+        totalRelationships: allRelationships.length,
+        maxDepth,
+      },
+    };
+  }
+
+  /**
+   * Determine if AI should be used
+   */
+  private shouldUseAI(type: DiagramType): boolean {
+    if (!this.aiService) {
+      return false;
+    }
+
+    const enabledTypes = this.config?.uml?.aiOptions?.enabledTypes || ['sequence', 'dependency'];
+    return enabledTypes.includes(type);
+  }
+
+  /**
    * Get Mermaid relationship symbol
    */
   private getRelationshipSymbol(type: string): string {
@@ -325,18 +407,6 @@ export class UMLService {
       default:
         return '-->';
     }
-  }
-
-  /**
-   * Determine if AI should be used
-   */
-  private shouldUseAI(type: DiagramType): boolean {
-    if (!this.aiService) {
-      return false;
-    }
-
-    const enabledTypes = this.config?.uml?.aiOptions?.enabledTypes || ['sequence', 'dependency'];
-    return enabledTypes.includes(type);
   }
 
   /**
