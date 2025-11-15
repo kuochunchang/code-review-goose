@@ -4,13 +4,29 @@
       <v-card-title class="text-subtitle-1 py-2 px-3 d-flex align-center">
         <v-icon icon="mdi-file-code-outline" size="small" class="mr-2"></v-icon>
         <span class="flex-grow-1">{{ currentFile || 'No file selected' }}</span>
-        <v-btn
-          v-if="currentFile"
-          icon="mdi-refresh"
-          size="small"
-          variant="text"
-          @click="reloadFile"
-        ></v-btn>
+        <v-tooltip v-if="currentFile" text="UML Diagram (Ctrl+U)" location="bottom">
+          <template #activator="{ props }">
+            <v-btn
+              icon="mdi-chart-tree"
+              size="small"
+              variant="text"
+              v-bind="props"
+              @click="openUMLViewer"
+              data-testid="uml-button"
+            ></v-btn>
+          </template>
+        </v-tooltip>
+        <v-tooltip v-if="currentFile" text="Reload File" location="bottom">
+          <template #activator="{ props }">
+            <v-btn
+              icon="mdi-refresh"
+              size="small"
+              variant="text"
+              v-bind="props"
+              @click="reloadFile"
+            ></v-btn>
+          </template>
+        </v-tooltip>
       </v-card-title>
       <v-card-text class="pa-0 position-relative">
         <v-progress-linear v-if="loading" indeterminate color="primary"></v-progress-linear>
@@ -234,6 +250,22 @@ const reloadFile = async () => {
   }
 };
 
+const openUMLViewer = () => {
+  if (!fileContent.value || !currentFile.value) {
+    uiStore.showSnackbar('Please select a file first', 'warning');
+    return;
+  }
+  // Store code and filePath in sessionStorage to pass to new window
+  sessionStorage.setItem('uml_code', fileContent.value);
+  sessionStorage.setItem('uml_filePath', currentFile.value);
+  // Open UML viewer in a new window
+  const width = 1400;
+  const height = 900;
+  const left = window.screenX + (window.outerWidth - width) / 2;
+  const top = window.screenY + (window.outerHeight - height) / 2;
+  window.open('/uml', 'UML_Viewer', `width=${width},height=${height},left=${left},top=${top}`);
+};
+
 // Jump to specified line
 const jumpToLine = (lineNumber: number) => {
   if (!editor) {
@@ -280,6 +312,7 @@ defineExpose({
   currentFile,
   lineCount,
   jumpToLine,
+  openUMLViewer,
 });
 </script>
 

@@ -99,12 +99,6 @@
         </template>
       </v-tooltip>
 
-      <v-tooltip text="UML Diagram" location="bottom">
-        <template #activator="{ props }">
-          <v-btn icon="mdi-chart-tree" v-bind="props" class="mr-2" @click="openUMLViewer"></v-btn>
-        </template>
-      </v-tooltip>
-
       <v-tooltip :text="uiStore.theme === 'light' ? 'Dark Mode' : 'Light Mode'" location="bottom">
         <template #activator="{ props }">
           <v-btn
@@ -168,7 +162,6 @@ const codeViewerRef = ref<InstanceType<typeof CodeViewer> | null>(null);
 const settingsDialog = ref(false);
 const searchDialog = ref(false);
 const shortcutsDialog = ref(false);
-const currentCode = ref<string>('');
 const mobileDrawer = ref(false);
 const mobileTab = ref('code');
 const currentFileInfo = ref<{ path?: string; lineCount?: number }>({});
@@ -202,7 +195,9 @@ const keyboardShortcuts: KeyboardShortcut[] = [
     ctrl: true,
     description: 'Open UML Diagram',
     handler: () => {
-      openUMLViewer();
+      if (codeViewerRef.value) {
+        codeViewerRef.value.openUMLViewer();
+      }
     },
   },
   {
@@ -268,17 +263,6 @@ const handleSelectFile = async (filePath: string) => {
   } catch (error) {
     console.warn('Failed to save last opened file to localStorage:', error);
   }
-  // Load file content for UML generation
-  try {
-    const response = await axios.get('/api/file/content', {
-      params: { path: filePath },
-    });
-    if (response.data.success) {
-      currentCode.value = response.data.data.content;
-    }
-  } catch (error) {
-    console.error('Failed to load file content:', error);
-  }
 };
 
 const handleMobileSelectFile = async (filePath: string) => {
@@ -307,22 +291,6 @@ const openSettings = () => {
 
 const openSearch = () => {
   searchDialog.value = true;
-};
-
-const openUMLViewer = () => {
-  if (!currentCode.value || !selectedFile.value) {
-    uiStore.showSnackbar('Please select a file first', 'warning');
-    return;
-  }
-  // Store code and filePath in sessionStorage to pass to new window
-  sessionStorage.setItem('uml_code', currentCode.value);
-  sessionStorage.setItem('uml_filePath', selectedFile.value);
-  // Open UML viewer in a new window
-  const width = 1400;
-  const height = 900;
-  const left = window.screenX + (window.outerWidth - width) / 2;
-  const top = window.screenY + (window.outerHeight - height) / 2;
-  window.open('/uml', 'UML_Viewer', `width=${width},height=${height},left=${left},top=${top}`);
 };
 
 const handleSelectMatch = (filePath: string, line: number) => {
