@@ -33,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 interface FileNode {
   name: string;
@@ -59,6 +59,23 @@ const expanded = ref(props.level === 0); // Root directory expanded by default
 const isDirectory = computed(() => props.node.type === 'directory');
 const isFile = computed(() => props.node.type === 'file');
 const isSelected = computed(() => isFile.value && props.node.path === props.selectedFilePath);
+
+// Check if this directory contains the selected file (directly or in subdirectories)
+const containsSelectedFile = computed(() => {
+  if (!props.selectedFilePath || !isDirectory.value) return false;
+  return props.selectedFilePath.startsWith(props.node.path + '/');
+});
+
+// Auto-expand directory if it contains the selected file
+watch(
+  () => props.selectedFilePath,
+  () => {
+    if (containsSelectedFile.value) {
+      expanded.value = true;
+    }
+  },
+  { immediate: true }
+);
 
 const nodeIcon = computed(() => {
   if (isDirectory.value) {

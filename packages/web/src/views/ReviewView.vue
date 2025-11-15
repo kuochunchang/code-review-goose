@@ -8,9 +8,9 @@
         icon="mdi-menu"
         color="primary"
         class="file-tree-toggle-btn"
-        @click="toggleFileTree"
         size="small"
         elevation="2"
+        @click="toggleFileTree"
       >
         <v-icon>mdi-menu</v-icon>
         <v-tooltip activator="parent" location="right"> Show File Tree (⌘B) </v-tooltip>
@@ -31,7 +31,7 @@
         <!-- Middle: Code Viewer -->
         <Pane :size="showFileTree ? 50 : 60" :min-size="30">
           <div class="panel-content">
-            <CodeViewer :file-path="selectedFile" ref="codeViewerRef" />
+            <CodeViewer ref="codeViewerRef" :file-path="selectedFile" />
           </div>
         </Pane>
 
@@ -57,9 +57,9 @@
         icon="mdi-menu"
         color="primary"
         class="mobile-fab"
-        @click="mobileDrawer = true"
         size="large"
         elevation="4"
+        @click="mobileDrawer = true"
       ></v-btn>
 
       <!-- Mobile Tabs for Code and Analysis -->
@@ -76,7 +76,7 @@
 
       <v-window v-model="mobileTab" class="mobile-window">
         <v-window-item value="code">
-          <CodeViewer :file-path="selectedFile" ref="codeViewerRef" />
+          <CodeViewer ref="codeViewerRef" :file-path="selectedFile" />
         </v-window-item>
         <v-window-item value="analysis">
           <AnalysisPanel :file-path="selectedFile" @jump-to-line="handleJumpToLine" />
@@ -94,37 +94,37 @@
       <v-spacer></v-spacer>
 
       <v-tooltip text="Search" location="bottom">
-        <template v-slot:activator="{ props }">
-          <v-btn icon="mdi-magnify" @click="openSearch" v-bind="props" class="mr-2"></v-btn>
+        <template #activator="{ props }">
+          <v-btn icon="mdi-magnify" v-bind="props" class="mr-2" @click="openSearch"></v-btn>
         </template>
       </v-tooltip>
 
       <v-tooltip text="UML Diagram" location="bottom">
-        <template v-slot:activator="{ props }">
-          <v-btn icon="mdi-chart-tree" @click="openUMLViewer" v-bind="props" class="mr-2"></v-btn>
+        <template #activator="{ props }">
+          <v-btn icon="mdi-chart-tree" v-bind="props" class="mr-2" @click="openUMLViewer"></v-btn>
         </template>
       </v-tooltip>
 
       <v-tooltip :text="uiStore.theme === 'light' ? 'Dark Mode' : 'Light Mode'" location="bottom">
-        <template v-slot:activator="{ props }">
+        <template #activator="{ props }">
           <v-btn
             :icon="uiStore.theme === 'light' ? 'mdi-weather-night' : 'mdi-weather-sunny'"
-            @click="uiStore.toggleTheme()"
             v-bind="props"
             class="mr-2"
+            @click="uiStore.toggleTheme()"
           ></v-btn>
         </template>
       </v-tooltip>
 
       <v-tooltip text="Settings" location="bottom">
-        <template v-slot:activator="{ props }">
-          <v-btn icon="mdi-cog" @click="openSettings" v-bind="props" class="mr-2"></v-btn>
+        <template #activator="{ props }">
+          <v-btn icon="mdi-cog" v-bind="props" class="mr-2" @click="openSettings"></v-btn>
         </template>
       </v-tooltip>
 
       <v-tooltip text="Keyboard Shortcuts" location="bottom">
-        <template v-slot:activator="{ props }">
-          <v-btn icon="mdi-keyboard" @click="shortcutsDialog = true" v-bind="props"></v-btn>
+        <template #activator="{ props }">
+          <v-btn icon="mdi-keyboard" v-bind="props" @click="shortcutsDialog = true"></v-btn>
         </template>
       </v-tooltip>
     </v-app-bar>
@@ -262,6 +262,12 @@ watch(
 
 const handleSelectFile = async (filePath: string) => {
   selectedFile.value = filePath;
+  // Save last opened file to localStorage
+  try {
+    localStorage.setItem('lastOpenedFile', filePath);
+  } catch (error) {
+    console.warn('Failed to save last opened file to localStorage:', error);
+  }
   // Load file content for UML generation
   try {
     const response = await axios.get('/api/file/content', {
@@ -330,17 +336,38 @@ const handleSettingsSaved = () => {
   console.log('Settings saved successfully');
 };
 
-// Auto-open README file on mount if it exists
+// Auto-open last opened file on mount, or README as fallback
 onMounted(async () => {
   try {
+    // First, try to load the last opened file from localStorage
+    const lastOpenedFile = localStorage.getItem('lastOpenedFile');
+
+    if (lastOpenedFile) {
+      // Verify the file still exists before opening it
+      try {
+        const response = await axios.get('/api/file/content', {
+          params: { path: lastOpenedFile },
+        });
+        if (response.data.success) {
+          // File exists, open it
+          await handleSelectFile(lastOpenedFile);
+          return;
+        }
+      } catch (error) {
+        // File no longer exists, clear it from localStorage
+        console.log('Last opened file no longer exists:', lastOpenedFile);
+        localStorage.removeItem('lastOpenedFile');
+      }
+    }
+
+    // Fallback: try to open README file if no last opened file or if it doesn't exist
     const readmePath = await projectApi.findReadme();
     if (readmePath) {
-      // Automatically select and open the README file
       await handleSelectFile(readmePath);
     }
   } catch (error) {
-    // Silently fail if README detection fails, user can still browse files manually
-    console.log('No README file found or error detecting README:', error);
+    // Silently fail if both last file and README detection fail
+    console.log('No file to auto-open:', error);
   }
 });
 </script>
