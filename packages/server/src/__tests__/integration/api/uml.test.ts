@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { umlRouter } from '../../../routes/uml.js';
 import { AIService } from '../../../services/aiService.js';
 import { ConfigService } from '../../../services/configService.js';
-import { InsightService } from '../../../services/insightService.js';
 import type { UMLResult } from '../../../services/umlService.js';
 import { UMLService } from '../../../services/umlService.js';
 
@@ -12,7 +11,6 @@ import { UMLService } from '../../../services/umlService.js';
 vi.mock('../../../services/umlService.js');
 vi.mock('../../../services/aiService.js');
 vi.mock('../../../services/configService.js');
-vi.mock('../../../services/insightService.js');
 
 describe('UML API', () => {
   let app: express.Application;
@@ -37,16 +35,6 @@ describe('UML API', () => {
 
     it('should generate UML diagram successfully', async () => {
       const mockGenerateDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(InsightService).mockImplementation(
-        () =>
-          ({
-            check: vi
-              .fn()
-              .mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
-            setUML: vi.fn().mockResolvedValue(undefined),
-          }) as any
-      );
 
       vi.mocked(ConfigService).mockImplementation(
         () =>
@@ -76,21 +64,11 @@ describe('UML API', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.mermaidCode).toBeDefined();
-      expect(response.body.data.fromInsights).toBe(false);
+      expect(mockGenerateDiagram).toHaveBeenCalledWith('class Test {}', 'class');
     });
 
-    it('should force refresh when requested', async () => {
+    it('should accept forceRefresh parameter for backward compatibility', async () => {
       const mockGenerateDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(InsightService).mockImplementation(
-        () =>
-          ({
-            check: vi
-              .fn()
-              .mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
-            setUML: vi.fn().mockResolvedValue(undefined),
-          }) as any
-      );
 
       vi.mocked(ConfigService).mockImplementation(
         () =>
@@ -124,7 +102,7 @@ describe('UML API', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.forceRefreshed).toBe(true);
+      expect(response.body.data.mermaidCode).toBeDefined();
       expect(mockGenerateDiagram).toHaveBeenCalled();
     });
 
@@ -158,16 +136,6 @@ describe('UML API', () => {
 
     it('should handle UML generation errors', async () => {
       const mockGenerateDiagram = vi.fn().mockRejectedValue(new Error('Generation failed'));
-
-      vi.mocked(InsightService).mockImplementation(
-        () =>
-          ({
-            check: vi
-              .fn()
-              .mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
-            setUML: vi.fn().mockResolvedValue(undefined),
-          }) as any
-      );
 
       vi.mocked(ConfigService).mockImplementation(
         () =>
@@ -227,16 +195,6 @@ describe('UML API', () => {
       it('should generate cross-file class diagram with bidirectional analysis', async () => {
         const mockGenerateCrossFile = vi.fn().mockResolvedValue(mockCrossFileUMLResult);
 
-        vi.mocked(InsightService).mockImplementation(
-          () =>
-            ({
-              check: vi
-                .fn()
-                .mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
-              setUML: vi.fn().mockResolvedValue(undefined),
-            }) as any
-        );
-
         vi.mocked(ConfigService).mockImplementation(
           () =>
             ({
@@ -275,16 +233,6 @@ describe('UML API', () => {
 
       it('should use default value for analysisDepth', async () => {
         const mockGenerateCrossFile = vi.fn().mockResolvedValue(mockCrossFileUMLResult);
-
-        vi.mocked(InsightService).mockImplementation(
-          () =>
-            ({
-              check: vi
-                .fn()
-                .mockResolvedValue({ hasRecord: false, hashMatched: false, insight: null }),
-              setUML: vi.fn().mockResolvedValue(undefined),
-            }) as any
-        );
 
         vi.mocked(ConfigService).mockImplementation(
           () =>
