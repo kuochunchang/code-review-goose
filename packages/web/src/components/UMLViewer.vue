@@ -316,8 +316,8 @@ async function checkInsights() {
       // No UML diagram in insights, auto-generate
       insightStatus.value = 'none';
       diagram.value = null;
-      // Optionally auto-generate here
-      // await generateDiagram();
+      // Auto-generate diagram when no cached version exists
+      await generateDiagram();
     }
   } catch (err) {
     console.error('Failed to check insights:', err);
