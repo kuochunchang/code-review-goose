@@ -20,22 +20,6 @@
         </v-btn>
       </v-btn-toggle>
 
-      <!-- Cross-file analysis toggle (only for class diagrams) -->
-      <v-tooltip v-if="selectedType === 'class'" location="bottom">
-        <template v-slot:activator="{ props: tooltipProps }">
-          <v-btn
-            v-bind="tooltipProps"
-            :icon="crossFileAnalysis ? 'mdi-file-tree' : 'mdi-file-document-outline'"
-            size="small"
-            :color="crossFileAnalysis ? 'primary' : undefined"
-            @click="toggleCrossFileAnalysis"
-            class="mr-1"
-          >
-          </v-btn>
-        </template>
-        <span>{{ crossFileAnalysis ? 'Cross-file analysis enabled' : 'Single file only' }}</span>
-      </v-tooltip>
-
       <v-spacer></v-spacer>
       <!-- Insight status indicator -->
       <span v-if="insightStatus === 'up-to-date'" class="text-caption text-success mr-2">
@@ -71,40 +55,68 @@
       <v-btn icon="mdi-close" size="small" @click="$emit('close')"></v-btn>
     </v-toolbar>
 
-    <!-- Cross-file analysis options panel -->
-    <v-expand-transition>
-      <v-card
-        v-if="selectedType === 'class' && crossFileAnalysis"
-        class="cross-file-options"
-        flat
-        :color="theme.global.current.value.dark ? 'grey-darken-4' : 'grey-lighten-4'"
-      >
-        <v-card-text class="py-2 px-4">
-          <v-row dense align="center">
-            <v-col cols="6">
-              <div class="d-flex align-center">
-                <span class="text-caption mr-2">Analysis Mode:</span>
-                <v-btn-toggle v-model="analysisMode" mandatory density="compact" color="primary">
-                  <v-btn value="forward" size="small">Forward</v-btn>
-                  <v-btn value="reverse" size="small">Reverse</v-btn>
-                  <v-btn value="bidirectional" size="small">Bidirectional</v-btn>
-                </v-btn-toggle>
-              </div>
-            </v-col>
-            <v-col cols="6">
-              <div class="d-flex align-center">
-                <span class="text-caption mr-2">Depth:</span>
-                <v-btn-toggle v-model="analysisDepth" mandatory density="compact" color="primary">
-                  <v-btn :value="1" size="small">1</v-btn>
-                  <v-btn :value="2" size="small">2</v-btn>
-                  <v-btn :value="3" size="small">3</v-btn>
-                </v-btn-toggle>
-              </div>
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
-    </v-expand-transition>
+    <!-- Unified analysis options panel (always visible for class diagrams) -->
+    <v-card
+      v-if="selectedType === 'class'"
+      class="analysis-options"
+      flat
+      :color="theme.global.current.value.dark ? 'grey-darken-4' : 'grey-lighten-4'"
+    >
+      <v-card-text class="py-2 px-4">
+        <v-row dense align="center">
+          <v-col cols="6">
+            <div class="d-flex align-center">
+              <v-tooltip location="bottom">
+                <template v-slot:activator="{ props: tooltipProps }">
+                  <span v-bind="tooltipProps" class="text-caption mr-2">
+                    Depth:
+                    <v-icon size="x-small">mdi-information</v-icon>
+                  </span>
+                </template>
+                <div>
+                  <div><strong>0:</strong> Single file only</div>
+                  <div><strong>1-3:</strong> Cross-file analysis (include dependencies)</div>
+                </div>
+              </v-tooltip>
+              <v-btn-toggle v-model="analysisDepth" mandatory density="compact" color="primary">
+                <v-btn :value="0" size="small">0</v-btn>
+                <v-btn :value="1" size="small">1</v-btn>
+                <v-btn :value="2" size="small">2</v-btn>
+                <v-btn :value="3" size="small">3</v-btn>
+              </v-btn-toggle>
+            </div>
+          </v-col>
+          <v-col cols="6">
+            <div class="d-flex align-center">
+              <v-tooltip location="bottom">
+                <template v-slot:activator="{ props: tooltipProps }">
+                  <span v-bind="tooltipProps" class="text-caption mr-2">
+                    Mode:
+                    <v-icon size="x-small">mdi-information</v-icon>
+                  </span>
+                </template>
+                <div>
+                  <div><strong>Bidirectional:</strong> Both directions</div>
+                  <div><strong>Forward:</strong> Dependencies only</div>
+                  <div><strong>Reverse:</strong> Dependents only</div>
+                </div>
+              </v-tooltip>
+              <v-btn-toggle
+                v-model="analysisMode"
+                mandatory
+                density="compact"
+                color="primary"
+                :disabled="analysisDepth === 0"
+              >
+                <v-btn value="bidirectional" size="small">Bi</v-btn>
+                <v-btn value="forward" size="small">Fwd</v-btn>
+                <v-btn value="reverse" size="small">Rev</v-btn>
+              </v-btn-toggle>
+            </div>
+          </v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
 
     <v-card-text class="pa-0 diagram-content">
       <div v-if="error" class="error-container pa-4">
@@ -192,9 +204,8 @@ const aiAvailable = ref(false);
 const generationMode = ref<string>('hybrid');
 const supportedTypes = ref<any[]>([]);
 
-// Cross-file analysis state
-const crossFileAnalysis = ref(false);
-const analysisDepth = ref<1 | 2 | 3>(1);
+// Unified analysis options (applies to all diagram types, but depth>0 only for class diagrams)
+const analysisDepth = ref<0 | 1 | 2 | 3>(0); // 0 = single file, 1-3 = cross-file
 const analysisMode = ref<'forward' | 'reverse' | 'bidirectional'>('bidirectional');
 
 // Insight status tracking
@@ -260,28 +271,15 @@ watch(selectedType, async () => {
   }
 });
 
-// Watch for cross-file analysis settings changes
-watch([crossFileAnalysis, analysisDepth, analysisMode], async () => {
-  // When cross-file settings change, force regenerate the diagram
+// Watch for analysis settings changes (depth and mode)
+watch([analysisDepth, analysisMode], async () => {
+  // When analysis settings change, force regenerate the diagram
   // to ensure the new parameters are applied
-  if (crossFileAnalysis.value && currentCode.value && currentFilePath.value) {
-    // Force refresh to bypass cache and apply new depth
+  if (currentCode.value && currentFilePath.value) {
+    // Force refresh to bypass cache and apply new settings
     await generateDiagram(true);
-  } else {
-    // If cross-file is disabled, just reset
-    diagram.value = null;
-    insightStatus.value = 'none';
   }
 });
-
-// Toggle cross-file analysis
-function toggleCrossFileAnalysis() {
-  crossFileAnalysis.value = !crossFileAnalysis.value;
-  if (!crossFileAnalysis.value) {
-    // Reset to defaults when disabling
-    analysisDepth.value = 1;
-  }
-}
 
 // Check if insights exist for current file and diagram type
 async function checkInsights() {
@@ -353,22 +351,16 @@ async function generateDiagram(forceRefresh = false) {
   diagram.value = null;
 
   try {
-    // Build options object
+    // Build unified options object
     const options: {
       forceRefresh?: boolean;
-      crossFileAnalysis?: boolean;
-      analysisDepth?: 1 | 2 | 3;
+      depth?: number;
       analysisMode?: 'forward' | 'reverse' | 'bidirectional';
     } = {
       forceRefresh,
+      depth: analysisDepth.value,
+      analysisMode: analysisMode.value,
     };
-
-    // Add cross-file analysis options only for class diagrams
-    if (selectedType.value === 'class' && crossFileAnalysis.value) {
-      options.crossFileAnalysis = true;
-      options.analysisDepth = analysisDepth.value;
-      options.analysisMode = analysisMode.value;
-    }
 
     const result = await umlApi.generateDiagram(
       currentCode.value,
@@ -658,12 +650,12 @@ async function exportDiagram() {
   stroke: #1976d2 !important;
 }
 
-/* Cross-file analysis options panel */
-.cross-file-options {
+/* Unified analysis options panel */
+.analysis-options {
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
 }
 
-.v-theme--dark .cross-file-options {
+.v-theme--dark .analysis-options {
   background-color: #1e1e1e !important;
   border-bottom-color: rgba(255, 255, 255, 0.12);
 }
