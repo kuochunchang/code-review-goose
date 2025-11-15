@@ -33,8 +33,8 @@ describe('UML API', () => {
       },
     };
 
-    it('should generate UML diagram successfully', async () => {
-      const mockGenerateDiagram = vi.fn().mockResolvedValue(mockUMLResult);
+    it('should generate UML diagram successfully with unified interface', async () => {
+      const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
 
       vi.mocked(ConfigService).mockImplementation(
         () =>
@@ -53,7 +53,7 @@ describe('UML API', () => {
       vi.mocked(UMLService).mockImplementation(
         () =>
           ({
-            generateDiagram: mockGenerateDiagram,
+            generateUnifiedDiagram: mockGenerateUnifiedDiagram,
           }) as any
       );
 
@@ -64,11 +64,19 @@ describe('UML API', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.mermaidCode).toBeDefined();
-      expect(mockGenerateDiagram).toHaveBeenCalledWith('class Test {}', 'class');
+      expect(mockGenerateUnifiedDiagram).toHaveBeenCalledWith(
+        '/test/file.ts',
+        '/test/project',
+        'class',
+        expect.objectContaining({
+          depth: 0,
+          mode: 'bidirectional',
+        })
+      );
     });
 
-    it('should accept forceRefresh parameter for backward compatibility', async () => {
-      const mockGenerateDiagram = vi.fn().mockResolvedValue(mockUMLResult);
+    it('should accept depth parameter for unified interface', async () => {
+      const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
 
       vi.mocked(ConfigService).mockImplementation(
         () =>
@@ -87,7 +95,7 @@ describe('UML API', () => {
       vi.mocked(UMLService).mockImplementation(
         () =>
           ({
-            generateDiagram: mockGenerateDiagram,
+            generateUnifiedDiagram: mockGenerateUnifiedDiagram,
           }) as any
       );
 
@@ -97,21 +105,32 @@ describe('UML API', () => {
           code: 'class Test {}',
           type: 'class',
           filePath: '/test/file.ts',
-          forceRefresh: true,
+          depth: 1,
+          analysisMode: 'forward',
         });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data.mermaidCode).toBeDefined();
-      expect(mockGenerateDiagram).toHaveBeenCalled();
+      expect(mockGenerateUnifiedDiagram).toHaveBeenCalledWith(
+        '/test/file.ts',
+        '/test/project',
+        'class',
+        expect.objectContaining({
+          depth: 1,
+          mode: 'forward',
+        })
+      );
     });
 
-    it('should return 400 when code is missing', async () => {
-      const response = await request(app).post('/api/uml/generate').send({ type: 'class' });
+    it('should return 400 when filePath is missing', async () => {
+      const response = await request(app)
+        .post('/api/uml/generate')
+        .send({ code: 'class Test {}', type: 'class' });
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('Code is required');
+      expect(response.body.error).toContain('filePath is required');
     });
 
     it('should return 400 when type is missing', async () => {
@@ -121,7 +140,7 @@ describe('UML API', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('Type is required');
+      expect(response.body.error).toContain('type is required');
     });
 
     it('should return 400 for invalid diagram type', async () => {
@@ -134,8 +153,35 @@ describe('UML API', () => {
       expect(response.body.error).toContain('must be one of');
     });
 
+    it('should return 400 for invalid depth', async () => {
+      const response = await request(app)
+        .post('/api/uml/generate')
+        .send({ code: 'class Test {}', type: 'class', filePath: '/test/file.ts', depth: 5 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toContain('depth must be between 0');
+    });
+
+    it('should return 400 for cross-file analysis on non-class diagrams', async () => {
+      const response = await request(app)
+        .post('/api/uml/generate')
+        .send({
+          code: 'function test() {}',
+          type: 'flowchart',
+          filePath: '/test/file.ts',
+          depth: 1,
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toContain('only supported for class diagrams');
+    });
+
     it('should handle UML generation errors', async () => {
-      const mockGenerateDiagram = vi.fn().mockRejectedValue(new Error('Generation failed'));
+      const mockGenerateUnifiedDiagram = vi
+        .fn()
+        .mockRejectedValue(new Error('Generation failed'));
 
       vi.mocked(ConfigService).mockImplementation(
         () =>
@@ -154,7 +200,7 @@ describe('UML API', () => {
       vi.mocked(UMLService).mockImplementation(
         () =>
           ({
-            generateDiagram: mockGenerateDiagram,
+            generateUnifiedDiagram: mockGenerateUnifiedDiagram,
           }) as any
       );
 
@@ -172,7 +218,7 @@ describe('UML API', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    describe('Cross-file analysis', () => {
+    describe('Unified analysis with depth parameter', () => {
       const mockCrossFileUMLResult: UMLResult = {
         type: 'class',
         mermaidCode: 'classDiagram\n  class Car\n  class Engine\n  Car *-- Engine',
@@ -180,6 +226,8 @@ describe('UML API', () => {
         metadata: {
           depth: 1,
           mode: 'bidirectional',
+          singleFile: false,
+          filePath: '/test/file.ts',
           analysis: {
             targetFile: '/test/file.ts',
             totalFiles: 3,
@@ -192,8 +240,8 @@ describe('UML API', () => {
         },
       };
 
-      it('should generate cross-file class diagram with bidirectional analysis', async () => {
-        const mockGenerateCrossFile = vi.fn().mockResolvedValue(mockCrossFileUMLResult);
+      it('should generate cross-file class diagram with depth=1', async () => {
+        const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockCrossFileUMLResult);
 
         vi.mocked(ConfigService).mockImplementation(
           () =>
@@ -212,7 +260,7 @@ describe('UML API', () => {
         vi.mocked(UMLService).mockImplementation(
           () =>
             ({
-              generateCrossFileClassDiagram: mockGenerateCrossFile,
+              generateUnifiedDiagram: mockGenerateUnifiedDiagram,
             }) as any
         );
 
@@ -220,19 +268,27 @@ describe('UML API', () => {
           code: 'class Test {}',
           type: 'class',
           filePath: '/test/file.ts',
-          crossFileAnalysis: true,
-          analysisDepth: 1,
+          depth: 1,
+          analysisMode: 'bidirectional',
         });
 
         expect(response.status).toBe(200);
         expect(response.body.success).toBe(true);
         expect(response.body.data.crossFileAnalysis).toBe(true);
         expect(response.body.data.metadata.analysis).toBeDefined();
-        expect(mockGenerateCrossFile).toHaveBeenCalledWith('/test/file.ts', '/test/project', 1, 'bidirectional');
+        expect(mockGenerateUnifiedDiagram).toHaveBeenCalledWith(
+          '/test/file.ts',
+          '/test/project',
+          'class',
+          expect.objectContaining({
+            depth: 1,
+            mode: 'bidirectional',
+          })
+        );
       });
 
-      it('should use default value for analysisDepth', async () => {
-        const mockGenerateCrossFile = vi.fn().mockResolvedValue(mockCrossFileUMLResult);
+      it('should support legacy crossFileAnalysis parameter', async () => {
+        const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockCrossFileUMLResult);
 
         vi.mocked(ConfigService).mockImplementation(
           () =>
@@ -251,7 +307,7 @@ describe('UML API', () => {
         vi.mocked(UMLService).mockImplementation(
           () =>
             ({
-              generateCrossFileClassDiagram: mockGenerateCrossFile,
+              generateUnifiedDiagram: mockGenerateUnifiedDiagram,
             }) as any
         );
 
@@ -263,7 +319,15 @@ describe('UML API', () => {
         });
 
         expect(response.status).toBe(200);
-        expect(mockGenerateCrossFile).toHaveBeenCalledWith('/test/file.ts', '/test/project', 1, 'bidirectional');
+        expect(mockGenerateUnifiedDiagram).toHaveBeenCalledWith(
+          '/test/file.ts',
+          '/test/project',
+          'class',
+          expect.objectContaining({
+            depth: 1, // crossFileAnalysis=true maps to depth=1
+            mode: 'bidirectional',
+          })
+        );
       });
 
       it('should return 400 when crossFileAnalysis is used with non-class diagram', async () => {
@@ -279,18 +343,17 @@ describe('UML API', () => {
         expect(response.body.error).toContain('only supported for class diagrams');
       });
 
-      it('should return 400 for invalid analysisDepth', async () => {
+      it('should return 400 for invalid depth value', async () => {
         const response = await request(app).post('/api/uml/generate').send({
           code: 'class Test {}',
           type: 'class',
           filePath: '/test/file.ts',
-          crossFileAnalysis: true,
-          analysisDepth: 4,
+          depth: 4,
         });
 
         expect(response.status).toBe(400);
         expect(response.body.success).toBe(false);
-        expect(response.body.error).toContain('analysisDepth must be 1, 2, or 3');
+        expect(response.body.error).toContain('depth must be between 0');
       });
     });
   });

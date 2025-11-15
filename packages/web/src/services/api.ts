@@ -277,9 +277,11 @@ export const insightsApi = {
     diagramType: DiagramType,
     options?: {
       forceRefresh?: boolean;
-      crossFileAnalysis?: boolean;
-      analysisDepth?: 1 | 2 | 3;
+      depth?: number; // New unified parameter: 0 = single file, 1-3 = cross-file
       analysisMode?: 'forward' | 'reverse' | 'bidirectional';
+      // Legacy parameters (kept for backward compatibility)
+      crossFileAnalysis?: boolean;
+      analysisDepth?: number;
     }
   ): Promise<UMLResult & { fromInsights?: boolean; hashMatched?: boolean }> {
     const response = await api.post<
@@ -289,9 +291,11 @@ export const insightsApi = {
       filePath,
       type: diagramType,
       forceRefresh: options?.forceRefresh,
+      depth: options?.depth,
+      analysisMode: options?.analysisMode,
+      // Include legacy parameters for backward compatibility
       crossFileAnalysis: options?.crossFileAnalysis,
       analysisDepth: options?.analysisDepth,
-      analysisMode: options?.analysisMode,
     });
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.error || 'UML generation failed');
@@ -333,9 +337,11 @@ export const umlApi = {
     type: DiagramType,
     options?: {
       forceRefresh?: boolean;
-      crossFileAnalysis?: boolean;
-      analysisDepth?: 1 | 2 | 3;
+      depth?: number; // New unified parameter: 0 = single file, 1-3 = cross-file
       analysisMode?: 'forward' | 'reverse' | 'bidirectional';
+      // Legacy parameters (kept for backward compatibility)
+      crossFileAnalysis?: boolean;
+      analysisDepth?: number;
     }
   ): Promise<UMLResult & { fromInsights?: boolean; hashMatched?: boolean }> {
     return insightsApi.generateUML(code, filePath, type, options);

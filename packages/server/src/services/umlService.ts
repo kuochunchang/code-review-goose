@@ -1,6 +1,8 @@
 import { parse } from '@babel/parser';
 import traverseModule from '@babel/traverse';
 import * as t from '@babel/types';
+import fs from 'fs-extra';
+import path from 'path';
 import type {
   DependencyInfo as ASTDependencyInfo,
   BidirectionalAnalysisResult,
@@ -149,6 +151,122 @@ export class UMLService {
   }
 
   /**
+   * Generate UML diagram with unified interface for both single-file and cross-file analysis
+   *
+   * @param filePath - Target file path to analyze (relative to project root)
+   * @param projectPath - Project root path
+   * @param type - Diagram type: 'class', 'flowchart', 'sequence', or 'dependency'
+   * @param options - Generation options
+   * @param options.depth - Analysis depth: 0 = single file only, 1-3 = cross-file analysis (default: 0)
+   * @param options.mode - Analysis mode for cross-file: 'bidirectional', 'forward', or 'reverse' (default: 'bidirectional')
+   * @param options.aiMode - AI generation mode override (uses config if not specified)
+   * @returns UML diagram with consistent metadata structure
+   */
+  async generateUnifiedDiagram(
+    filePath: string,
+    projectPath: string,
+    type: DiagramType,
+    options?: {
+      depth?: number;
+      mode?: 'bidirectional' | 'forward' | 'reverse';
+      aiMode?: DiagramGenerationMode;
+    }
+  ): Promise<UMLResult> {
+    const depth = options?.depth ?? 0;
+    const mode = options?.mode ?? 'bidirectional';
+
+    try {
+      // Validate depth parameter
+      if (depth < 0 || depth > 3) {
+        throw new Error('Depth must be between 0 (single file) and 3 (cross-file)');
+      }
+
+      // For class diagrams, support both single-file and cross-file analysis
+      if (type === 'class') {
+        if (depth === 0) {
+          // Single-file class diagram
+          return await this.generateSingleFileClassDiagram(filePath, projectPath);
+        } else {
+          // Cross-file class diagram
+          return await this.generateCrossFileClassDiagram(
+            filePath,
+            projectPath,
+            depth as 1 | 2 | 3,
+            mode
+          );
+        }
+      }
+
+      // For other diagram types, currently only support single-file (depth = 0)
+      if (depth > 0) {
+        throw new Error(
+          `Cross-file analysis (depth > 0) is only supported for class diagrams. Type '${type}' only supports depth=0`
+        );
+      }
+
+      // Single-file analysis for flowchart, sequence, dependency
+      return await this.generateSingleFileDiagram(filePath, projectPath, type);
+    } catch (error) {
+      throw new Error(
+        `Failed to generate ${type} diagram (depth=${depth}): ${(error as Error).message}`
+      );
+    }
+  }
+
+  /**
+   * Generate single-file class diagram from file path
+   */
+  private async generateSingleFileClassDiagram(
+    filePath: string,
+    projectPath: string
+  ): Promise<UMLResult> {
+    // Read file content
+    const fullPath = path.join(projectPath, filePath);
+    const code = await fs.readFile(fullPath, 'utf-8');
+
+    // Use existing generateDiagram for single-file class diagram
+    const result = await this.generateDiagram(code, 'class');
+
+    // Add depth metadata
+    return {
+      ...result,
+      metadata: {
+        ...result.metadata,
+        depth: 0,
+        singleFile: true,
+        filePath,
+      },
+    };
+  }
+
+  /**
+   * Generate single-file diagram (flowchart, sequence, dependency) from file path
+   */
+  private async generateSingleFileDiagram(
+    filePath: string,
+    projectPath: string,
+    type: DiagramType
+  ): Promise<UMLResult> {
+    // Read file content
+    const fullPath = path.join(projectPath, filePath);
+    const code = await fs.readFile(fullPath, 'utf-8');
+
+    // Use existing generateDiagram for single-file analysis
+    const result = await this.generateDiagram(code, type);
+
+    // Add depth metadata
+    return {
+      ...result,
+      metadata: {
+        ...result.metadata,
+        depth: 0,
+        singleFile: true,
+        filePath,
+      },
+    };
+  }
+
+  /**
    * Generate cross-file class diagram with specified analysis mode
    *
    * @param filePath - Target file path to analyze
@@ -202,6 +320,8 @@ export class UMLService {
         metadata: {
           depth,
           mode,
+          singleFile: false,
+          filePath,
           analysis: {
             targetFile: result.targetFile,
             totalFiles: result.stats.totalFiles,

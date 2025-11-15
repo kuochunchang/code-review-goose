@@ -8,74 +8,76 @@ export const umlRouter = Router();
 
 /**
  * POST /api/uml/generate
- * Generate UML diagram (caching removed as per requirements)
+ * Generate UML diagram with unified interface for single-file and cross-file analysis
  */
 umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> => {
   try {
     const {
-      code,
       type,
       filePath,
-      crossFileAnalysis,
+      depth,
       analysisDepth,
       analysisMode,
+      crossFileAnalysis,
     } = req.body as {
-      code: string;
+      code?: string; // Optional: accepted for backward compatibility but not used (filePath is used instead)
       type: DiagramType;
       filePath: string;
-      forceRefresh?: boolean; // Accepted for backward compatibility
-      crossFileAnalysis?: boolean;
-      analysisDepth?: 1 | 2 | 3;
+      depth?: number; // New unified parameter: 0 = single file, 1-3 = cross-file
+      analysisDepth?: number; // Legacy parameter, maps to depth
       analysisMode?: 'forward' | 'reverse' | 'bidirectional';
+      crossFileAnalysis?: boolean; // Legacy parameter, maps to depth > 0
+      forceRefresh?: boolean; // Accepted for backward compatibility
     };
 
     const projectPath = req.app.locals.projectPath;
 
-    // Validate request parameters
-    if (!code || typeof code !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: 'Code is required and must be a string',
-      });
-      return;
-    }
-
+    // Validate filePath (required)
     if (!filePath || typeof filePath !== 'string') {
       res.status(400).json({
         success: false,
-        error: 'FilePath is required and must be a string',
+        error: 'filePath is required and must be a string',
       });
       return;
     }
 
+    // Validate type
     const validTypes: DiagramType[] = ['class', 'flowchart', 'sequence', 'dependency'];
     if (!type || !validTypes.includes(type)) {
       res.status(400).json({
         success: false,
-        error: `Type is required and must be one of: ${validTypes.join(', ')}`,
+        error: `type is required and must be one of: ${validTypes.join(', ')}`,
       });
       return;
     }
 
-    // Validate cross-file analysis parameters
-    if (crossFileAnalysis) {
-      // Cross-file analysis only supported for class diagrams
-      if (type !== 'class') {
-        res.status(400).json({
-          success: false,
-          error: 'Cross-file analysis is only supported for class diagrams',
-        });
-        return;
-      }
+    // Determine depth from new or legacy parameters
+    // Priority: depth > analysisDepth > crossFileAnalysis flag
+    let finalDepth = 0; // Default to single file
+    if (depth !== undefined) {
+      finalDepth = depth;
+    } else if (analysisDepth !== undefined) {
+      finalDepth = analysisDepth;
+    } else if (crossFileAnalysis === true) {
+      finalDepth = 1; // If crossFileAnalysis=true, use depth=1
+    }
 
-      // Validate analysisDepth
-      if (analysisDepth && (analysisDepth < 1 || analysisDepth > 3)) {
-        res.status(400).json({
-          success: false,
-          error: 'analysisDepth must be 1, 2, or 3',
-        });
-        return;
-      }
+    // Validate depth
+    if (finalDepth < 0 || finalDepth > 3) {
+      res.status(400).json({
+        success: false,
+        error: 'depth must be between 0 (single file) and 3 (cross-file)',
+      });
+      return;
+    }
+
+    // For non-class diagrams, only depth=0 is supported
+    if (type !== 'class' && finalDepth > 0) {
+      res.status(400).json({
+        success: false,
+        error: `Cross-file analysis (depth > 0) is only supported for class diagrams. Type '${type}' only supports depth=0`,
+      });
+      return;
     }
 
     // Load configuration
@@ -95,25 +97,19 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       aiService = undefined;
     }
 
-    // Generate UML diagram
+    // Generate UML diagram using unified method
     const umlService = new UMLService(aiService, config);
-    let result;
-
-    if (crossFileAnalysis && type === 'class') {
-      // Use cross-file analysis for class diagrams with specified mode
-      const depth = analysisDepth || 1;
-      const mode = analysisMode || 'bidirectional';
-      result = await umlService.generateCrossFileClassDiagram(filePath, projectPath, depth, mode);
-    } else {
-      // Use standard single-file analysis
-      result = await umlService.generateDiagram(code, type);
-    }
+    const result = await umlService.generateUnifiedDiagram(filePath, projectPath, type, {
+      depth: finalDepth,
+      mode: analysisMode || 'bidirectional',
+    });
 
     res.json({
       success: true,
       data: {
         ...result,
-        crossFileAnalysis: !!crossFileAnalysis,
+        // Include legacy fields for backward compatibility
+        crossFileAnalysis: finalDepth > 0,
       },
     });
   } catch (error) {
