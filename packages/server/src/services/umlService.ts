@@ -1,6 +1,8 @@
 import { parse } from '@babel/parser';
 import traverseModule from '@babel/traverse';
 import * as t from '@babel/types';
+import fs from 'fs-extra';
+import path from 'path';
 import type {
   DependencyInfo as ASTDependencyInfo,
   BidirectionalAnalysisResult,
@@ -219,8 +221,6 @@ export class UMLService {
     projectPath: string
   ): Promise<UMLResult> {
     // Read file content
-    const fs = await import('fs-extra');
-    const path = await import('path');
     const fullPath = path.join(projectPath, filePath);
     const code = await fs.readFile(fullPath, 'utf-8');
 
@@ -248,8 +248,6 @@ export class UMLService {
     type: DiagramType
   ): Promise<UMLResult> {
     // Read file content
-    const fs = await import('fs-extra');
-    const path = await import('path');
     const fullPath = path.join(projectPath, filePath);
     const code = await fs.readFile(fullPath, 'utf-8');
 
