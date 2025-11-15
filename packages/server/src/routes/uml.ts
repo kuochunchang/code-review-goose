@@ -8,7 +8,7 @@ export const umlRouter = Router();
 
 /**
  * POST /api/uml/generate
- * Generate UML diagram and store in insights
+ * Generate UML diagram (caching removed as per requirements)
  */
 umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -16,7 +16,6 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       code,
       type,
       filePath,
-      forceRefresh,
       crossFileAnalysis,
       analysisDepth,
       analysisMode,
@@ -24,7 +23,7 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       code: string;
       type: DiagramType;
       filePath: string;
-      forceRefresh?: boolean;
+      forceRefresh?: boolean; // Accepted for backward compatibility
       crossFileAnalysis?: boolean;
       analysisDepth?: 1 | 2 | 3;
       analysisMode?: 'forward' | 'reverse' | 'bidirectional';
@@ -79,59 +78,6 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       }
     }
 
-    // Compute code hash
-    const codeHash = InsightService.computeHash(code);
-
-    // Initialize insight service
-    const insightService = new InsightService(projectPath);
-
-    // Try to get from insights (unless forceRefresh is set)
-    if (!forceRefresh) {
-      const checkResult = await insightService.check(filePath, codeHash);
-
-      // If hash matches and UML diagram exists, check if it's still valid
-      if (checkResult.hashMatched && checkResult.insight?.uml?.[type]) {
-        const cachedDiagram = checkResult.insight.uml[type];
-
-        // For cross-file analysis, verify that depth matches
-        if (crossFileAnalysis) {
-          const cachedDepth = cachedDiagram.metadata?.depth;
-          const requestedDepth = analysisDepth || 1;
-
-          // Check if this is old cache with 'mode' field (from forward/reverse mode era)
-          // New bidirectional-only cache should NOT have a 'mode' field
-          const hasOldModeField = cachedDiagram.metadata && 'mode' in cachedDiagram.metadata;
-
-          // Only use cache if:
-          // 1. Depth matches
-          // 2. It's NOT an old cache with mode field
-          if (cachedDepth === requestedDepth && !hasOldModeField) {
-            res.json({
-              success: true,
-              data: {
-                ...cachedDiagram,
-                fromInsights: true,
-                hashMatched: true,
-              },
-            });
-            return;
-          }
-          // If parameters don't match or it's old cache, regenerate (fall through)
-        } else {
-          // For non-cross-file analysis, use cache directly
-          res.json({
-            success: true,
-            data: {
-              ...cachedDiagram,
-              fromInsights: true,
-              hashMatched: true,
-            },
-          });
-          return;
-        }
-      }
-    }
-
     // Load configuration
     const configService = new ConfigService(projectPath);
     const config = await configService.get();
@@ -163,15 +109,10 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       result = await umlService.generateDiagram(code, type);
     }
 
-    // Save to insights
-    await insightService.setUML(filePath, codeHash, type, result);
-
     res.json({
       success: true,
       data: {
         ...result,
-        fromInsights: false,
-        forceRefreshed: !!forceRefresh,
         crossFileAnalysis: !!crossFileAnalysis,
       },
     });
