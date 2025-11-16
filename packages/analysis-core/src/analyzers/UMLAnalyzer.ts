@@ -611,20 +611,16 @@ export class UMLAnalyzer {
 
     // Generate each class/interface
     classes.forEach((classInfo) => {
-      const prefix = classInfo.type === 'interface' ? '<<interface>>' : '';
+      const isInterface = classInfo.type === 'interface';
 
-      // Class definition
-      mermaid += `  class ${classInfo.name}\n`;
-
-      // If it's an interface, add marker
-      if (classInfo.type === 'interface') {
-        mermaid += `  ${classInfo.name} : ${prefix}\n`;
-      }
+      mermaid += isInterface
+        ? `  interface ${classInfo.name}\n`
+        : `  class ${classInfo.name}\n`;
 
       // Add properties
       classInfo.properties.forEach((prop) => {
         const visibility = this.getVisibilitySymbol(prop.visibility);
-        const type = prop.type ? ` ${prop.type}` : '';
+        const type = prop.type ? ` ${this.sanitizeTypeForMermaid(prop.type)}` : '';
         mermaid += `  ${classInfo.name} : ${visibility}${prop.name}${type}\n`;
       });
 
@@ -636,12 +632,14 @@ export class UMLAnalyzer {
         const params = method.parameters
           .map((p) => {
             if (p.type) {
-              return `${p.type} ${p.name}`;
+              return `${this.sanitizeTypeForMermaid(p.type)} ${p.name}`;
             }
             return p.name;
           })
           .join(', ');
-        const returnType = method.returnType ? ` ${method.returnType}` : '';
+        const returnType = method.returnType
+          ? ` ${this.sanitizeTypeForMermaid(method.returnType)}`
+          : '';
         mermaid += `  ${classInfo.name} : ${visibility}${method.name}(${params})${returnType}\n`;
       });
 
@@ -679,7 +677,7 @@ export class UMLAnalyzer {
             // A *-- B : cardinality (A owns B, B's lifecycle controlled by A)
             mermaid += `  ${from} *-- "${cardinality || '1'}" ${to}`;
             if (context) {
-              mermaid += ` : ${context}`;
+              mermaid += ` : ${this.sanitizeLabelForMermaid(context)}`;
             }
             mermaid += '\n';
             break;
@@ -688,7 +686,7 @@ export class UMLAnalyzer {
             // A o-- B : cardinality (A uses B, but B can exist independently)
             mermaid += `  ${from} o-- "${cardinality || '*'}" ${to}`;
             if (context) {
-              mermaid += ` : ${context}`;
+              mermaid += ` : ${this.sanitizeLabelForMermaid(context)}`;
             }
             mermaid += '\n';
             break;
@@ -697,7 +695,7 @@ export class UMLAnalyzer {
             // A ..> B (method uses B as parameter or return type)
             mermaid += `  ${from} ..> ${to}`;
             if (context) {
-              mermaid += ` : ${context}`;
+              mermaid += ` : ${this.sanitizeLabelForMermaid(context)}`;
             }
             mermaid += '\n';
             break;
@@ -711,12 +709,10 @@ export class UMLAnalyzer {
             mermaid += '\n';
             break;
 
-          case 'injection': // Dependency injection (special dependency)
-            // A ..> B : <<inject>> (dependency injection)
-            mermaid += `  ${from} ..> ${to} : <<inject>>`;
-            if (context) {
-              mermaid += ` ${context}`;
-            }
+          case 'injection':
+            mermaid += `  ${from} ..> ${to}`;
+            const label = `inject${context ? ` ${context}` : ''}`;
+            mermaid += ` : ${label}`;
             mermaid += '\n';
             break;
 
@@ -751,6 +747,17 @@ export class UMLAnalyzer {
       default:
         return '+';
     }
+  }
+
+  private sanitizeTypeForMermaid(type: string): string {
+    return type
+      .replace(/["']/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private sanitizeLabelForMermaid(label: string): string {
+    return label.replace(/<<|>>/g, '').replace(/["']/g, '').trim();
   }
 
   /**
