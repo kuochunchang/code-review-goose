@@ -68,7 +68,7 @@ describe('DiagramPanel', () => {
     mockPanel = {
       webview: mockWebview,
       reveal: vi.fn(),
-      onDidDispose: vi.fn((handler) => {
+      onDidDispose: vi.fn((_handler) => {
         return { dispose: vi.fn() };
       }),
       dispose: vi.fn(),
@@ -280,7 +280,7 @@ describe('DiagramPanel', () => {
 
   describe('webview HTML generation', () => {
     it('should include zoom controls in HTML', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
 
       expect(mockWebview.html).toContain('zoomInBtn');
       expect(mockWebview.html).toContain('zoomOutBtn');
@@ -288,7 +288,7 @@ describe('DiagramPanel', () => {
     });
 
     it('should include diagram type selectors', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
 
       expect(mockWebview.html).toContain('class');
       expect(mockWebview.html).toContain('sequence');
@@ -296,7 +296,7 @@ describe('DiagramPanel', () => {
     });
 
     it('should include class diagram options', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
 
       expect(mockWebview.html).toContain('Depth:');
       expect(mockWebview.html).toContain('Mode:');
@@ -337,14 +337,14 @@ describe('DiagramPanel', () => {
     });
 
     it('should show empty state when no diagram is generated', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
 
       expect(mockWebview.html).toContain('empty-state');
       expect(mockWebview.html).toContain('Select a TypeScript/JavaScript file');
     });
 
     it('should include native zoom implementation', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
 
       // Check that native zoom functions are defined
       expect(mockWebview.html).toContain('function zoomIn()');
@@ -353,7 +353,7 @@ describe('DiagramPanel', () => {
     });
 
     it('should configure zoom limits correctly', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
       const html = mockWebview.html;
 
       // Check zoom limits constants
@@ -375,7 +375,7 @@ describe('DiagramPanel', () => {
 
   describe('zoom functionality', () => {
     it('should use native zoom implementation', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
       const html = mockWebview.html;
 
       // Check that native zoom variables are defined
@@ -385,7 +385,7 @@ describe('DiagramPanel', () => {
     });
 
     it('should handle zoom reset correctly', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
       const html = mockWebview.html;
 
       // Reset should reset all zoom variables
@@ -395,7 +395,7 @@ describe('DiagramPanel', () => {
     });
 
     it('should enable mouse wheel zoom', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
       const html = mockWebview.html;
 
       // Should have wheel event listener
@@ -403,7 +403,7 @@ describe('DiagramPanel', () => {
     });
 
     it('should support drag to pan', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
       const html = mockWebview.html;
 
       // Should have mouse event listeners for dragging
@@ -413,7 +413,7 @@ describe('DiagramPanel', () => {
     });
 
     it('should configure diagram container with CSS transforms', () => {
-      const panel = DiagramPanel.createOrShow(mockExtensionUri);
+      DiagramPanel.createOrShow(mockExtensionUri);
       const html = mockWebview.html;
 
       // Container should use CSS transform
