@@ -1,27 +1,24 @@
 /**
  * @code-review-goose/analysis-adapter-node
  * Node.js file system adapter for code analysis engine
+ *
+ * This package provides Node.js-specific implementations of the platform-agnostic
+ * analysis interfaces defined in @code-review-goose/analysis-types.
+ *
+ * @packageDocumentation
  */
 
-import type { IFileProvider } from '@code-review-goose/analysis-types';
+// ============================================================================
+// File Provider (IFileProvider implementation)
+// ============================================================================
+export { NodeFileProvider } from './node-file-provider.js';
 
-// Placeholder - NodeFileProvider will be implemented in Phase 4
-export class NodeFileProvider implements IFileProvider {
-  constructor(private basePath: string) {}
+// ============================================================================
+// Path Resolution
+// ============================================================================
+export { PathResolver } from './path-resolver.js';
 
-  async readFile(_path: string): Promise<string> {
-    throw new Error('Not implemented yet - Phase 4');
-  }
-
-  async resolveImport(_from: string, _to: string): Promise<string | null> {
-    throw new Error('Not implemented yet - Phase 4');
-  }
-
-  async listFiles(_pattern: string): Promise<string[]> {
-    throw new Error('Not implemented yet - Phase 4');
-  }
-
-  async exists(_path: string): Promise<boolean> {
-    throw new Error('Not implemented yet - Phase 4');
-  }
-}
+// ============================================================================
+// Import Index Builder
+// ============================================================================
+export { ImportIndexBuilder } from './import-index-builder.js';
