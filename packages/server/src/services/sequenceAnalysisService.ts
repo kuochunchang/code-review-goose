@@ -345,6 +345,26 @@ export class SequenceAnalysisService {
       return false;
     }
 
+    // Internal property names that should never create participants
+    // These are common property names used in internal implementation
+    const internalPropertyNames = new Set([
+      'participants',
+      'interactions',
+      'classes',
+      'entryPoints',
+      'metadata',
+      'properties',
+      'methods',
+      'relationships',
+      'imports',
+      'exports',
+    ]);
+
+    // Filter out internal property names immediately
+    if (internalPropertyNames.has(targetClass.toLowerCase())) {
+      return true;
+    }
+
     // Common built-in methods that should be ignored
     const builtInMethods = new Set([
       'push',
@@ -385,8 +405,8 @@ export class SequenceAnalysisService {
       'propertyIsEnumerable',
     ]);
 
-    // Common built-in property names (lowercase names that are commonly built-in types)
-    const builtInPropertyNames = new Set([
+    // Common built-in type names (lowercase names that are commonly built-in types)
+    const builtInTypeNames = new Set([
       'array',
       'map',
       'set',
@@ -401,16 +421,11 @@ export class SequenceAnalysisService {
       'dataview',
       'weakmap',
       'weakset',
-      'participants', // Internal properties that shouldn't create participants
-      'interactions',
-      'classes',
-      'entryPoints',
-      'metadata',
     ]);
 
-    // Check if target is a known built-in property name and method is built-in
+    // Check if target is a known built-in type and method is built-in
     const lowerTarget = targetClass.toLowerCase();
-    if (builtInPropertyNames.has(lowerTarget) && builtInMethods.has(methodName)) {
+    if (builtInTypeNames.has(lowerTarget) && builtInMethods.has(methodName)) {
       return true;
     }
 
