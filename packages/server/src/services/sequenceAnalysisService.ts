@@ -47,6 +47,7 @@ export class SequenceAnalysisService {
   private interactions: SequenceInteraction[] = [];
   private classes: Map<string, Set<string>> = new Map(); // className -> methods
   private topLevelFunctions: Set<string> = new Set(); // Top-level function names
+  private propertyTypes: Map<string, string> = new Map(); // propertyName -> className (for tracking this.prop = new Class())
   private currentClass: string | null = null; // Current class/function being analyzed
   private currentMethod: string | null = null; // Current method being analyzed
   private entryPoints: Set<string> = new Set();
@@ -60,6 +61,7 @@ export class SequenceAnalysisService {
     this.interactions = [];
     this.classes.clear();
     this.topLevelFunctions.clear();
+    this.propertyTypes.clear();
     this.currentClass = null;
     this.currentMethod = null;
     this.entryPoints.clear();
@@ -72,7 +74,10 @@ export class SequenceAnalysisService {
       this.addParticipant('Module', 'module');
     }
 
-    // Second pass: analyze method calls and interactions
+    // Second pass: track property assignments (this.prop = new Class())
+    this.trackPropertyAssignments(ast);
+
+    // Third pass: analyze method calls and interactions
     this.analyzeMethodCalls(ast);
 
     return {
@@ -117,7 +122,55 @@ export class SequenceAnalysisService {
   }
 
   /**
-   * Second pass: analyze method calls between classes
+   * Second pass: track property and variable assignments to infer types
+   * e.g., this.db = new Database() => propertyTypes.set('db', 'Database')
+   * e.g., const db = new Database() => propertyTypes.set('db', 'Database')
+   */
+  private trackPropertyAssignments(ast: t.File): void {
+    traverse(ast, {
+      // Track: this.property = new ClassName()
+      AssignmentExpression: (path: any) => {
+        const node = path.node as t.AssignmentExpression;
+
+        if (
+          t.isMemberExpression(node.left) &&
+          t.isThisExpression(node.left.object) &&
+          t.isIdentifier(node.left.property) &&
+          t.isNewExpression(node.right) &&
+          t.isIdentifier(node.right.callee)
+        ) {
+          const propertyName = node.left.property.name;
+          const className = node.right.callee.name;
+
+          if (this.classes.has(className)) {
+            this.propertyTypes.set(propertyName, className);
+          }
+        }
+      },
+
+      // Track: const/let/var variable = new ClassName()
+      VariableDeclarator: (path: any) => {
+        const node = path.node as t.VariableDeclarator;
+
+        if (
+          t.isIdentifier(node.id) &&
+          node.init &&
+          t.isNewExpression(node.init) &&
+          t.isIdentifier(node.init.callee)
+        ) {
+          const variableName = node.id.name;
+          const className = node.init.callee.name;
+
+          if (this.classes.has(className)) {
+            this.propertyTypes.set(variableName, className);
+          }
+        }
+      },
+    });
+  }
+
+  /**
+   * Third pass: analyze method calls between classes
    */
   private analyzeMethodCalls(ast: t.File): void {
     traverse(ast, {
@@ -268,10 +321,16 @@ export class SequenceAnalysisService {
           // Try to find the class of this property
           const targetClass = this.findClassForObject(propertyName);
 
-          return {
-            targetClass: targetClass || propertyName,
-            methodName,
-          };
+          // STRICT MODE: Only return if we can resolve to a known class
+          if (targetClass && this.classes.has(targetClass)) {
+            return {
+              targetClass,
+              methodName,
+            };
+          }
+
+          // Cannot resolve to a known class, skip this call
+          return null;
         }
       } else if (t.isIdentifier(callee.object)) {
         // someObject.method() - call to another class instance
@@ -281,10 +340,16 @@ export class SequenceAnalysisService {
         // Try to find the class of this object
         const targetClass = this.findClassForObject(objectName);
 
-        return {
-          targetClass: targetClass || objectName,
-          methodName,
-        };
+        // STRICT MODE: Only return if we can resolve to a known class
+        if (targetClass && this.classes.has(targetClass)) {
+          return {
+            targetClass,
+            methodName,
+          };
+        }
+
+        // Cannot resolve to a known class, skip this call
+        return null;
       }
     }
 
@@ -517,16 +582,16 @@ export class SequenceAnalysisService {
 
   /**
    * Try to find the class type of an object variable
-   * This is a simplified heuristic - looks for patterns like:
-   * const obj = new ClassName()
-   * this.obj = new ClassName()
+   * Looks for tracked assignments like: this.obj = new ClassName()
    */
   private findClassForObject(objectName: string): string | null {
-    // For now, return the capitalized object name as a heuristic
-    // In a more sophisticated implementation, we'd track variable assignments
-    const capitalized = objectName.charAt(0).toUpperCase() + objectName.slice(1);
+    // First, check if we tracked this property assignment
+    if (this.propertyTypes.has(objectName)) {
+      return this.propertyTypes.get(objectName)!;
+    }
 
-    // Check if a class with this name exists
+    // Fallback: try capitalizing the object name
+    const capitalized = objectName.charAt(0).toUpperCase() + objectName.slice(1);
     if (this.classes.has(capitalized)) {
       return capitalized;
     }
