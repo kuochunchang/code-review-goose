@@ -48,6 +48,7 @@ export class SequenceAnalysisService {
   private classes: Map<string, Set<string>> = new Map(); // className -> methods
   private topLevelFunctions: Set<string> = new Set(); // Top-level function names
   private propertyTypes: Map<string, string> = new Map(); // propertyName -> className (for tracking this.prop = new Class())
+  private importedClasses: Set<string> = new Set(); // Imported class names from other files
   private currentClass: string | null = null; // Current class/function being analyzed
   private currentMethod: string | null = null; // Current method being analyzed
   private entryPoints: Set<string> = new Set();
@@ -62,12 +63,13 @@ export class SequenceAnalysisService {
     this.classes.clear();
     this.topLevelFunctions.clear();
     this.propertyTypes.clear();
+    this.importedClasses.clear();
     this.currentClass = null;
     this.currentMethod = null;
     this.entryPoints.clear();
 
-    // First pass: identify all classes and top-level functions
-    this.identifyClassesAndFunctions(ast);
+    // First pass: identify imports, classes and top-level functions
+    this.identifyImportsClassesAndFunctions(ast);
 
     // If no classes and no top-level functions found, add a "Module" participant as fallback
     if (this.classes.size === 0 && this.topLevelFunctions.size === 0) {
@@ -88,10 +90,24 @@ export class SequenceAnalysisService {
   }
 
   /**
-   * First pass: identify all classes, their methods, and top-level functions
+   * First pass: identify imports, classes, their methods, and top-level functions
    */
-  private identifyClassesAndFunctions(ast: t.File): void {
+  private identifyImportsClassesAndFunctions(ast: t.File): void {
     traverse(ast, {
+      // Track imports to detect imported classes
+      ImportDeclaration: (path: any) => {
+        const node = path.node as t.ImportDeclaration;
+        // Extract imported class names
+        node.specifiers.forEach((specifier) => {
+          if (t.isImportSpecifier(specifier) && t.isIdentifier(specifier.imported)) {
+            // Named import: import { ClassName } from '...'
+            this.importedClasses.add(specifier.imported.name);
+          } else if (t.isImportDefaultSpecifier(specifier) && t.isIdentifier(specifier.local)) {
+            // Default import: import ClassName from '...'
+            this.importedClasses.add(specifier.local.name);
+          }
+        });
+      },
       ClassDeclaration: (path: any) => {
         const node = path.node as t.ClassDeclaration;
         if (node.id) {
@@ -125,9 +141,58 @@ export class SequenceAnalysisService {
    * Second pass: track property and variable assignments to infer types
    * e.g., this.db = new Database() => propertyTypes.set('db', 'Database')
    * e.g., const db = new Database() => propertyTypes.set('db', 'Database')
+   * e.g., constructor(db: Database) { this.db = db; } => propertyTypes.set('db', 'Database')
    */
   private trackPropertyAssignments(ast: t.File): void {
     traverse(ast, {
+      // Track constructor parameters and their assignments
+      ClassMethod: (path: any) => {
+        const node = path.node as t.ClassMethod;
+
+        // Check if this is a constructor
+        if (t.isIdentifier(node.key) && node.key.name === 'constructor') {
+          // Build a map of parameter names to their types
+          const paramTypes = new Map<string, string>();
+
+          node.params.forEach((param) => {
+            if (t.isIdentifier(param) && param.typeAnnotation && t.isTSTypeAnnotation(param.typeAnnotation)) {
+              const paramName = param.name;
+              const typeNode = param.typeAnnotation.typeAnnotation;
+
+              // Extract type name from TypeScript type annotation
+              if (t.isTSTypeReference(typeNode) && t.isIdentifier(typeNode.typeName)) {
+                paramTypes.set(paramName, typeNode.typeName.name);
+              }
+            }
+          });
+
+          // Now look for assignments like: this.property = paramName
+          if (node.body && t.isBlockStatement(node.body)) {
+            node.body.body.forEach((statement) => {
+              if (t.isExpressionStatement(statement) && t.isAssignmentExpression(statement.expression)) {
+                const assignment = statement.expression;
+
+                // Check for: this.property = paramName
+                if (
+                  t.isMemberExpression(assignment.left) &&
+                  t.isThisExpression(assignment.left.object) &&
+                  t.isIdentifier(assignment.left.property) &&
+                  t.isIdentifier(assignment.right)
+                ) {
+                  const propertyName = assignment.left.property.name;
+                  const paramName = assignment.right.name;
+
+                  // If the param has a type annotation, track it
+                  if (paramTypes.has(paramName)) {
+                    this.propertyTypes.set(propertyName, paramTypes.get(paramName)!);
+                  }
+                }
+              }
+            });
+          }
+        }
+      },
+
       // Track: this.property = new ClassName()
       AssignmentExpression: (path: any) => {
         const node = path.node as t.AssignmentExpression;
@@ -321,8 +386,8 @@ export class SequenceAnalysisService {
           // Try to find the class of this property
           const targetClass = this.findClassForObject(propertyName);
 
-          // If we can resolve to a known class, use it
-          if (targetClass && this.classes.has(targetClass)) {
+          // If we can resolve to a known class (local or imported), use it
+          if (targetClass && (this.classes.has(targetClass) || this.importedClasses.has(targetClass))) {
             return {
               targetClass,
               methodName,
@@ -349,8 +414,8 @@ export class SequenceAnalysisService {
         // Try to find the class of this object
         const targetClass = this.findClassForObject(objectName);
 
-        // If we can resolve to a known class, use it
-        if (targetClass && this.classes.has(targetClass)) {
+        // If we can resolve to a known class (local or imported), use it
+        if (targetClass && (this.classes.has(targetClass) || this.importedClasses.has(targetClass))) {
           return {
             targetClass,
             methodName,
@@ -417,14 +482,14 @@ export class SequenceAnalysisService {
    * Returns true for built-in JavaScript/TypeScript types and their methods
    */
   private isBuiltInMethod(targetClass: string, methodName: string): boolean {
-    // Don't filter out known user-defined classes or top-level functions
-    if (this.classes.has(targetClass) || this.topLevelFunctions.has(targetClass)) {
+    // Don't filter out known user-defined classes (local or imported) or top-level functions
+    if (this.classes.has(targetClass) || this.importedClasses.has(targetClass) || this.topLevelFunctions.has(targetClass)) {
       return false;
     }
 
     // Check if target class can be resolved to a known class (e.g., "db" -> "Database")
     const resolvedClass = this.findClassForObject(targetClass);
-    if (resolvedClass && this.classes.has(resolvedClass)) {
+    if (resolvedClass && (this.classes.has(resolvedClass) || this.importedClasses.has(resolvedClass))) {
       return false;
     }
 
