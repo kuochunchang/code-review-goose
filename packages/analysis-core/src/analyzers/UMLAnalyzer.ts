@@ -709,12 +709,13 @@ export class UMLAnalyzer {
             mermaid += '\n';
             break;
 
-          case 'injection':
+          case 'injection': {
             mermaid += `  ${from} ..> ${to}`;
             const label = `inject${context ? ` ${context}` : ''}`;
             mermaid += ` : ${label}`;
             mermaid += '\n';
             break;
+          }
 
           default:
             // Fallback to basic dependency
