@@ -4,10 +4,7 @@
  */
 
 import * as vscode from 'vscode';
-import { UMLAnalyzer } from '@code-review-goose/analysis-core';
-import { VSCodeFileProvider } from '@code-review-goose/analysis-adapter-vscode';
 import { DiagramPanel } from '../views/diagram-panel.js';
-import { getConfiguration } from '../utils/config.js';
 
 export class GenerateClassDiagramCommand {
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -37,48 +34,19 @@ export class GenerateClassDiagramCommand {
         return;
       }
 
-      // Show progress
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: 'Generating class diagram...',
-          cancellable: false,
-        },
-        async (progress) => {
-          // Get configuration
-          const config = getConfiguration();
+      // Open unified panel and generate class diagram
+      const panel = DiagramPanel.createOrShow(this.context.extensionUri, document.uri);
 
-          // Create file provider and analyzer
-          const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
-          const analyzer = new UMLAnalyzer(fileProvider);
+      // Generate class diagram with default settings (depth=1, mode=bidirectional)
+      await panel.generateDiagram(document.uri, 'class', {
+        depth: 1,
+        mode: 'bidirectional',
+      });
 
-          // Generate class diagram
-          progress.report({ message: 'Analyzing file structure...' });
-          const result = await analyzer.generateUnifiedDiagram(
-            document.uri.fsPath,
-            'class',
-            {
-              depth: config.analysisDepth,
-              mode: config.analysisMode === 'comprehensive' ? 'bidirectional' : 'forward',
-            }
-          );
-
-          // Display diagram in webview
-          progress.report({ message: 'Rendering diagram...' });
-          const panel = DiagramPanel.createOrShow(
-            this.context.extensionUri,
-            'Class Diagram',
-            document.fileName
-          );
-
-          panel.updateDiagram(result.mermaidCode, 'class');
-
-          vscode.window.showInformationMessage('Class diagram generated successfully');
-        }
-      );
+      vscode.window.showInformationMessage('Class diagram panel opened');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      vscode.window.showErrorMessage(`Failed to generate class diagram: ${errorMessage}`);
+      vscode.window.showErrorMessage(`Failed to open UML panel: ${errorMessage}`);
       console.error('Class diagram generation error:', error);
     }
   }

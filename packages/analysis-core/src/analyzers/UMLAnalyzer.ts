@@ -16,6 +16,7 @@ import type {
 import { MermaidValidator } from '@code-review-goose/analysis-utils';
 import { OOAnalyzer } from './OOAnalyzer.js';
 import { SequenceAnalyzer } from './SequenceAnalyzer.js';
+import { CrossFileAnalyzer } from './CrossFileAnalyzer.js';
 
 // Correct way to import @babel/traverse
 const traverse = (traverseModule as any).default || traverseModule;
@@ -159,14 +160,46 @@ export class UMLAnalyzer {
    * @returns UML class diagram with cross-file relationships
    */
   async generateCrossFileClassDiagram(
-    _filePath: string,
-    _depth: 1 | 2 | 3 = 1,
-    _mode: 'forward' | 'reverse' | 'bidirectional' = 'bidirectional'
+    filePath: string,
+    depth: 1 | 2 | 3 = 1,
+    mode: 'forward' | 'reverse' | 'bidirectional' = 'bidirectional'
   ): Promise<UMLResult> {
-    // Cross-file analysis will be migrated separately in Phase 3
-    throw new Error(
-      'Cross-file analysis will be handled by CrossFileAnalyzer (Phase 3 - to be migrated separately)'
+    // Validate depth parameter
+    if (depth < 1 || depth > 3) {
+      throw new Error('Cross-file analysis depth must be between 1 and 3');
+    }
+
+    // Create CrossFileAnalyzer instance
+    const crossFileAnalyzer = new CrossFileAnalyzer(this.fileProvider);
+
+    // Execute bidirectional analysis
+    // Note: Currently only bidirectional mode is fully implemented
+    // Forward-only and reverse-only modes will be added in future iterations
+    const analysisResult = await crossFileAnalyzer.analyzeBidirectional(filePath, depth);
+
+    // Generate Mermaid class diagram from analysis result
+    const mermaidCode = this.generateMermaidClassDiagram(
+      analysisResult.allClasses,
+      analysisResult.relationships
     );
+
+    // Return UML result with cross-file metadata
+    return {
+      type: 'class',
+      mermaidCode,
+      generationMode: 'native',
+      metadata: {
+        classes: analysisResult.allClasses,
+        dependencies: analysisResult.relationships,
+        depth,
+        mode,
+        singleFile: false,
+        filePath,
+        crossFileStats: analysisResult.stats,
+        forwardDependencies: analysisResult.forwardDeps.map((dep) => dep.filePath),
+        reverseDependencies: analysisResult.reverseDeps.map((dep) => dep.filePath),
+      },
+    };
   }
 
   /**

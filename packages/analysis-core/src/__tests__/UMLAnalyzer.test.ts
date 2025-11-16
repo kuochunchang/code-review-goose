@@ -431,10 +431,36 @@ describe('UMLAnalyzer', () => {
       expect(result.metadata?.filePath).toBe('foo.ts');
     });
 
-    it('should throw error for cross-file class diagram', async () => {
-      await expect(
-        analyzer.generateUnifiedDiagram('foo.ts', 'class', { depth: 1 })
-      ).rejects.toThrow('Phase 3');
+    it('should generate cross-file class diagram with depth 1', async () => {
+      const fooCode = `
+        import { Bar } from './bar';
+        export class Foo {
+          bar: Bar;
+        }
+      `;
+      const barCode = `export class Bar { name: string; }`;
+
+      (mockFileProvider.readFile as any).mockImplementation((path: string) => {
+        if (path === 'foo.ts') return Promise.resolve(fooCode);
+        if (path === 'bar.ts') return Promise.resolve(barCode);
+        return Promise.reject(new Error('File not found'));
+      });
+
+      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.resolveImport as any).mockImplementation(
+        (_from: string, source: string) => {
+          if (source === './bar') return Promise.resolve('bar.ts');
+          return Promise.resolve(null);
+        }
+      );
+
+      const result = await analyzer.generateUnifiedDiagram('foo.ts', 'class', { depth: 1 });
+
+      expect(result.type).toBe('class');
+      expect(result.metadata?.depth).toBe(1);
+      expect(result.metadata?.singleFile).toBe(false);
+      expect(result.metadata?.classes?.length).toBeGreaterThanOrEqual(1);
+      expect(result.mermaidCode).toContain('classDiagram');
     });
 
     it('should throw error for invalid depth', async () => {
@@ -550,6 +576,172 @@ describe('UMLAnalyzer', () => {
 
       expect(result.metadata?.functions).toBeDefined();
       expect(result.metadata?.functions?.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('generateCrossFileClassDiagram', () => {
+    it('should generate cross-file class diagram with depth 1', async () => {
+      const mainCode = `
+        import { Service } from './service';
+        export class Controller {
+          constructor(private service: Service) {}
+        }
+      `;
+      const serviceCode = `export class Service { getData() {} }`;
+
+      (mockFileProvider.readFile as any).mockImplementation((path: string) => {
+        if (path === 'controller.ts') return Promise.resolve(mainCode);
+        if (path === 'service.ts') return Promise.resolve(serviceCode);
+        return Promise.reject(new Error('File not found'));
+      });
+
+      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.resolveImport as any).mockImplementation(
+        (_from: string, source: string) => {
+          if (source === './service') return Promise.resolve('service.ts');
+          return Promise.resolve(null);
+        }
+      );
+
+      const result = await analyzer.generateCrossFileClassDiagram('controller.ts', 1);
+
+      expect(result.type).toBe('class');
+      expect(result.generationMode).toBe('native');
+      expect(result.metadata?.depth).toBe(1);
+      expect(result.metadata?.singleFile).toBe(false);
+      expect(result.metadata?.classes?.length).toBeGreaterThanOrEqual(2);
+      expect(result.mermaidCode).toContain('Controller');
+      expect(result.mermaidCode).toContain('Service');
+    });
+
+    it('should include cross-file relationships', async () => {
+      const carCode = `
+        import { Engine } from './engine';
+        export class Car {
+          private engine: Engine;
+        }
+      `;
+      const engineCode = `export class Engine { horsepower: number; }`;
+
+      (mockFileProvider.readFile as any).mockImplementation((path: string) => {
+        if (path === 'car.ts') return Promise.resolve(carCode);
+        if (path === 'engine.ts') return Promise.resolve(engineCode);
+        return Promise.reject(new Error('File not found'));
+      });
+
+      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.resolveImport as any).mockImplementation(
+        (_from: string, source: string) => {
+          if (source === './engine') return Promise.resolve('engine.ts');
+          return Promise.resolve(null);
+        }
+      );
+
+      const result = await analyzer.generateCrossFileClassDiagram('car.ts', 1);
+
+      expect(result.metadata?.dependencies?.length).toBeGreaterThan(0);
+      expect(result.metadata?.crossFileStats).toBeDefined();
+      expect(result.metadata?.crossFileStats?.totalClasses).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should handle depth 2 analysis', async () => {
+      const aCode = `import { B } from './b'; export class A { b: B; }`;
+      const bCode = `import { C } from './c'; export class B { c: C; }`;
+      const cCode = `export class C { name: string; }`;
+
+      (mockFileProvider.readFile as any).mockImplementation((path: string) => {
+        if (path === 'a.ts') return Promise.resolve(aCode);
+        if (path === 'b.ts') return Promise.resolve(bCode);
+        if (path === 'c.ts') return Promise.resolve(cCode);
+        return Promise.reject(new Error('File not found'));
+      });
+
+      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.resolveImport as any).mockImplementation(
+        (_from: string, source: string) => {
+          if (source === './b') return Promise.resolve('b.ts');
+          if (source === './c') return Promise.resolve('c.ts');
+          return Promise.resolve(null);
+        }
+      );
+
+      const result = await analyzer.generateCrossFileClassDiagram('a.ts', 2);
+
+      expect(result.metadata?.crossFileStats?.totalClasses).toBe(3);
+      expect(result.metadata?.crossFileStats?.maxDepth).toBe(2);
+      expect(result.mermaidCode).toContain('class A');
+      expect(result.mermaidCode).toContain('class B');
+      expect(result.mermaidCode).toContain('class C');
+    });
+
+    it('should handle circular dependencies', async () => {
+      const aCode = `import { B } from './b'; export class A { b: B; }`;
+      const bCode = `import { A } from './a'; export class B { a: A; }`;
+
+      (mockFileProvider.readFile as any).mockImplementation((path: string) => {
+        if (path === 'a.ts') return Promise.resolve(aCode);
+        if (path === 'b.ts') return Promise.resolve(bCode);
+        return Promise.reject(new Error('File not found'));
+      });
+
+      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.resolveImport as any).mockImplementation(
+        (_from: string, source: string) => {
+          if (source === './b') return Promise.resolve('b.ts');
+          if (source === './a') return Promise.resolve('a.ts');
+          return Promise.resolve(null);
+        }
+      );
+
+      const result = await analyzer.generateCrossFileClassDiagram('a.ts', 1);
+
+      expect(result.metadata?.classes?.length).toBeGreaterThanOrEqual(2);
+      expect(result.mermaidCode).toContain('class A');
+      expect(result.mermaidCode).toContain('class B');
+    });
+
+    it('should throw error for invalid depth', async () => {
+      await expect(analyzer.generateCrossFileClassDiagram('foo.ts', 0 as any)).rejects.toThrow(
+        'depth must be between 1 and 3'
+      );
+
+      await expect(analyzer.generateCrossFileClassDiagram('foo.ts', 4 as any)).rejects.toThrow(
+        'depth must be between 1 and 3'
+      );
+    });
+
+    it('should throw error for non-existent file', async () => {
+      (mockFileProvider.exists as any).mockResolvedValue(false);
+
+      await expect(analyzer.generateCrossFileClassDiagram('missing.ts', 1)).rejects.toThrow(
+        'File not found'
+      );
+    });
+
+    it('should include metadata for forward and reverse dependencies', async () => {
+      const mainCode = `import { Helper } from './helper'; export class Main { h: Helper; }`;
+      const helperCode = `export class Helper {}`;
+
+      (mockFileProvider.readFile as any).mockImplementation((path: string) => {
+        if (path === 'main.ts') return Promise.resolve(mainCode);
+        if (path === 'helper.ts') return Promise.resolve(helperCode);
+        return Promise.reject(new Error('File not found'));
+      });
+
+      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.resolveImport as any).mockImplementation(
+        (_from: string, source: string) => {
+          if (source === './helper') return Promise.resolve('helper.ts');
+          return Promise.resolve(null);
+        }
+      );
+
+      const result = await analyzer.generateCrossFileClassDiagram('main.ts', 1);
+
+      expect(result.metadata?.forwardDependencies).toBeDefined();
+      expect(result.metadata?.reverseDependencies).toBeDefined();
+      expect(Array.isArray(result.metadata?.forwardDependencies)).toBe(true);
+      expect(Array.isArray(result.metadata?.reverseDependencies)).toBe(true);
     });
   });
 });
