@@ -1055,8 +1055,8 @@ export class UMLService {
   }): string {
     let mermaid = 'sequenceDiagram\n';
 
-    // If no participants found, generate a placeholder
-    if (analysis.participants.length === 0) {
+    // If no interactions found, generate a placeholder
+    if (analysis.interactions.length === 0) {
       mermaid += '  participant NoCode\n';
       mermaid += '  Note over NoCode: No function calls detected\n';
       return mermaid;

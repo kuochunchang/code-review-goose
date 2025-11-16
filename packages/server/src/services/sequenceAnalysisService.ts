@@ -1,6 +1,7 @@
 /**
  * Sequence Analysis Service
- * Analyzes function call sequences and generates sequence diagram data
+ * Analyzes class interactions and method calls for sequence diagrams
+ * Participants are classes/objects, messages are method calls
  */
 
 import * as t from '@babel/types';
@@ -10,11 +11,11 @@ import traverseModule from '@babel/traverse';
 const traverse = (traverseModule as any).default || traverseModule;
 
 /**
- * Represents a participant in the sequence diagram
+ * Represents a participant in the sequence diagram (class, function, or module)
  */
 export interface SequenceParticipant {
   name: string;
-  type: 'class' | 'function' | 'object' | 'external';
+  type: 'class' | 'function' | 'module'; // Classes are objects, function is for top-level functions, module is fallback
   lineNumber?: number;
 }
 
@@ -22,9 +23,9 @@ export interface SequenceParticipant {
  * Represents an interaction/message in the sequence diagram
  */
 export interface SequenceInteraction {
-  from: string;
-  to: string;
-  message: string;
+  from: string; // Calling class/module
+  to: string; // Called class/module
+  message: string; // Method name with arguments
   type: 'sync' | 'async' | 'return';
   lineNumber?: number;
 }
@@ -35,16 +36,19 @@ export interface SequenceInteraction {
 export interface SequenceAnalysisResult {
   participants: SequenceParticipant[];
   interactions: SequenceInteraction[];
-  entryPoints: string[]; // Main functions that start sequences
+  entryPoints: string[]; // Entry point methods
 }
 
 /**
- * Sequence Analysis Service for extracting function call sequences
+ * Sequence Analysis Service for extracting class interactions
  */
 export class SequenceAnalysisService {
   private participants: Map<string, SequenceParticipant> = new Map();
   private interactions: SequenceInteraction[] = [];
-  private currentContext: string[] = []; // Stack of current execution context
+  private classes: Map<string, Set<string>> = new Map(); // className -> methods
+  private topLevelFunctions: Set<string> = new Set(); // Top-level function names
+  private currentClass: string | null = null; // Current class/function being analyzed
+  private currentMethod: string | null = null; // Current method being analyzed
   private entryPoints: Set<string> = new Set();
 
   /**
@@ -54,14 +58,22 @@ export class SequenceAnalysisService {
     // Reset state
     this.participants.clear();
     this.interactions = [];
-    this.currentContext = [];
+    this.classes.clear();
+    this.topLevelFunctions.clear();
+    this.currentClass = null;
+    this.currentMethod = null;
     this.entryPoints.clear();
 
-    // First pass: identify all participants (classes, functions, etc.)
-    this.identifyParticipants(ast);
+    // First pass: identify all classes and top-level functions
+    this.identifyClassesAndFunctions(ast);
 
-    // Second pass: analyze function calls and interactions
-    this.analyzeInteractions(ast);
+    // If no classes and no top-level functions found, add a "Module" participant as fallback
+    if (this.classes.size === 0 && this.topLevelFunctions.size === 0) {
+      this.addParticipant('Module', 'module');
+    }
+
+    // Second pass: analyze method calls and interactions
+    this.analyzeMethodCalls(ast);
 
     return {
       participants: Array.from(this.participants.values()),
@@ -71,135 +83,111 @@ export class SequenceAnalysisService {
   }
 
   /**
-   * First pass: identify all participants
+   * First pass: identify all classes, their methods, and top-level functions
    */
-  private identifyParticipants(ast: t.File): void {
+  private identifyClassesAndFunctions(ast: t.File): void {
     traverse(ast, {
-      // Identify classes as participants
       ClassDeclaration: (path: any) => {
         const node = path.node as t.ClassDeclaration;
         if (node.id) {
-          this.addParticipant(node.id.name, 'class', node.loc?.start.line);
+          const className = node.id.name;
+          this.classes.set(className, new Set());
+          this.addParticipant(className, 'class', node.loc?.start.line);
+
+          // Extract methods
+          node.body.body.forEach((member) => {
+            if (t.isClassMethod(member) && t.isIdentifier(member.key)) {
+              this.classes.get(className)?.add(member.key.name);
+            }
+          });
         }
       },
-
-      // Identify top-level functions as participants
       FunctionDeclaration: (path: any) => {
         const node = path.node as t.FunctionDeclaration;
-        if (node.id) {
-          this.addParticipant(node.id.name, 'function', node.loc?.start.line);
-
-          // Top-level exported functions are potential entry points
-          const parent = path.parent;
-          if (t.isProgram(parent) || t.isExportNamedDeclaration(parent)) {
-            this.entryPoints.add(node.id.name);
-          }
-        }
-      },
-
-      // Identify arrow functions assigned to variables
-      VariableDeclarator: (path: any) => {
-        const node = path.node as t.VariableDeclarator;
-        if (
-          t.isIdentifier(node.id) &&
-          (t.isArrowFunctionExpression(node.init) || t.isFunctionExpression(node.init))
-        ) {
-          this.addParticipant(node.id.name, 'function', node.loc?.start.line);
-        }
-      },
-
-      // Identify object expressions as participants (e.g., const api = { ... })
-      ObjectExpression: (path: any) => {
-        const parent = path.parent;
-        if (t.isVariableDeclarator(parent) && t.isIdentifier(parent.id)) {
-          this.addParticipant(parent.id.name, 'object', parent.loc?.start.line);
+        // Only process top-level functions (not nested in classes)
+        // Check if function is at program level
+        const isTopLevel = path.parent.type === 'Program' || path.getFunctionParent() === null;
+        if (node.id && isTopLevel) {
+          const functionName = node.id.name;
+          this.topLevelFunctions.add(functionName);
+          this.addParticipant(functionName, 'function', node.loc?.start.line);
         }
       },
     });
   }
 
   /**
-   * Second pass: analyze interactions and function calls
+   * Second pass: analyze method calls between classes
    */
-  private analyzeInteractions(ast: t.File): void {
+  private analyzeMethodCalls(ast: t.File): void {
     traverse(ast, {
-      // Track function declarations to establish context
-      FunctionDeclaration: {
-        enter: (path: any) => {
-          const node = path.node as t.FunctionDeclaration;
-          if (node.id) {
-            this.currentContext.push(node.id.name);
-          }
-        },
-        exit: (path: any) => {
-          const node = path.node as t.FunctionDeclaration;
-          if (node.id) {
-            this.currentContext.pop();
-          }
-        },
-      },
-
-      // Track arrow functions
-      ArrowFunctionExpression: {
-        enter: (path: any) => {
-          const parent = path.parent;
-          if (t.isVariableDeclarator(parent) && t.isIdentifier(parent.id)) {
-            this.currentContext.push(parent.id.name);
-          } else {
-            this.currentContext.push('anonymous');
-          }
-        },
-        exit: () => {
-          this.currentContext.pop();
-        },
-      },
-
       // Track class methods
       ClassMethod: {
         enter: (path: any) => {
           const node = path.node as t.ClassMethod;
           const classPath = path.findParent((p: any) => p.isClassDeclaration());
+
           if (classPath && t.isClassDeclaration(classPath.node) && classPath.node.id) {
-            const className = classPath.node.id.name;
-            const methodName = t.isIdentifier(node.key) ? node.key.name : 'unknown';
-            this.currentContext.push(`${className}.${methodName}`);
+            this.currentClass = classPath.node.id.name;
+            this.currentMethod = t.isIdentifier(node.key) ? node.key.name : null;
+
+            // Mark as entry point if it's a public method
+            if (this.currentMethod && node.kind === 'method') {
+              this.entryPoints.add(`${this.currentClass}.${this.currentMethod}`);
+            }
           }
         },
         exit: () => {
-          this.currentContext.pop();
+          this.currentClass = null;
+          this.currentMethod = null;
         },
       },
 
-      // Analyze function calls
+      // Track top-level functions
+      FunctionDeclaration: {
+        enter: (path: any) => {
+          const node = path.node as t.FunctionDeclaration;
+          // Only process top-level functions (when there are no classes)
+          // Check if function is at program level (not nested in other functions or classes)
+          const isTopLevel = path.parent.type === 'Program' || path.getFunctionParent() === null;
+          if (this.classes.size === 0 && node.id && isTopLevel) {
+            this.currentClass = node.id.name; // Use function name as "class"
+            this.currentMethod = null; // Top-level, not a method
+            this.entryPoints.add(node.id.name);
+          }
+        },
+        exit: (path: any) => {
+          const node = path.node as t.FunctionDeclaration;
+          const isTopLevel = path.parent.type === 'Program' || path.getFunctionParent() === null;
+          if (this.classes.size === 0 && node.id && isTopLevel && this.currentClass === node.id.name) {
+            this.currentClass = null;
+            this.currentMethod = null;
+          }
+        },
+      },
+
+      // Analyze function/method calls
       CallExpression: (path: any) => {
         const node = path.node as t.CallExpression;
-        this.analyzeCallExpression(node);
+        if (this.currentClass && this.currentMethod) {
+          // Class method calls
+          this.analyzeCallExpression(node, false);
+        } else if (this.currentClass && this.classes.size === 0) {
+          // Top-level function calls (currentMethod is null for top-level functions)
+          this.analyzeCallExpression(node, false);
+        }
       },
 
       // Analyze await expressions (async calls)
       AwaitExpression: (path: any) => {
         const node = path.node as t.AwaitExpression;
         if (t.isCallExpression(node.argument)) {
-          this.analyzeCallExpression(node.argument, true);
-        }
-      },
-
-      // Analyze return statements
-      ReturnStatement: (path: any) => {
-        const node = path.node as t.ReturnStatement;
-        if (this.currentContext.length > 0) {
-          const currentFunc = this.currentContext[this.currentContext.length - 1];
-          const caller = this.currentContext[this.currentContext.length - 2];
-
-          if (caller && currentFunc) {
-            const returnValue = node.argument ? this.getExpressionLabel(node.argument) : 'void';
-            this.addInteraction(
-              currentFunc,
-              caller,
-              returnValue,
-              'return',
-              node.loc?.start.line
-            );
+          if (this.currentClass && this.currentMethod) {
+            // Class method async calls
+            this.analyzeCallExpression(node.argument, true);
+          } else if (this.currentClass && this.classes.size === 0) {
+            // Top-level async function calls
+            this.analyzeCallExpression(node.argument, true);
           }
         }
       },
@@ -209,106 +197,152 @@ export class SequenceAnalysisService {
   /**
    * Analyze a call expression and record the interaction
    */
-  private analyzeCallExpression(node: t.CallExpression, isAsync: boolean = false): void {
-    if (this.currentContext.length === 0) return;
+  private analyzeCallExpression(node: t.CallExpression, isAsync: boolean): void {
+    // For classes, we need both currentClass and currentMethod
+    // For top-level functions, we only need currentClass (currentMethod is null)
+    if (!this.currentClass) return;
+    if (this.classes.size > 0 && !this.currentMethod) return; // In class mode, must have a method
 
-    const caller = this.currentContext[this.currentContext.length - 1];
-    const callee = this.getCalleeInfo(node.callee);
+    const callInfo = this.getCallInfo(node.callee);
+    if (!callInfo) return;
 
-    if (!callee) return;
+    const { targetClass, methodName } = callInfo;
 
-    // Add callee as participant if not already present
-    if (!this.participants.has(callee.name)) {
-      this.addParticipant(callee.name, callee.type, node.loc?.start.line);
+    // Add target class/function as participant if not already present
+    if (!this.participants.has(targetClass)) {
+      const participantType = this.topLevelFunctions.has(targetClass) ? 'function' : 'class';
+      this.addParticipant(targetClass, participantType, node.loc?.start.line);
     }
 
-    // Create interaction message
-    const message = this.createCallMessage(node, callee.name);
+    // Create interaction message (method call)
+    const args = node.arguments.map((arg) => this.getExpressionLabel(arg)).join(', ');
+    const message = args ? `${methodName}(${args})` : `${methodName}()`;
+
     const interactionType = isAsync ? 'async' : 'sync';
 
-    this.addInteraction(caller, callee.name, message, interactionType, node.loc?.start.line);
+    // Add interaction from current class to target class
+    this.addInteraction(
+      this.currentClass,
+      targetClass,
+      message,
+      interactionType,
+      node.loc?.start.line
+    );
 
-    // Also record the return (for better sequence diagrams)
-    // Return shows completion of the function call
-    this.addInteraction(callee.name, caller, 'return', 'return', node.loc?.start.line);
+    // Add return interaction
+    this.addInteraction(
+      targetClass,
+      this.currentClass,
+      'return',
+      'return',
+      node.loc?.start.line
+    );
   }
 
   /**
-   * Get callee information from various call patterns
+   * Get call information (target class and method name)
    */
-  private getCalleeInfo(
+  private getCallInfo(
     callee: t.Expression | t.V8IntrinsicIdentifier
-  ): { name: string; type: 'function' | 'class' | 'object' | 'external' } | null {
-    // Simple function call: foo()
-    if (t.isIdentifier(callee)) {
-      const participant = this.participants.get(callee.name);
+  ): { targetClass: string; methodName: string } | null {
+    // Case 1: this.method() - call within same class
+    if (t.isMemberExpression(callee)) {
+      if (t.isThisExpression(callee.object)) {
+        // this.method() - stays in same class
+        if (t.isIdentifier(callee.property)) {
+          return {
+            targetClass: this.currentClass!,
+            methodName: callee.property.name,
+          };
+        }
+      } else if (t.isMemberExpression(callee.object)) {
+        // this.property.method() - chained member expression
+        // e.g., this.db.query()
+        if (t.isThisExpression(callee.object.object) && t.isIdentifier(callee.object.property)) {
+          const propertyName = callee.object.property.name;
+          const methodName = t.isIdentifier(callee.property) ? callee.property.name : 'method';
+
+          // Try to find the class of this property
+          const targetClass = this.findClassForObject(propertyName);
+
+          return {
+            targetClass: targetClass || propertyName,
+            methodName,
+          };
+        }
+      } else if (t.isIdentifier(callee.object)) {
+        // someObject.method() - call to another class instance
+        const objectName = callee.object.name;
+        const methodName = t.isIdentifier(callee.property) ? callee.property.name : 'method';
+
+        // Try to find the class of this object
+        const targetClass = this.findClassForObject(objectName);
+
+        return {
+          targetClass: targetClass || objectName,
+          methodName,
+        };
+      }
+    }
+
+    // Case 2: ClassName.staticMethod() - static method call
+    if (t.isMemberExpression(callee) && t.isIdentifier(callee.object)) {
+      const className = callee.object.name;
+      const methodName = t.isIdentifier(callee.property) ? callee.property.name : 'method';
+
+      // Check if this is a known class
+      if (this.classes.has(className)) {
+        return {
+          targetClass: className,
+          methodName,
+        };
+      }
+    }
+
+    // Case 3: functionName() - top-level function call
+    if (t.isIdentifier(callee) && this.classes.size === 0) {
+      // If this is a known top-level function, use it as the target
+      if (this.topLevelFunctions.has(callee.name)) {
+        return {
+          targetClass: callee.name,
+          methodName: callee.name, // For top-level functions, the function name is both the class and method
+        };
+      }
+      // Fallback to Module if not a known function
       return {
-        name: callee.name,
-        type: participant?.type || 'function',
+        targetClass: 'Module',
+        methodName: callee.name,
       };
     }
 
-    // Member expression: obj.method() or Class.staticMethod()
-    if (t.isMemberExpression(callee)) {
-      const objectName = this.getObjectName(callee.object);
-      const propertyName = t.isIdentifier(callee.property)
-        ? callee.property.name
-        : 'unknown';
-
-      if (objectName) {
-        const fullName = `${objectName}.${propertyName}`;
-        const participant = this.participants.get(objectName);
-        return {
-          name: fullName,
-          type: participant?.type || 'object',
-        };
-      }
-    }
-
-    // New expression: new ClassName()
-    if (t.isNewExpression(callee)) {
-      if (t.isIdentifier(callee.callee)) {
-        return {
-          name: callee.callee.name,
-          type: 'class',
-        };
-      }
+    // Case 4: new ClassName() - constructor call
+    if (t.isNewExpression(callee) && t.isIdentifier(callee.callee)) {
+      return {
+        targetClass: callee.callee.name,
+        methodName: 'constructor',
+      };
     }
 
     return null;
   }
 
   /**
-   * Get object name from member expression
+   * Try to find the class type of an object variable
+   * This is a simplified heuristic - looks for patterns like:
+   * const obj = new ClassName()
+   * this.obj = new ClassName()
    */
-  private getObjectName(node: t.Expression | t.PrivateName): string | null {
-    if (t.isIdentifier(node)) {
-      return node.name;
+  private findClassForObject(objectName: string): string | null {
+    // For now, return the capitalized object name as a heuristic
+    // In a more sophisticated implementation, we'd track variable assignments
+    const capitalized = objectName.charAt(0).toUpperCase() + objectName.slice(1);
+
+    // Check if a class with this name exists
+    if (this.classes.has(capitalized)) {
+      return capitalized;
     }
-    if (t.isThisExpression(node)) {
-      // Get current class context
-      const context = this.currentContext[this.currentContext.length - 1];
-      if (context && context.includes('.')) {
-        return context.split('.')[0];
-      }
-      return 'this';
-    }
-    if (t.isMemberExpression(node)) {
-      return this.getObjectName(node.object);
-    }
+
     return null;
-  }
-
-  /**
-   * Create call message label
-   */
-  private createCallMessage(node: t.CallExpression, calleeName: string): string {
-    const methodName = calleeName.includes('.') ? calleeName.split('.').pop() : calleeName;
-
-    // Get argument summary
-    const args = node.arguments.map((arg) => this.getExpressionLabel(arg)).join(', ');
-
-    return args ? `${methodName}(${args})` : `${methodName}()`;
   }
 
   /**
@@ -340,13 +374,13 @@ export class SequenceAnalysisService {
       return '() => {}';
     }
     if (t.isCallExpression(node)) {
-      const callee = this.getCalleeInfo(node.callee);
-      return callee ? `${callee.name}()` : 'fn()';
+      return 'fn()';
     }
     if (t.isMemberExpression(node)) {
-      const obj = this.getObjectName(node.object);
-      const prop = t.isIdentifier(node.property) ? node.property.name : 'prop';
-      return obj ? `${obj}.${prop}` : prop;
+      if (t.isIdentifier(node.object) && t.isIdentifier(node.property)) {
+        return `${node.object.name}.${node.property.name}`;
+      }
+      return 'obj.prop';
     }
     return '...';
   }
@@ -356,7 +390,7 @@ export class SequenceAnalysisService {
    */
   private addParticipant(
     name: string,
-    type: 'class' | 'function' | 'object' | 'external',
+    type: 'class' | 'function' | 'module',
     lineNumber?: number
   ): void {
     if (!this.participants.has(name)) {
@@ -374,9 +408,6 @@ export class SequenceAnalysisService {
     type: 'sync' | 'async' | 'return',
     lineNumber?: number
   ): void {
-    // Avoid self-calls for cleaner diagrams
-    if (from === to) return;
-
     this.interactions.push({
       from,
       to,
