@@ -32,12 +32,12 @@
             label="OpenAI API Key"
             :type="showApiKey ? 'text' : 'password'"
             :append-inner-icon="showApiKey ? 'mdi-eye-off' : 'mdi-eye'"
-            @click:append-inner="showApiKey = !showApiKey"
             variant="outlined"
             density="comfortable"
             hint="Your API key will be stored locally"
             persistent-hint
             class="mb-3"
+            @click:append-inner="showApiKey = !showApiKey"
           ></v-text-field>
 
           <v-select
@@ -100,12 +100,12 @@
             label="API Key (Optional)"
             :type="showApiKey ? 'text' : 'password'"
             :append-inner-icon="showApiKey ? 'mdi-eye-off' : 'mdi-eye'"
-            @click:append-inner="showApiKey = !showApiKey"
             variant="outlined"
             density="comfortable"
             hint="Optional for local services. Your API key will be stored locally"
             persistent-hint
             class="mb-3"
+            @click:append-inner="showApiKey = !showApiKey"
           ></v-text-field>
 
           <v-text-field
@@ -162,7 +162,7 @@
       <v-divider></v-divider>
 
       <v-card-actions class="pa-4">
-        <v-btn variant="text" @click="testConnection" :loading="testing" :disabled="!hasApiKey">
+        <v-btn variant="text" :loading="testing" :disabled="!hasApiKey" @click="testConnection">
           Test Connection
         </v-btn>
         <v-spacer></v-spacer>
@@ -170,9 +170,9 @@
         <v-btn
           color="primary"
           variant="flat"
-          @click="save"
           :loading="saving"
           :disabled="!hasChanges"
+          @click="save"
         >
           Save
         </v-btn>

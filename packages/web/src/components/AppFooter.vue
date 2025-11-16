@@ -5,7 +5,7 @@
         <!-- Left: Project Path -->
         <v-col cols="auto" class="footer-section">
           <v-tooltip text="Project Path" location="top">
-            <template v-slot:activator="{ props }">
+            <template #activator="{ props }">
               <div v-bind="props" class="d-flex align-center">
                 <v-icon icon="mdi-folder-outline" size="small" class="mr-2"></v-icon>
                 <span class="text-caption font-weight-medium">{{ projectPath }}</span>
@@ -19,7 +19,7 @@
         <!-- Center: Current File Info -->
         <v-col cols="auto" class="footer-section">
           <v-tooltip :text="fileTooltip" location="top">
-            <template v-slot:activator="{ props }">
+            <template #activator="{ props }">
               <div v-bind="props" class="d-flex align-center">
                 <v-icon icon="mdi-file-document-outline" size="small" class="mr-2"></v-icon>
                 <span class="text-caption">{{ fileInfo }}</span>
@@ -33,7 +33,7 @@
         <!-- Right: Version -->
         <v-col cols="auto" class="footer-section">
           <v-tooltip text="Goose Code Review Tool Version" location="top">
-            <template v-slot:activator="{ props }">
+            <template #activator="{ props }">
               <div v-bind="props" class="d-flex align-center">
                 <v-icon icon="mdi-information-outline" size="small" class="mr-2"></v-icon>
                 <span class="text-caption font-weight-medium">v{{ version }}</span>

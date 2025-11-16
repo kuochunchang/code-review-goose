@@ -9,8 +9,8 @@
           icon="mdi-chevron-left"
           variant="text"
           size="small"
-          @click="$emit('collapse')"
           class="ml-2"
+          @click="$emit('collapse')"
         >
           <v-icon>mdi-chevron-left</v-icon>
           <v-tooltip activator="parent" location="bottom"> Hide File Tree (⌘B) </v-tooltip>

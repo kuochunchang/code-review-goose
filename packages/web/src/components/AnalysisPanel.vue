@@ -24,9 +24,9 @@
             size="small"
             variant="text"
             :prepend-icon="copied ? 'mdi-check' : 'mdi-content-copy'"
-            @click="copyToClipboard"
             :disabled="copying"
             class="mr-1"
+            @click="copyToClipboard"
           >
             {{ copied ? 'Copied' : 'Copy' }}
           </v-btn>
@@ -37,9 +37,9 @@
             variant="text"
             prepend-icon="mdi-play"
             data-testid="analyze-button"
-            @click="runAnalysis"
             :loading="analyzing"
             :disabled="analyzing || !isFileAnalyzable"
+            @click="runAnalysis"
           >
             Analyze
           </v-btn>
@@ -63,9 +63,9 @@
             size="small"
             variant="text"
             prepend-icon="mdi-lightbulb-on"
-            @click="runExplain"
             :loading="explaining"
             :disabled="explaining || !isFileAnalyzable"
+            @click="runExplain"
           >
             Explain
           </v-btn>
@@ -301,8 +301,8 @@
                         variant="text"
                         color="primary"
                         prepend-icon="mdi-cursor-default-click"
-                        @click="emit('jumpToLine', field.line)"
                         class="ml-2"
+                        @click="emit('jumpToLine', field.line)"
                       >
                         Line {{ field.line }}
                       </v-btn>
