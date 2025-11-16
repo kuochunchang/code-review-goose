@@ -208,6 +208,9 @@ export class SequenceAnalysisService {
 
     const { targetClass, methodName } = callInfo;
 
+    // Skip built-in methods on built-in types (Array, Map, Set, etc.)
+    if (this.isBuiltInMethod(targetClass, methodName)) return;
+
     // Add target class/function as participant if not already present
     if (!this.participants.has(targetClass)) {
       const participantType = this.topLevelFunctions.has(targetClass) ? 'function' : 'class';
@@ -324,6 +327,94 @@ export class SequenceAnalysisService {
     }
 
     return null;
+  }
+
+  /**
+   * Check if a method call is on a built-in type
+   * Returns true for built-in JavaScript/TypeScript types and their methods
+   */
+  private isBuiltInMethod(targetClass: string, methodName: string): boolean {
+    // Don't filter out known user-defined classes or top-level functions
+    if (this.classes.has(targetClass) || this.topLevelFunctions.has(targetClass)) {
+      return false;
+    }
+
+    // Check if target class can be resolved to a known class (e.g., "db" -> "Database")
+    const resolvedClass = this.findClassForObject(targetClass);
+    if (resolvedClass && this.classes.has(resolvedClass)) {
+      return false;
+    }
+
+    // Common built-in methods that should be ignored
+    const builtInMethods = new Set([
+      'push',
+      'pop',
+      'shift',
+      'unshift',
+      'slice',
+      'splice',
+      'concat',
+      'join',
+      'map',
+      'filter',
+      'reduce',
+      'forEach',
+      'find',
+      'findIndex',
+      'some',
+      'every',
+      'includes',
+      'indexOf',
+      'lastIndexOf',
+      'sort',
+      'reverse',
+      'set',
+      'get',
+      'has',
+      'delete',
+      'clear',
+      'add',
+      'values',
+      'keys',
+      'entries',
+      'toString',
+      'valueOf',
+      'toJSON',
+      'hasOwnProperty',
+      'isPrototypeOf',
+      'propertyIsEnumerable',
+    ]);
+
+    // Common built-in property names (lowercase names that are commonly built-in types)
+    const builtInPropertyNames = new Set([
+      'array',
+      'map',
+      'set',
+      'console',
+      'math',
+      'json',
+      'date',
+      'regexp',
+      'promise',
+      'error',
+      'arraybuffer',
+      'dataview',
+      'weakmap',
+      'weakset',
+      'participants', // Internal properties that shouldn't create participants
+      'interactions',
+      'classes',
+      'entryPoints',
+      'metadata',
+    ]);
+
+    // Check if target is a known built-in property name and method is built-in
+    const lowerTarget = targetClass.toLowerCase();
+    if (builtInPropertyNames.has(lowerTarget) && builtInMethods.has(methodName)) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
