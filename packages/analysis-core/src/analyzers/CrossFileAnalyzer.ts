@@ -7,7 +7,6 @@ import type {
   DependencyInfo,
   FileAnalysisResult,
   IFileProvider,
-  ImportIndex,
   MethodInfo,
   ParameterInfo,
   PropertyInfo,

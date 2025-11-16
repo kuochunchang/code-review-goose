@@ -10,7 +10,7 @@
       location="top"
     >
       {{ uiStore.snackbar.message }}
-      <template v-slot:actions>
+      <template #actions>
         <v-btn variant="text" @click="uiStore.hideSnackbar()"> Close </v-btn>
       </template>
     </v-snackbar>

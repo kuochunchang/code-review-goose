@@ -6,11 +6,8 @@ import type {
   DiagramType,
   DiagramGenerationMode,
   UMLResult,
-  FlowNode,
   SequenceInfo,
-  InteractionInfo,
   DependencyInfo as ASTDependencyInfo,
-  ImportInfo,
   ClassInfo,
   PropertyInfo,
   MethodInfo,
@@ -162,9 +159,9 @@ export class UMLAnalyzer {
    * @returns UML class diagram with cross-file relationships
    */
   async generateCrossFileClassDiagram(
-    filePath: string,
-    depth: 1 | 2 | 3 = 1,
-    mode: 'forward' | 'reverse' | 'bidirectional' = 'bidirectional'
+    _filePath: string,
+    _depth: 1 | 2 | 3 = 1,
+    _mode: 'forward' | 'reverse' | 'bidirectional' = 'bidirectional'
   ): Promise<UMLResult> {
     // Cross-file analysis will be migrated separately in Phase 3
     throw new Error(

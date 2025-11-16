@@ -20,21 +20,21 @@
               prepend-icon="mdi-magnify"
               clearable
               autofocus
-              @keyup.enter="executeSearch"
               :loading="searching"
               :disabled="searching"
               hint="Enter text or regex pattern to search"
               persistent-hint
+              @keyup.enter="executeSearch"
             ></v-text-field>
           </v-col>
           <v-col cols="12" md="4" class="d-flex align-center">
             <v-btn
               color="primary"
-              @click="executeSearch"
               :loading="searching"
               :disabled="!searchQuery || searching"
               prepend-icon="mdi-magnify"
               block
+              @click="executeSearch"
             >
               Search
             </v-btn>
@@ -164,8 +164,8 @@
                   <v-list-item
                     v-for="(match, matchIndex) in fileResult.matches"
                     :key="matchIndex"
-                    @click="handleMatchClick(fileResult.filePath, match.line)"
                     class="match-item"
+                    @click="handleMatchClick(fileResult.filePath, match.line)"
                   >
                     <template #prepend>
                       <v-chip size="x-small" variant="tonal" color="primary" class="mr-2">

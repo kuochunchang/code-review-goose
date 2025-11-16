@@ -11,8 +11,8 @@
               size="small"
               variant="text"
               v-bind="props"
-              @click="openUMLViewer"
               data-testid="uml-button"
+              @click="openUMLViewer"
             ></v-btn>
           </template>
         </v-tooltip>

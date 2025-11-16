@@ -41,8 +41,8 @@
         size="small"
         :loading="loading"
         :disabled="!currentCode || !currentFilePath"
-        @click="generateDiagram(true)"
         color="warning"
+        @click="generateDiagram(true)"
       >
         <v-icon>mdi-refresh-circle</v-icon>
         <v-tooltip activator="parent" location="bottom">Force Refresh (regenerate)</v-tooltip>
@@ -63,7 +63,7 @@
           <v-col cols="6">
             <div class="d-flex align-center">
               <v-tooltip location="bottom">
-                <template v-slot:activator="{ props: tooltipProps }">
+                <template #activator="{ props: tooltipProps }">
                   <span v-bind="tooltipProps" class="text-caption mr-2">
                     Depth:
                     <v-icon size="x-small">mdi-information</v-icon>
@@ -85,7 +85,7 @@
           <v-col cols="6">
             <div class="d-flex align-center">
               <v-tooltip location="bottom">
-                <template v-slot:activator="{ props: tooltipProps }">
+                <template #activator="{ props: tooltipProps }">
                   <span v-bind="tooltipProps" class="text-caption mr-2">
                     Mode:
                     <v-icon size="x-small">mdi-information</v-icon>
@@ -125,8 +125,8 @@
               variant="outlined"
               size="small"
               prepend-icon="mdi-refresh-circle"
-              @click="generateDiagram(true)"
               :loading="loading"
+              @click="generateDiagram(true)"
             >
               Try Force Refresh
             </v-btn>

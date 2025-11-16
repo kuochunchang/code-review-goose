@@ -1,8 +1,8 @@
 <template>
   <v-dialog
     :model-value="modelValue"
-    @update:model-value="$emit('update:modelValue', $event)"
     max-width="600"
+    @update:model-value="$emit('update:modelValue', $event)"
   >
     <v-card>
       <v-card-title class="d-flex align-center">
@@ -15,7 +15,7 @@
       <v-card-text class="pa-4">
         <v-list>
           <v-list-item v-for="(shortcut, index) in shortcuts" :key="index" class="px-0">
-            <template v-slot:prepend>
+            <template #prepend>
               <v-chip color="primary" variant="outlined" size="small" class="font-weight-bold">
                 {{ formatShortcut(shortcut) }}
               </v-chip>
