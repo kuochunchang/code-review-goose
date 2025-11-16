@@ -1,27 +1,12 @@
 {
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "lib": ["ES2022"],
-    "types": ["node"],
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "allowJs": false,
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "rootDir": "./packages",
-    "composite": true,
-    "incremental": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true
-  },
-  "exclude": ["node_modules", "dist", "build", ".code-review"]
+  "files": [],
+  "references": [
+    { "path": "./packages/analysis-types" },
+    { "path": "./packages/analysis-utils" },
+    { "path": "./packages/analysis-core" },
+    { "path": "./packages/analysis-adapter-node" },
+    { "path": "./packages/server" },
+    { "path": "./packages/web" },
+    { "path": "./packages/cli" }
+  ]
 }

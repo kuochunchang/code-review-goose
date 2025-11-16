@@ -1,0 +1,45 @@
+{
+  "name": "@code-review-goose/analysis-core",
+  "version": "0.1.0",
+  "description": "Platform-agnostic UML analysis engine (class diagrams, sequence diagrams, flowcharts)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "uml",
+    "class-diagram",
+    "sequence-diagram",
+    "ast",
+    "code-analysis"
+  ],
+  "author": "KCC",
+  "license": "MIT",
+  "dependencies": {
+    "@code-review-goose/analysis-types": "*",
+    "@code-review-goose/analysis-utils": "*",
+    "@babel/parser": "^7.23.0",
+    "@babel/traverse": "^7.23.0",
+    "@babel/types": "^7.23.0"
+  },
+  "devDependencies": {
+    "@types/babel__traverse": "^7.20.0",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
