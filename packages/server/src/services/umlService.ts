@@ -9,8 +9,6 @@ import type {
   FileAnalysisResult,
   ImportInfo,
 } from '../types/ast.js';
-import type { ProjectConfig } from '../types/config.js';
-import type { AIService } from './aiService.js';
 import { CrossFileAnalysisService } from './crossFileAnalysisService.js';
 import { OOAnalysisService } from './ooAnalysisService.js';
 import { SequenceAnalysisService } from './sequenceAnalysisService.js';
