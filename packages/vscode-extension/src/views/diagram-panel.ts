@@ -24,7 +24,7 @@ export class DiagramPanel {
   // Current state
   private _currentFile: vscode.Uri | undefined;
   private _currentType: DiagramType = 'class';
-  private _currentOptions: DiagramOptions = { depth: 1, mode: 'bidirectional' };
+  private _currentOptions: DiagramOptions = { depth: 0, mode: 'bidirectional' };
   private _mermaidCode: string = '';
 
   private constructor(
@@ -169,12 +169,42 @@ export class DiagramPanel {
               depth: 0, // Sequence and flowchart only support single-file (depth 0)
             };
 
-      // Generate diagram
-      const result = await analyzer.generateUnifiedDiagram(
-        this._currentFile.fsPath,
-        this._currentType,
-        generateOptions
-      );
+      let result;
+      let fallbackUsed = false;
+
+      try {
+        // Generate diagram
+        result = await analyzer.generateUnifiedDiagram(
+          this._currentFile.fsPath,
+          this._currentType,
+          generateOptions
+        );
+      } catch (crossFileError) {
+        // If cross-file analysis fails and depth > 0, fallback to single-file analysis
+        if (this._currentOptions.depth > 0) {
+          console.warn(
+            `Cross-file analysis failed (depth=${this._currentOptions.depth}), falling back to single-file analysis:`,
+            crossFileError
+          );
+
+          vscode.window.showWarningMessage(
+            `Cross-file analysis failed. Showing single-file diagram instead. Error: ${
+              crossFileError instanceof Error ? crossFileError.message : String(crossFileError)
+            }`
+          );
+
+          // Retry with depth=0
+          result = await analyzer.generateUnifiedDiagram(this._currentFile.fsPath, this._currentType, {
+            depth: 0,
+            mode: this._currentOptions.mode,
+          });
+
+          fallbackUsed = true;
+        } else {
+          // Single-file analysis failed, re-throw
+          throw crossFileError;
+        }
+      }
 
       this._mermaidCode = result.mermaidCode;
 
@@ -185,17 +215,35 @@ export class DiagramPanel {
       this._panel.webview.postMessage({
         command: 'loaded',
         isLoading: false,
+        fallbackUsed,
       });
+
+      // Show info if fallback was used
+      if (fallbackUsed) {
+        vscode.window.showInformationMessage(
+          'Diagram generated using single-file analysis (cross-file analysis unavailable)'
+        );
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Provide more detailed error messages
+      let userFriendlyMessage = errorMessage;
+      if (errorMessage.includes('File not found')) {
+        userFriendlyMessage = `File not found. Please ensure the file exists and is within the workspace.`;
+      } else if (errorMessage.includes('Cannot resolve import')) {
+        userFriendlyMessage = `Import resolution failed. Try using single-file mode (depth=0) or check import paths.`;
+      } else if (errorMessage.includes('outside workspace boundary')) {
+        userFriendlyMessage = `File is outside workspace boundary. Please open the file from within your workspace.`;
+      }
 
       // Notify webview about error
       this._panel.webview.postMessage({
         command: 'error',
-        text: errorMessage,
+        text: userFriendlyMessage,
       });
 
-      vscode.window.showErrorMessage(`Failed to generate diagram: ${errorMessage}`);
+      vscode.window.showErrorMessage(`Failed to generate diagram: ${userFriendlyMessage}`);
       console.error('Diagram generation error:', error);
     }
   }

@@ -73,12 +73,14 @@ export class VSCodeFileProvider implements IFileProvider {
     try {
       // Only handle relative imports (not node_modules)
       if (!this.isRelativePath(to)) {
+        console.debug(`[VSCodeFileProvider] Skipping non-relative import: ${to}`);
         return null;
       }
 
       // Validate from file exists
       const fromUri = this.resolveUri(from);
       if (!(await this.exists(from))) {
+        console.warn(`[VSCodeFileProvider] Source file does not exist: ${from}`);
         return null;
       }
 
@@ -86,15 +88,35 @@ export class VSCodeFileProvider implements IFileProvider {
       const fromDir = this.getDirectoryUri(fromUri);
       const targetUri = vscode.Uri.joinPath(fromDir, to);
 
+      console.debug(
+        `[VSCodeFileProvider] Resolving import: from="${from}", to="${to}", targetUri="${targetUri.fsPath}"`
+      );
+
       // Validate within workspace boundary
       if (!this.isWithinWorkspace(targetUri)) {
+        console.warn(
+          `[VSCodeFileProvider] Import target outside workspace: ${targetUri.fsPath}`
+        );
         return null;
       }
 
       // Try to resolve the file with various extensions and index files
       const resolved = await this.resolveFile(targetUri);
+
+      if (resolved) {
+        console.debug(`[VSCodeFileProvider] Import resolved: ${resolved.fsPath}`);
+      } else {
+        console.warn(
+          `[VSCodeFileProvider] Failed to resolve import: from="${from}", to="${to}"`
+        );
+      }
+
       return resolved ? resolved.fsPath : null;
-    } catch {
+    } catch (error) {
+      console.error(
+        `[VSCodeFileProvider] Error resolving import: from="${from}", to="${to}"`,
+        error
+      );
       return null;
     }
   }

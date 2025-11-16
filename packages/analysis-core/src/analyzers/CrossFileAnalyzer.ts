@@ -235,12 +235,24 @@ export class CrossFileAnalyzer {
     }
 
     // Recursively analyze all imported files
+    const unresolvedImports: string[] = [];
     for (const importInfo of analysis.imports) {
       const resolvedPath = await this.fileProvider.resolveImport(filePath, importInfo.source);
 
       if (resolvedPath) {
         await this.analyzeFileRecursive(resolvedPath, currentDepth + 1, maxDepth, results);
+      } else {
+        // Track unresolved imports for debugging
+        unresolvedImports.push(importInfo.source);
       }
+    }
+
+    // Log unresolved imports for debugging
+    if (unresolvedImports.length > 0) {
+      console.debug(
+        `[CrossFileAnalyzer] Unresolved imports in ${filePath}:`,
+        unresolvedImports
+      );
     }
   }
 
