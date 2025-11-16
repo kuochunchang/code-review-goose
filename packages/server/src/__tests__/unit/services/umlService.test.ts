@@ -269,12 +269,101 @@ describe('UMLService', () => {
       expect(result.mermaidCode).toContain('Code execution');
     });
 
-    it('should throw error for sequence diagram in native mode', async () => {
-      const code = 'class Test {}';
+    it('should generate sequence diagram with function calls', async () => {
+      const code = `
+        function helper() {
+          return 42;
+        }
 
-      await expect(umlService.generateDiagram(code, 'sequence')).rejects.toThrow(
-        'Native mode does not support sequence diagrams'
-      );
+        function main() {
+          helper();
+        }
+      `;
+
+      const result = await umlService.generateDiagram(code, 'sequence');
+
+      expect(result.type).toBe('sequence');
+      expect(result.generationMode).toBe('native');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      expect(result.mermaidCode).toContain('participant');
+      expect(result.mermaidCode).toContain('main');
+      expect(result.mermaidCode).toContain('helper');
+      expect(result.metadata?.participants).toBeDefined();
+      expect(result.metadata?.interactions).toBeDefined();
+    });
+
+    it('should generate sequence diagram with class method calls', async () => {
+      const code = `
+        class Service {
+          process() {
+            this.validate();
+          }
+
+          validate() {
+            return true;
+          }
+        }
+      `;
+
+      const result = await umlService.generateDiagram(code, 'sequence');
+
+      expect(result.type).toBe('sequence');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      expect(result.mermaidCode).toContain('Service');
+      expect(result.metadata?.participants).toBeDefined();
+    });
+
+    it('should generate sequence diagram with async calls', async () => {
+      const code = `
+        async function fetchData() {
+          return { data: 'value' };
+        }
+
+        async function main() {
+          await fetchData();
+        }
+      `;
+
+      const result = await umlService.generateDiagram(code, 'sequence');
+
+      expect(result.type).toBe('sequence');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      expect(result.mermaidCode).toContain('main');
+      expect(result.mermaidCode).toContain('fetchData');
+      // Async calls use -) arrow
+      expect(result.mermaidCode).toContain('-)');
+    });
+
+    it('should generate sequence diagram with return statements', async () => {
+      const code = `
+        function calculate() {
+          return 42;
+        }
+
+        function main() {
+          calculate();
+        }
+      `;
+
+      const result = await umlService.generateDiagram(code, 'sequence');
+
+      expect(result.type).toBe('sequence');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      // Return calls use -->> arrow
+      expect(result.mermaidCode).toContain('-->>');
+    });
+
+    it('should generate placeholder for empty sequence diagram', async () => {
+      const code = `
+        const x = 42;
+        const y = 'hello';
+      `;
+
+      const result = await umlService.generateDiagram(code, 'sequence');
+
+      expect(result.type).toBe('sequence');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      expect(result.mermaidCode).toContain('No function calls detected');
     });
 
     it('should throw error for dependency diagram in native mode', async () => {

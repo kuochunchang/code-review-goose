@@ -13,6 +13,7 @@ import type { ProjectConfig } from '../types/config.js';
 import type { AIService } from './aiService.js';
 import { CrossFileAnalysisService } from './crossFileAnalysisService.js';
 import { OOAnalysisService } from './ooAnalysisService.js';
+import { SequenceAnalysisService } from './sequenceAnalysisService.js';
 import { MermaidValidator } from './uml/mermaidValidator.js';
 
 // Correct way to import @babel/traverse
@@ -630,8 +631,10 @@ export class UMLService {
       return this.generateClassDiagram(ast, code);
     } else if (type === 'flowchart') {
       return this.generateFlowchart(ast, code);
-    } else if (type === 'sequence' || type === 'dependency') {
-      // Native mode does not support these complex diagrams yet
+    } else if (type === 'sequence') {
+      return this.generateSequenceDiagram(ast, code);
+    } else if (type === 'dependency') {
+      // Native mode does not support dependency diagrams yet
       throw new Error(`Native mode does not support ${type} diagrams. Please use AI mode.`);
     }
 
@@ -1145,6 +1148,129 @@ export class UMLService {
       default:
         return '+';
     }
+  }
+
+  /**
+   * Generate sequence diagram using AST analysis
+   */
+  private generateSequenceDiagram(ast: t.File, _code: string): UMLResult {
+    const sequenceAnalysisService = new SequenceAnalysisService();
+    const analysis = sequenceAnalysisService.analyze(ast);
+
+    // Generate Mermaid sequence diagram syntax
+    const mermaidCode = this.generateMermaidSequenceDiagram(analysis);
+
+    // Extract metadata for backward compatibility
+    const sequences: SequenceInfo[] = this.convertToSequenceInfo(analysis);
+
+    return {
+      type: 'sequence',
+      mermaidCode,
+      generationMode: 'native',
+      metadata: {
+        sequences,
+        participants: analysis.participants,
+        interactions: analysis.interactions,
+        entryPoints: analysis.entryPoints,
+      },
+    };
+  }
+
+  /**
+   * Generate Mermaid sequence diagram syntax
+   */
+  private generateMermaidSequenceDiagram(analysis: {
+    participants: Array<{ name: string; type: string }>;
+    interactions: Array<{ from: string; to: string; message: string; type: string }>;
+    entryPoints: string[];
+  }): string {
+    let mermaid = 'sequenceDiagram\n';
+
+    // If no participants found, generate a placeholder
+    if (analysis.participants.length === 0) {
+      mermaid += '  participant NoCode\n';
+      mermaid += '  Note over NoCode: No function calls detected\n';
+      return mermaid;
+    }
+
+    // Add participants in order
+    const addedParticipants = new Set<string>();
+    for (const participant of analysis.participants) {
+      if (!addedParticipants.has(participant.name)) {
+        mermaid += `  participant ${this.sanitizeParticipantName(participant.name)}\n`;
+        addedParticipants.add(participant.name);
+      }
+    }
+
+    mermaid += '\n';
+
+    // Add interactions
+    for (const interaction of analysis.interactions) {
+      const from = this.sanitizeParticipantName(interaction.from);
+      const to = this.sanitizeParticipantName(interaction.to);
+      const message = this.sanitizeMessage(interaction.message);
+
+      // Choose arrow type based on interaction type
+      let arrow = '->>';
+      if (interaction.type === 'async') {
+        arrow = '-)';
+      } else if (interaction.type === 'return') {
+        arrow = '-->>';
+      }
+
+      mermaid += `  ${from}${arrow}${to}: ${message}\n`;
+    }
+
+    return mermaid;
+  }
+
+  /**
+   * Sanitize participant name for Mermaid
+   */
+  private sanitizeParticipantName(name: string): string {
+    // Replace dots with underscores for nested names (e.g., Class.method -> Class_method)
+    return name.replace(/\./g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  }
+
+  /**
+   * Sanitize message for Mermaid
+   */
+  private sanitizeMessage(message: string): string {
+    // Escape special characters that might break Mermaid syntax
+    return message.replace(/"/g, '\\"');
+  }
+
+  /**
+   * Convert analysis result to legacy SequenceInfo format for backward compatibility
+   */
+  private convertToSequenceInfo(analysis: {
+    participants: Array<{ name: string }>;
+    interactions: Array<{ from: string; to: string; message: string; type: string }>;
+  }): SequenceInfo[] {
+    const participantMap = new Map<string, SequenceInfo>();
+
+    // Initialize all participants
+    for (const participant of analysis.participants) {
+      participantMap.set(participant.name, {
+        participant: participant.name,
+        interactions: [],
+      });
+    }
+
+    // Group interactions by participant
+    for (const interaction of analysis.interactions) {
+      const fromInfo = participantMap.get(interaction.from);
+      if (fromInfo) {
+        fromInfo.interactions.push({
+          from: interaction.from,
+          to: interaction.to,
+          message: interaction.message,
+          type: interaction.type as 'sync' | 'async' | 'return',
+        });
+      }
+    }
+
+    return Array.from(participantMap.values());
   }
 
   /**

@@ -356,6 +356,68 @@ describe('UML API', () => {
         expect(response.body.error).toContain('depth must be between 0');
       });
     });
+
+    describe('Sequence diagram generation', () => {
+      const mockSequenceUMLResult: UMLResult = {
+        type: 'sequence',
+        mermaidCode:
+          'sequenceDiagram\n  participant main\n  participant helper\n  main->>helper: helper()',
+        generationMode: 'native',
+        metadata: {
+          participants: [
+            { name: 'main', type: 'function' },
+            { name: 'helper', type: 'function' },
+          ],
+          interactions: [{ from: 'main', to: 'helper', message: 'helper()', type: 'sync' }],
+          entryPoints: ['main'],
+        },
+      };
+
+      it('should generate sequence diagram in native mode', async () => {
+        const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockSequenceUMLResult);
+
+        vi.mocked(ConfigService).mockImplementation(
+          () =>
+            ({
+              get: vi.fn().mockResolvedValue({ aiProvider: 'openai' }),
+            }) as any
+        );
+
+        vi.mocked(AIService).mockImplementation(
+          () =>
+            ({
+              isConfigured: vi.fn().mockResolvedValue(false),
+            }) as any
+        );
+
+        vi.mocked(UMLService).mockImplementation(
+          () =>
+            ({
+              generateUnifiedDiagram: mockGenerateUnifiedDiagram,
+            }) as any
+        );
+
+        const response = await request(app).post('/api/uml/generate').send({
+          code: 'function helper() {} function main() { helper(); }',
+          type: 'sequence',
+          filePath: '/test/file.ts',
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.mermaidCode).toContain('sequenceDiagram');
+        expect(response.body.data.metadata.participants).toBeDefined();
+        expect(response.body.data.metadata.interactions).toBeDefined();
+        expect(mockGenerateUnifiedDiagram).toHaveBeenCalledWith(
+          '/test/file.ts',
+          '/test/project',
+          'sequence',
+          expect.objectContaining({
+            depth: 0,
+          })
+        );
+      });
+    });
   });
 
   describe('GET /api/uml/supported-types', () => {
