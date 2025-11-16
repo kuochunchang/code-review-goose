@@ -2,15 +2,8 @@
   "name": "@code-review-goose/analysis-core",
   "version": "0.1.0",
   "description": "Platform-agnostic UML analysis engine (class diagrams, sequence diagrams, flowcharts)",
-  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
