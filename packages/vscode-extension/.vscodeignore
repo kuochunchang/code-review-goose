@@ -1,0 +1,40 @@
+# Files to exclude from VS Code extension package
+
+# Source files
+src/
+tsconfig.json
+.vscode/
+.vscode-test/
+
+# Build artifacts
+**/*.map
+*.vsix
+
+# Dependencies
+node_modules/
+.npm
+
+# Tests
+**/__tests__/
+**/*.test.ts
+**/*.spec.ts
+**/test/
+vitest.config.ts
+coverage/
+
+# Documentation
+.github/
+docs/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Other
+.DS_Store
+Thumbs.db
+*.log
+.eslintrc.*
+.prettierrc.*
+*.md.backup
