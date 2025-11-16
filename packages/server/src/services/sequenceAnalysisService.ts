@@ -358,6 +358,18 @@ export class SequenceAnalysisService {
       'relationships',
       'imports',
       'exports',
+      'specifiers',
+      'elements',
+      'items',
+      'nodes',
+      'children',
+      'child',
+      'parent',
+      'args',
+      'params',
+      'options',
+      'config',
+      'settings',
     ]);
 
     // Filter out internal property names immediately
@@ -426,6 +438,36 @@ export class SequenceAnalysisService {
     // Check if target is a known built-in type and method is built-in
     const lowerTarget = targetClass.toLowerCase();
     if (builtInTypeNames.has(lowerTarget) && builtInMethods.has(methodName)) {
+      return true;
+    }
+
+    // Filter out single-letter variable names (like 't', 'i', 'x', etc.)
+    // These are almost never class names
+    if (targetClass.length === 1) {
+      return true;
+    }
+
+    // Filter out TypeScript/JavaScript type names that are commonly used as variables
+    const commonTypeVariableNames = new Set([
+      'typeann',
+      'typeannotation',
+      'node',
+      'element',
+      'item',
+      'result',
+      'data',
+      'value',
+      'obj',
+      'arr',
+      'str',
+      'num',
+      'bool',
+      'fn',
+      'func',
+      'callback',
+    ]);
+
+    if (commonTypeVariableNames.has(lowerTarget)) {
       return true;
     }
 
