@@ -113,7 +113,7 @@ export interface UMLResult {
     autoFixed?: boolean;
 
     /** Additional metadata */
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 

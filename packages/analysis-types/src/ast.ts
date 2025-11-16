@@ -322,7 +322,7 @@ export interface UnifiedAST {
   dependencies: DependencyInfo[];
 
   /** Original AST (language-specific, for advanced use cases) */
-  originalAST?: any;
+  originalAST?: unknown;
 }
 
 /**
