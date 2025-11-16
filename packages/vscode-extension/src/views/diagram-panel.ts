@@ -24,7 +24,7 @@ export class DiagramPanel {
   // Current state
   private _currentFile: vscode.Uri | undefined;
   private _currentType: DiagramType = 'class';
-  private _currentOptions: DiagramOptions = { depth: 1, mode: 'bidirectional' };
+  private _currentOptions: DiagramOptions = { depth: 0, mode: 'bidirectional' };
   private _mermaidCode: string = '';
 
   private constructor(
@@ -34,8 +34,8 @@ export class DiagramPanel {
     this._panel = panel;
     this._extensionUri = extensionUri;
 
-    // Set initial HTML content
-    this._updateWebview();
+    // Set initial HTML content (only once)
+    this._panel.webview.html = this._getWebviewContent();
 
     // Handle messages from webview
     this._panel.webview.onDidReceiveMessage(
@@ -169,39 +169,80 @@ export class DiagramPanel {
               depth: 0, // Sequence and flowchart only support single-file (depth 0)
             };
 
-      // Generate diagram
-      const result = await analyzer.generateUnifiedDiagram(
-        this._currentFile.fsPath,
-        this._currentType,
-        generateOptions
-      );
+      let result;
+      let fallbackUsed = false;
+
+      try {
+        // Generate diagram
+        result = await analyzer.generateUnifiedDiagram(
+          this._currentFile.fsPath,
+          this._currentType,
+          generateOptions
+        );
+      } catch (crossFileError) {
+        // If cross-file analysis fails and depth > 0, fallback to single-file analysis
+        if (this._currentOptions.depth > 0) {
+          console.warn(
+            `Cross-file analysis failed (depth=${this._currentOptions.depth}), falling back to single-file analysis:`,
+            crossFileError
+          );
+
+          vscode.window.showWarningMessage(
+            `Cross-file analysis failed. Showing single-file diagram instead. Error: ${
+              crossFileError instanceof Error ? crossFileError.message : String(crossFileError)
+            }`
+          );
+
+          // Retry with depth=0
+          result = await analyzer.generateUnifiedDiagram(this._currentFile.fsPath, this._currentType, {
+            depth: 0,
+            mode: this._currentOptions.mode,
+          });
+
+          fallbackUsed = true;
+        } else {
+          // Single-file analysis failed, re-throw
+          throw crossFileError;
+        }
+      }
 
       this._mermaidCode = result.mermaidCode;
 
-      // Update webview
+      // Update webview HTML with new diagram
       this._updateWebview();
 
-      // Notify webview that loading is complete
-      this._panel.webview.postMessage({
-        command: 'loaded',
-        isLoading: false,
-      });
+      // Show warning if fallback was used
+      if (fallbackUsed) {
+        vscode.window.showWarningMessage(
+          'Cross-file analysis failed. Showing single-file diagram only.'
+        );
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Provide more detailed error messages
+      let userFriendlyMessage = errorMessage;
+      if (errorMessage.includes('File not found')) {
+        userFriendlyMessage = `File not found. Please ensure the file exists and is within the workspace.`;
+      } else if (errorMessage.includes('Cannot resolve import')) {
+        userFriendlyMessage = `Import resolution failed. Try using single-file mode (depth=0) or check import paths.`;
+      } else if (errorMessage.includes('outside workspace boundary')) {
+        userFriendlyMessage = `File is outside workspace boundary. Please open the file from within your workspace.`;
+      }
 
       // Notify webview about error
       this._panel.webview.postMessage({
         command: 'error',
-        text: errorMessage,
+        text: userFriendlyMessage,
       });
 
-      vscode.window.showErrorMessage(`Failed to generate diagram: ${errorMessage}`);
+      vscode.window.showErrorMessage(`Failed to generate diagram: ${userFriendlyMessage}`);
       console.error('Diagram generation error:', error);
     }
   }
 
   /**
-   * Update webview content
+   * Update the webview content
    */
   private _updateWebview(): void {
     this._panel.webview.html = this._getWebviewContent();
@@ -337,14 +378,24 @@ export class DiagramPanel {
 
         .diagram-container {
             flex: 1;
-            overflow: auto;
-            padding: 20px;
-            text-align: center;
+            overflow: hidden;
+            background-color: #ffffff;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .mermaid {
             display: inline-block;
-            text-align: left;
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+        }
+
+        .mermaid svg {
+            display: block;
+            max-width: 100%;
+            height: auto;
         }
 
         .empty-state {
@@ -442,6 +493,15 @@ export class DiagramPanel {
             <button class="btn" id="downloadBtn">
                 Download SVG
             </button>
+
+            <div class="separator"></div>
+
+            <span class="toolbar-label">Zoom:</span>
+            <div class="btn-group" id="zoomControls">
+                <button class="btn" id="zoomOutBtn" disabled>－</button>
+                <button class="btn" id="zoomInBtn" disabled>＋</button>
+                <button class="btn" id="resetZoomBtn" disabled>Reset</button>
+            </div>
         </div>
 
         <!-- Row 2: Class Diagram Options -->
@@ -517,11 +577,134 @@ export class DiagramPanel {
             isLoading: false
         };
 
+        // Native zoom and pan implementation
+        let currentZoom = 1;
+        let currentX = 0;
+        let currentY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let zoomReady = false;
+
+        const ZOOM_STEP = 1.2;
+        const MIN_ZOOM = 0.2;
+        const MAX_ZOOM = 10;
+
+        function applyTransform() {
+            const container = document.querySelector('.mermaid');
+            if (container) {
+                container.style.transform = \`translate(\${currentX}px, \${currentY}px) scale(\${currentZoom})\`;
+            }
+        }
+
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom * ZOOM_STEP, MAX_ZOOM);
+            applyTransform();
+        }
+
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom / ZOOM_STEP, MIN_ZOOM);
+            applyTransform();
+        }
+
+        function resetZoom() {
+            currentZoom = 1;
+            currentX = 0;
+            currentY = 0;
+            applyTransform();
+        }
+
+        function setupPanZoom() {
+            const container = document.getElementById('diagramContainer');
+            if (!container) return;
+
+            // Mouse wheel zoom
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY;
+                if (delta < 0) {
+                    zoomIn();
+                } else {
+                    zoomOut();
+                }
+            });
+
+            // Drag to pan
+            container.addEventListener('mousedown', (e) => {
+                if (e.button === 0) { // Left mouse button
+                    isDragging = true;
+                    dragStartX = e.clientX - currentX;
+                    dragStartY = e.clientY - currentY;
+                    container.style.cursor = 'grabbing';
+                    e.preventDefault();
+                }
+            });
+
+            container.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    currentX = e.clientX - dragStartX;
+                    currentY = e.clientY - dragStartY;
+                    applyTransform();
+                }
+            });
+
+            const stopDragging = () => {
+                if (isDragging) {
+                    isDragging = false;
+                    container.style.cursor = 'grab';
+                }
+            };
+
+            container.addEventListener('mouseup', stopDragging);
+            container.addEventListener('mouseleave', stopDragging);
+
+            container.style.cursor = 'grab';
+            zoomReady = true;
+            enableZoomButtons();
+        }
+
+        function enableZoomButtons() {
+            const inBtn = document.getElementById('zoomInBtn');
+            const outBtn = document.getElementById('zoomOutBtn');
+            const resetBtn = document.getElementById('resetZoomBtn');
+
+            if (inBtn) inBtn.disabled = false;
+            if (outBtn) outBtn.disabled = false;
+            if (resetBtn) resetBtn.disabled = false;
+        }
+
+        function initZoomIfReady() {
+            if (zoomReady) return;
+
+            const checkSvg = () => {
+                const svg = document.querySelector('.mermaid svg');
+                if (svg) {
+                    setupPanZoom();
+                    return true;
+                }
+                return false;
+            };
+
+            // Try immediate setup
+            if (checkSvg()) return;
+
+            // Wait for SVG to load
+            const observer = new MutationObserver(() => {
+                if (checkSvg()) {
+                    observer.disconnect();
+                }
+            });
+
+            const container = document.getElementById('diagramContainer');
+            if (container) {
+                observer.observe(container, { childList: true, subtree: true });
+            }
+        }
+
         // Initialize Mermaid
         mermaid.initialize({
-            startOnLoad: true,
-            theme: document.body.classList.contains('vscode-dark') ||
-                   document.body.classList.contains('vscode-high-contrast') ? 'dark' : 'default',
+            startOnLoad: false,
+            theme: 'default',
             securityLevel: 'loose',
             fontFamily: 'var(--vscode-font-family)',
         });
@@ -600,6 +783,25 @@ export class DiagramPanel {
             }
         });
 
+        document.getElementById('zoomInBtn').addEventListener('click', () => {
+            zoomIn();
+        });
+
+        document.getElementById('zoomOutBtn').addEventListener('click', () => {
+            zoomOut();
+        });
+
+        document.getElementById('resetZoomBtn').addEventListener('click', () => {
+            resetZoom();
+        });
+
+        (async () => {
+            try {
+                await mermaid.run({ querySelector: '.mermaid' });
+            } catch {}
+            initZoomIfReady();
+        })();
+
         // Functions
         function regenerate() {
             vscode.postMessage({
@@ -635,7 +837,25 @@ export class DiagramPanel {
             classOptions.style.display = state.type === 'class' ? 'flex' : 'none';
         }
 
+        function disableZoomButtons() {
+            console.log('[Zoom] Disabling zoom buttons');
+            const inBtn = document.getElementById('zoomInBtn');
+            const outBtn = document.getElementById('zoomOutBtn');
+            const resetBtn = document.getElementById('resetZoomBtn');
+
+            if (inBtn) inBtn.disabled = true;
+            if (outBtn) outBtn.disabled = true;
+            if (resetBtn) resetBtn.disabled = true;
+        }
+
         function showLoading() {
+            // Reset zoom state when loading new diagram
+            zoomReady = false;
+            currentZoom = 1;
+            currentX = 0;
+            currentY = 0;
+            disableZoomButtons();
+
             const container = document.getElementById('diagramContainer');
             container.innerHTML = \`
                 <div class="loading">
@@ -653,9 +873,6 @@ export class DiagramPanel {
                     if (message.isLoading) {
                         showLoading();
                     }
-                    break;
-                case 'loaded':
-                    // Mermaid will auto-render when HTML updates
                     break;
                 case 'error':
                     vscode.postMessage({ type: 'error', text: message.text });

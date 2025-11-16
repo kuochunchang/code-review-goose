@@ -37,9 +37,9 @@ export class GenerateClassDiagramCommand {
       // Open unified panel and generate class diagram
       const panel = DiagramPanel.createOrShow(this.context.extensionUri, document.uri);
 
-      // Generate class diagram with default settings (depth=1, mode=bidirectional)
+      // Generate class diagram with default settings (depth=0, mode=bidirectional)
       await panel.generateDiagram(document.uri, 'class', {
-        depth: 1,
+        depth: 0,
         mode: 'bidirectional',
       });
 
