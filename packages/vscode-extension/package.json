@@ -1,0 +1,135 @@
+{
+  "name": "goose-code-review-vscode",
+  "displayName": "Goose Code Review",
+  "description": "AI-assisted code review with UML diagram generation in VS Code",
+  "version": "0.1.0",
+  "publisher": "kuochunchang",
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "code-review",
+    "uml",
+    "class-diagram",
+    "sequence-diagram",
+    "ai"
+  ],
+  "activationEvents": [
+    "onCommand:gooseCodeReview.generateClassDiagram",
+    "onCommand:gooseCodeReview.generateSequenceDiagram",
+    "onCommand:gooseCodeReview.generateFlowchart",
+    "onLanguage:typescript",
+    "onLanguage:javascript"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "gooseCodeReview.generateClassDiagram",
+        "title": "Generate Class Diagram",
+        "category": "Goose Code Review"
+      },
+      {
+        "command": "gooseCodeReview.generateSequenceDiagram",
+        "title": "Generate Sequence Diagram",
+        "category": "Goose Code Review"
+      },
+      {
+        "command": "gooseCodeReview.generateFlowchart",
+        "title": "Generate Flowchart",
+        "category": "Goose Code Review"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "command": "gooseCodeReview.generateClassDiagram",
+          "group": "gooseCodeReview@1"
+        },
+        {
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "command": "gooseCodeReview.generateSequenceDiagram",
+          "group": "gooseCodeReview@2"
+        },
+        {
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "command": "gooseCodeReview.generateFlowchart",
+          "group": "gooseCodeReview@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Goose Code Review",
+      "properties": {
+        "gooseCodeReview.analysisDepth": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Depth of relationship analysis (1-5)"
+        },
+        "gooseCodeReview.analysisMode": {
+          "type": "string",
+          "default": "focused",
+          "enum": [
+            "focused",
+            "comprehensive"
+          ],
+          "enumDescriptions": [
+            "Analyze only direct relationships",
+            "Analyze all related classes and dependencies"
+          ],
+          "description": "Analysis mode for UML generation"
+        },
+        "gooseCodeReview.showPrivateMembers": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include private members in class diagrams"
+        },
+        "gooseCodeReview.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh diagrams when file changes"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "watch": "tsc --watch",
+    "package": "vsce package",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@code-review-goose/analysis-core": "*",
+    "@code-review-goose/analysis-adapter-vscode": "*",
+    "@code-review-goose/analysis-types": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kuochunchang/code-review-goose.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kuochunchang/code-review-goose/issues"
+  },
+  "homepage": "https://github.com/kuochunchang/code-review-goose#readme",
+  "author": "KCC",
+  "license": "MIT"
+}
