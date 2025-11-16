@@ -142,9 +142,9 @@ export class SequenceAnalysisService {
           const propertyName = node.left.property.name;
           const className = node.right.callee.name;
 
-          if (this.classes.has(className)) {
-            this.propertyTypes.set(propertyName, className);
-          }
+          // Track the type even if class is imported (not in this.classes)
+          // We'll validate it later when creating participants
+          this.propertyTypes.set(propertyName, className);
         }
       },
 
@@ -161,9 +161,9 @@ export class SequenceAnalysisService {
           const variableName = node.id.name;
           const className = node.init.callee.name;
 
-          if (this.classes.has(className)) {
-            this.propertyTypes.set(variableName, className);
-          }
+          // Track the type even if class is imported (not in this.classes)
+          // We'll validate it later when creating participants
+          this.propertyTypes.set(variableName, className);
         }
       },
     });
