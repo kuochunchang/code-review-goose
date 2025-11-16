@@ -1,5 +1,5 @@
 import type { AnalysisResult, ExplainResult } from './ai.js';
-import type { UMLResult, DiagramType } from '../services/umlService.js';
+import type { UMLResult, DiagramType } from '@code-review-goose/analysis-types';
 
 /**
  * UML diagrams storage for a file

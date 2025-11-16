@@ -1,6 +1,8 @@
 import { Request, Response, Router } from 'express';
 import { InsightService } from '../services/insightService.js';
-import { DiagramType, UMLService } from '../services/umlService.js';
+import { UMLAnalyzer } from '@code-review-goose/analysis-core';
+import { NodeFileProvider } from '@code-review-goose/analysis-adapter-node';
+import type { DiagramType } from '@code-review-goose/analysis-types';
 
 export const umlRouter = Router();
 
@@ -72,8 +74,9 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
     }
 
     // Generate UML diagram using unified method (native mode only)
-    const umlService = new UMLService();
-    const result = await umlService.generateUnifiedDiagram(filePath, projectPath, type, {
+    const fileProvider = new NodeFileProvider(projectPath);
+    const umlAnalyzer = new UMLAnalyzer(fileProvider);
+    const result = await umlAnalyzer.generateUnifiedDiagram(filePath, type, {
       depth: finalDepth,
       mode: analysisMode || 'bidirectional',
     });
