@@ -62,16 +62,16 @@ code-review-goose/                          # Monorepo 根目录
 
 ### 包职责划分
 
-| 包名 | 职责 | 发布到 npm | 依赖 |
-|------|------|-----------|------|
-| `@code-review-goose/analysis-types` | 类型定义、接口声明 | ✅ Public | 零依赖 |
-| `@code-review-goose/analysis-utils` | Mermaid 验证、AST 辅助函数 | ✅ Public | analysis-types |
-| `@code-review-goose/analysis-core` | UML 生成、OO 分析、序列分析 | ✅ Public | analysis-types, analysis-utils, @babel/* |
-| `@code-review-goose/analysis-adapter-node` | Node.js 文件系统实现 | ✅ Public | analysis-types, fs-extra |
-| `@code-review-goose/analysis-adapter-vscode` | VS Code API 实现 | ✅ Public | analysis-types, vscode |
-| `@code-review-goose/server` | Express 后端服务 | ❌ Private | analysis-core, adapter-node |
-| `@code-review-goose/web` | Vue 3 前端应用 | ❌ Private | 无（调用 API）|
-| `@code-review-goose/vscode-extension` | VS Code 插件 | ❌ Private | analysis-core, adapter-vscode |
+| 包名                                         | 职责                        | 发布到 npm | 依赖                                      |
+| -------------------------------------------- | --------------------------- | ---------- | ----------------------------------------- |
+| `@code-review-goose/analysis-types`          | 类型定义、接口声明          | ✅ Public  | 零依赖                                    |
+| `@code-review-goose/analysis-utils`          | Mermaid 验证、AST 辅助函数  | ✅ Public  | analysis-types                            |
+| `@code-review-goose/analysis-core`           | UML 生成、OO 分析、序列分析 | ✅ Public  | analysis-types, analysis-utils, @babel/\* |
+| `@code-review-goose/analysis-adapter-node`   | Node.js 文件系统实现        | ✅ Public  | analysis-types, fs-extra                  |
+| `@code-review-goose/analysis-adapter-vscode` | VS Code API 实现            | ✅ Public  | analysis-types, vscode                    |
+| `@code-review-goose/server`                  | Express 后端服务            | ❌ Private | analysis-core, adapter-node               |
+| `@code-review-goose/web`                     | Vue 3 前端应用              | ❌ Private | 无（调用 API）                            |
+| `@code-review-goose/vscode-extension`        | VS Code 插件                | ❌ Private | analysis-core, adapter-vscode             |
 
 ---
 
@@ -92,6 +92,7 @@ export interface IFileProvider {
 ```
 
 **实现方式**：
+
 - `NodeFileProvider`：使用 `fs-extra` 实现（Web/CLI 使用）
 - `VSCodeFileProvider`：使用 `vscode.workspace.fs` 实现（VS Code 插件使用）
 - 未来可扩展：`BrowserFileProvider`（浏览器内存文件系统）
@@ -99,12 +100,14 @@ export interface IFileProvider {
 ### 核心分析引擎（Platform-Agnostic）
 
 **设计原则**：
+
 - ✅ 无文件系统直接依赖（通过 `IFileProvider` 接口）
 - ✅ 无平台特定 API（Node.js/Browser/VS Code）
 - ✅ 纯业务逻辑（AST 解析、关系分析、Mermaid 生成）
 - ✅ 100% 可单元测试（Mock `IFileProvider`）
 
 **核心组件**：
+
 - `UMLAnalyzer`：UML 图表生成总控
 - `OOAnalyzer`：面向对象关系分析
 - `SequenceAnalyzer`：序列图分析
@@ -119,6 +122,7 @@ export interface IFileProvider {
 **目标**：建立 monorepo 基础架构
 
 **任务清单**：
+
 - [ ] 创建新包目录结构（4 个核心包）
 - [ ] 配置 TypeScript Project References
   - 创建 `tsconfig.base.json`
@@ -132,6 +136,7 @@ export interface IFileProvider {
   - 配置统一的 scripts（build、test、lint）
 
 **交付成果**：
+
 - ✅ Monorepo 结构就绪
 - ✅ 可以运行 `npm install` 并正常工作
 - ✅ TypeScript 增量编译配置完成
@@ -143,16 +148,19 @@ export interface IFileProvider {
 **目标**：创建零依赖的类型包
 
 **迁移内容**：
+
 - `packages/server/src/types/ast.ts` → `packages/analysis-types/src/ast.ts`
 - 新增 `packages/analysis-types/src/providers.ts`（适配器接口）
 - 新增 `packages/analysis-types/src/uml.ts`（UML 相关类型）
 
 **关键接口**：
+
 - `IFileProvider`：文件系统抽象
 - `ICacheProvider`：缓存抽象（可选）
 - 所有 AST 相关类型（`ClassInfo`, `MethodInfo`, `DependencyInfo` 等）
 
 **验证标准**：
+
 - [ ] 包可以独立编译
 - [ ] 零运行时依赖（`dependencies: {}`）
 - [ ] 所有导出类型可以被其他包引用
@@ -166,6 +174,7 @@ export interface IFileProvider {
 **迁移内容**：
 
 从 `packages/server/src/services/` 迁移以下文件：
+
 - `umlService.ts` → `analyzers/UMLAnalyzer.ts`
 - `ooAnalysisService.ts` → `analyzers/OOAnalyzer.ts`
 - `sequenceAnalysisService.ts` → `analyzers/SequenceAnalyzer.ts`
@@ -173,11 +182,13 @@ export interface IFileProvider {
 - `uml/mermaidValidator.ts` → 移至 `analysis-utils` 包
 
 **关键改造**：
+
 - 移除所有 `fs.readFile()` 调用 → 改为 `this.fileProvider.readFile()`
 - 移除所有 `path.join()` 调用 → 改为接口方法
 - 通过构造函数注入 `IFileProvider`
 
 **验证标准**：
+
 - [ ] 所有核心逻辑可以用 Mock 测试（无需真实文件）
 - [ ] 测试覆盖率 ≥ 80%
 - [ ] 测试运行时间 < 1 秒（Vitest）
@@ -189,12 +200,14 @@ export interface IFileProvider {
 **目标**：实现 Node.js 文件系统适配器
 
 **实现内容**：
+
 - `NodeFileProvider`：实现 `IFileProvider` 接口
 - `PathResolver`：从现有代码迁移并适配
 - `ImportIndexBuilder`：从现有代码迁移并适配
 - `NodeCacheProvider`：包装现有 `InsightService`（可选）
 
 **验证标准**：
+
 - [ ] 适配器可以正确读取文件
 - [ ] 路径解析与现有逻辑一致
 - [ ] 集成测试通过（使用真实文件）
@@ -206,6 +219,7 @@ export interface IFileProvider {
 **目标**：更新 server 使用新包
 
 **重构范围**：
+
 - `routes/uml.ts`：改用 `UMLAnalyzer` + `NodeFileProvider`
 - 删除已迁移的服务文件（`umlService.ts` 等）
 - 更新 `package.json` 依赖
@@ -227,6 +241,7 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 ```
 
 **验证标准**：
+
 - [ ] 所有现有 API 端点功能不变
 - [ ] E2E 测试 100% 通过（Playwright）
 - [ ] 性能无明显下降（< 5% 差异）
@@ -239,14 +254,15 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 **测试策略**：
 
-| 层级 | 工具 | 覆盖率目标 | 运行时间 |
-|------|------|-----------|---------|
-| 核心逻辑（analysis-core） | Vitest + Mock | 80%+ | < 1 秒 |
-| 适配器（adapter-node） | Vitest + 真实文件 | 70%+ | < 5 秒 |
-| 集成（server） | Vitest | 60%+ | < 10 秒 |
-| E2E（web） | Playwright | 80%+ | 30-60 秒 |
+| 层级                      | 工具              | 覆盖率目标 | 运行时间 |
+| ------------------------- | ----------------- | ---------- | -------- |
+| 核心逻辑（analysis-core） | Vitest + Mock     | 80%+       | < 1 秒   |
+| 适配器（adapter-node）    | Vitest + 真实文件 | 70%+       | < 5 秒   |
+| 集成（server）            | Vitest            | 60%+       | < 10 秒  |
+| E2E（web）                | Playwright        | 80%+       | 30-60 秒 |
 
 **文档清单**：
+
 - [ ] 每个包的 `README.md`（安装、使用示例、API 文档）
 - [ ] `ARCHITECTURE.md`（架构设计说明）
 - [ ] `MIGRATION.md`（迁移指南，如有 breaking changes）
@@ -259,16 +275,19 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 **目标**：开发 VS Code 插件，复用核心代码
 
 **新增包**：
+
 - `packages/analysis-adapter-vscode/`：VS Code 文件系统适配器
 - `packages/vscode-extension/`：VS Code 插件主体
 
 **核心功能**：
+
 - 右键菜单：生成类图、序列图、流程图
 - Webview 渲染：显示 Mermaid 图表
 - 配置项：分析深度、分析模式
 - 命令面板：快速访问 UML 功能
 
 **验证标准**：
+
 - [ ] 插件可以正常安装和激活
 - [ ] UML 生成结果与 Web 版本一致
 - [ ] Webview 正确渲染 Mermaid 图表
@@ -277,16 +296,16 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 ## 📊 工作量估算
 
-| Phase | 工作日 | 主要任务 | 交付成果 |
-|-------|--------|---------|---------|
-| Phase 1 | 2-3 天 | Monorepo 搭建 | 基础架构就绪 |
-| Phase 2 | 2-3 天 | 类型抽离 | analysis-types 包 |
-| Phase 3 | 3-4 天 | 核心引擎抽离 | analysis-core 包 |
-| Phase 4 | 2-3 天 | Node 适配器 | analysis-adapter-node 包 |
-| Phase 5 | 2-3 天 | Server 重构 | Server 使用新包 |
-| Phase 6 | 2-3 天 | 测试和文档 | 完整文档和测试 |
-| Phase 7 | 7-10 天 | VS Code 插件 | 双端支持（可选）|
-| **总计** | **14-21 天** | - | **可扩展架构 + 多端支持** |
+| Phase    | 工作日       | 主要任务      | 交付成果                  |
+| -------- | ------------ | ------------- | ------------------------- |
+| Phase 1  | 2-3 天       | Monorepo 搭建 | 基础架构就绪              |
+| Phase 2  | 2-3 天       | 类型抽离      | analysis-types 包         |
+| Phase 3  | 3-4 天       | 核心引擎抽离  | analysis-core 包          |
+| Phase 4  | 2-3 天       | Node 适配器   | analysis-adapter-node 包  |
+| Phase 5  | 2-3 天       | Server 重构   | Server 使用新包           |
+| Phase 6  | 2-3 天       | 测试和文档    | 完整文档和测试            |
+| Phase 7  | 7-10 天      | VS Code 插件  | 双端支持（可选）          |
+| **总计** | **14-21 天** | -             | **可扩展架构 + 多端支持** |
 
 ---
 
@@ -296,6 +315,7 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 **选择**：单 Monorepo
 **理由**：
+
 - 原子性提交（跨包修改在一个 commit）
 - 本地开发无需 npm link
 - 版本协调简单（Changesets 自动处理）
@@ -305,6 +325,7 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 **选择**：独立版本
 **理由**：
+
 - 类型包很少改动，不需要频繁升级版本
 - 允许包独立演进
 - 用户只更新需要的包
@@ -313,6 +334,7 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 **选择**：适配器模式（依赖倒置）
 **理由**：
+
 - 核心逻辑可以用 Mock 快速测试
 - 支持多平台（Node.js、VS Code、浏览器）
 - 易于添加新的平台支持
@@ -321,6 +343,7 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 **选择**：分层测试（核心 Vitest + E2E Playwright）
 **理由**：
+
 - 核心逻辑用 Vitest Mock 测试（毫秒级，80% 覆盖率）
 - E2E 保留 Playwright（秒级，覆盖关键流程）
 - VS Code 集成测试轻量化（30-40% 覆盖率）
@@ -359,6 +382,7 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 **等级**：中
 **缓解措施**：
+
 - 保持现有 E2E 测试运行
 - 逐步迁移，每个 Phase 独立验证
 - 使用 TypeScript 编译器检查类型安全
@@ -367,6 +391,7 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 **等级**：低
 **缓解措施**：
+
 - 使用 TypeScript Project References 强制依赖顺序
 - 遵循分层架构：types → utils → core → adapters
 
@@ -374,6 +399,7 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 **等级**：低
 **缓解措施**：
+
 - 适配器接口开销可忽略（函数调用级别）
 - Phase 6 进行性能基准测试
 - 如有问题，可以优化热路径
@@ -382,6 +408,7 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 **等级**：低
 **缓解措施**：
+
 - 核心逻辑用 Mock 测试简单（目标 80%）
 - E2E 测试保留现有 Playwright 套件
 - VS Code 集成测试适当放宽（30-40%）
@@ -413,16 +440,19 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 ## 🔧 技术栈和工具
 
 ### Monorepo 管理
+
 - **npm workspaces**（内置，无需额外工具）
 - **Changesets**（版本管理和发布）
 - **TypeScript Project References**（增量编译）
 
 ### 测试工具
+
 - **Vitest**（单元测试，快速）
 - **Playwright**（E2E 测试，现有）
 - **@vscode/test-electron**（VS Code 集成测试，可选）
 
 ### 文档生成
+
 - **TypeDoc**（从 TypeScript 生成 API 文档）
 - **Markdown**（手写文档）
 
@@ -431,11 +461,13 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 ## 📚 参考资料
 
 ### 最佳实践参考
+
 - TypeScript-ESLint Monorepo 架构
 - Babel Monorepo 组织方式
 - VS Code Extension 开发指南
 
 ### 相关文档
+
 - [npm workspaces 文档](https://docs.npmjs.com/cli/v8/using-npm/workspaces)
 - [TypeScript Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)
 - [Changesets 官方文档](https://github.com/changesets/changesets)
@@ -460,8 +492,8 @@ const result = await analyzer.analyzeClass(filePath, { depth, mode });
 
 ## 📝 更新日志
 
-| 版本 | 日期 | 变更说明 |
-|------|------|---------|
+| 版本 | 日期       | 变更说明               |
+| ---- | ---------- | ---------------------- |
 | v1.0 | 2025-01-16 | 初始版本，完整重构计划 |
 
 ---

@@ -307,9 +307,7 @@ export class UMLService {
         },
       };
     } catch (error) {
-      throw new Error(
-        `Failed to generate cross-file class diagram: ${(error as Error).message}`
-      );
+      throw new Error(`Failed to generate cross-file class diagram: ${(error as Error).message}`);
     }
   }
 
@@ -331,13 +329,15 @@ export class UMLService {
 
       // Add properties
       for (const prop of cls.properties) {
-        const visibility = prop.visibility === 'private' ? '-' : prop.visibility === 'protected' ? '#' : '+';
+        const visibility =
+          prop.visibility === 'private' ? '-' : prop.visibility === 'protected' ? '#' : '+';
         diagram += `    ${visibility}${prop.type} ${prop.name}\n`;
       }
 
       // Add methods
       for (const method of cls.methods) {
-        const visibility = method.visibility === 'private' ? '-' : method.visibility === 'protected' ? '#' : '+';
+        const visibility =
+          method.visibility === 'private' ? '-' : method.visibility === 'protected' ? '#' : '+';
         const params = method.parameters.map((p) => `${p.name}: ${p.type}`).join(', ');
         diagram += `    ${visibility}${method.name}(${params}): ${method.returnType}\n`;
       }

@@ -309,7 +309,11 @@ export class CrossFileAnalysisService {
         const importerAnalysis = await this.analyzeFile(importer, currentDepth + 1);
 
         // 建立 reverse dependencies：從 importer 中的類別到 target 中的類別
-        const reverseDeps = await this.createReverseDependencies(importerAnalysis, currentFile, results);
+        const reverseDeps = await this.createReverseDependencies(
+          importerAnalysis,
+          currentFile,
+          results
+        );
 
         // 合併 reverse dependencies 到 importer 的分析結果
         importerAnalysis.relationships.push(...reverseDeps);
@@ -341,7 +345,10 @@ export class CrossFileAnalysisService {
     // 檢查 importer 是否真的 import 了 target
     let hasImport = false;
     for (const imp of importerAnalysis.imports) {
-      const resolvedPath = await this.pathResolver.resolveImportPath(importerAnalysis.filePath, imp.source);
+      const resolvedPath = await this.pathResolver.resolveImportPath(
+        importerAnalysis.filePath,
+        imp.source
+      );
       if (resolvedPath === targetFile) {
         hasImport = true;
         break;

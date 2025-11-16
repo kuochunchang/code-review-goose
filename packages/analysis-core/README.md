@@ -25,7 +25,7 @@ const analyzer = new UMLAnalyzer(fileProvider);
 // Generate class diagram
 const result = await analyzer.analyzeClass('src/MyClass.ts', {
   depth: 2,
-  mode: 'native'
+  mode: 'native',
 });
 
 console.log(result.mermaidCode);

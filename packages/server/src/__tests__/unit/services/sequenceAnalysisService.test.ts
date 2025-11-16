@@ -252,8 +252,12 @@ describe('SequenceAnalysisService', () => {
 
       // Should have interactions: A->B, B->C
       expect(result.interactions.length).toBeGreaterThan(0);
-      expect(result.interactions.some((i) => i.from === 'A' && i.message.includes('method'))).toBe(true);
-      expect(result.interactions.some((i) => i.from === 'B' && i.message.includes('method'))).toBe(true);
+      expect(result.interactions.some((i) => i.from === 'A' && i.message.includes('method'))).toBe(
+        true
+      );
+      expect(result.interactions.some((i) => i.from === 'B' && i.message.includes('method'))).toBe(
+        true
+      );
     });
 
     it('should handle empty code gracefully', () => {
@@ -389,18 +393,27 @@ describe('SequenceAnalysisService', () => {
 
       // Should have calls to ProductService
       const getProductCall = result.interactions.find(
-        (i) => i.from === 'OrderController' && i.to === 'ProductService' && i.message.includes('getProduct')
+        (i) =>
+          i.from === 'OrderController' &&
+          i.to === 'ProductService' &&
+          i.message.includes('getProduct')
       );
       expect(getProductCall).toBeDefined();
 
       const updateStockCall = result.interactions.find(
-        (i) => i.from === 'OrderController' && i.to === 'ProductService' && i.message.includes('updateStock')
+        (i) =>
+          i.from === 'OrderController' &&
+          i.to === 'ProductService' &&
+          i.message.includes('updateStock')
       );
       expect(updateStockCall).toBeDefined();
 
       // Should have call to OrderService
       const createOrderCall = result.interactions.find(
-        (i) => i.from === 'OrderController' && i.to === 'OrderService' && i.message.includes('createOrder')
+        (i) =>
+          i.from === 'OrderController' &&
+          i.to === 'OrderService' &&
+          i.message.includes('createOrder')
       );
       expect(createOrderCall).toBeDefined();
     });

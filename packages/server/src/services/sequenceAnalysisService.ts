@@ -155,7 +155,11 @@ export class SequenceAnalysisService {
           const paramTypes = new Map<string, string>();
 
           node.params.forEach((param) => {
-            if (t.isIdentifier(param) && param.typeAnnotation && t.isTSTypeAnnotation(param.typeAnnotation)) {
+            if (
+              t.isIdentifier(param) &&
+              param.typeAnnotation &&
+              t.isTSTypeAnnotation(param.typeAnnotation)
+            ) {
               const paramName = param.name;
               const typeNode = param.typeAnnotation.typeAnnotation;
 
@@ -169,7 +173,10 @@ export class SequenceAnalysisService {
           // Now look for assignments like: this.property = paramName
           if (node.body && t.isBlockStatement(node.body)) {
             node.body.body.forEach((statement) => {
-              if (t.isExpressionStatement(statement) && t.isAssignmentExpression(statement.expression)) {
+              if (
+                t.isExpressionStatement(statement) &&
+                t.isAssignmentExpression(statement.expression)
+              ) {
                 const assignment = statement.expression;
 
                 // Check for: this.property = paramName
@@ -277,7 +284,12 @@ export class SequenceAnalysisService {
         exit: (path: any) => {
           const node = path.node as t.FunctionDeclaration;
           const isTopLevel = path.parent.type === 'Program' || path.getFunctionParent() === null;
-          if (this.classes.size === 0 && node.id && isTopLevel && this.currentClass === node.id.name) {
+          if (
+            this.classes.size === 0 &&
+            node.id &&
+            isTopLevel &&
+            this.currentClass === node.id.name
+          ) {
             this.currentClass = null;
             this.currentMethod = null;
           }
@@ -351,13 +363,7 @@ export class SequenceAnalysisService {
     );
 
     // Add return interaction
-    this.addInteraction(
-      targetClass,
-      this.currentClass,
-      'return',
-      'return',
-      node.loc?.start.line
-    );
+    this.addInteraction(targetClass, this.currentClass, 'return', 'return', node.loc?.start.line);
   }
 
   /**
@@ -387,7 +393,10 @@ export class SequenceAnalysisService {
           const targetClass = this.findClassForObject(propertyName);
 
           // If we can resolve to a known class (local or imported), use it
-          if (targetClass && (this.classes.has(targetClass) || this.importedClasses.has(targetClass))) {
+          if (
+            targetClass &&
+            (this.classes.has(targetClass) || this.importedClasses.has(targetClass))
+          ) {
             return {
               targetClass,
               methodName,
@@ -415,7 +424,10 @@ export class SequenceAnalysisService {
         const targetClass = this.findClassForObject(objectName);
 
         // If we can resolve to a known class (local or imported), use it
-        if (targetClass && (this.classes.has(targetClass) || this.importedClasses.has(targetClass))) {
+        if (
+          targetClass &&
+          (this.classes.has(targetClass) || this.importedClasses.has(targetClass))
+        ) {
           return {
             targetClass,
             methodName,
@@ -483,13 +495,20 @@ export class SequenceAnalysisService {
    */
   private isBuiltInMethod(targetClass: string, methodName: string): boolean {
     // Don't filter out known user-defined classes (local or imported) or top-level functions
-    if (this.classes.has(targetClass) || this.importedClasses.has(targetClass) || this.topLevelFunctions.has(targetClass)) {
+    if (
+      this.classes.has(targetClass) ||
+      this.importedClasses.has(targetClass) ||
+      this.topLevelFunctions.has(targetClass)
+    ) {
       return false;
     }
 
     // Check if target class can be resolved to a known class (e.g., "db" -> "Database")
     const resolvedClass = this.findClassForObject(targetClass);
-    if (resolvedClass && (this.classes.has(resolvedClass) || this.importedClasses.has(resolvedClass))) {
+    if (
+      resolvedClass &&
+      (this.classes.has(resolvedClass) || this.importedClasses.has(resolvedClass))
+    ) {
       return false;
     }
 

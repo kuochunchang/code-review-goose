@@ -10,14 +10,7 @@ export const umlRouter = Router();
  */
 umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> => {
   try {
-    const {
-      type,
-      filePath,
-      depth,
-      analysisDepth,
-      analysisMode,
-      crossFileAnalysis,
-    } = req.body as {
+    const { type, filePath, depth, analysisDepth, analysisMode, crossFileAnalysis } = req.body as {
       code?: string; // Optional: accepted for backward compatibility but not used (filePath is used instead)
       type: DiagramType;
       filePath: string;

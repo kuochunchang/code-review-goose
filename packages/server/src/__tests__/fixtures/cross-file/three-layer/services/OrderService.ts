@@ -20,11 +20,7 @@ export class OrderService {
   }
 
   // Create new order with validation
-  createOrder(
-    request: CreateOrderRequest,
-    customer: Customer,
-    products: Product[]
-  ): Order {
+  createOrder(request: CreateOrderRequest, customer: Customer, products: Product[]): Order {
     // Validate customer is active
     if (!customer.checkIsActive()) {
       throw new Error('Customer is not active');
