@@ -1,14 +1,14 @@
 import type { AnalysisResult } from './analysis';
 
 /**
- * UML diagram type
+ * UML diagram type (native mode only)
  */
-export type DiagramType = 'class' | 'flowchart' | 'sequence' | 'dependency';
+export type DiagramType = 'class' | 'flowchart' | 'sequence';
 
 /**
- * UML generation mode
+ * UML generation mode (only native is supported)
  */
-export type DiagramGenerationMode = 'native' | 'ai' | 'hybrid';
+export type DiagramGenerationMode = 'native';
 
 /**
  * UML generation options

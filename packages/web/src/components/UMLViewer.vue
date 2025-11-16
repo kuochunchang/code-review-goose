@@ -14,10 +14,6 @@
           <v-icon size="small" class="mr-1">mdi-chart-gantt</v-icon>
           SEQUENCE
         </v-btn>
-        <v-btn value="dependency" size="small" :disabled="!aiAvailable">
-          <v-icon size="small" class="mr-1">mdi-graph</v-icon>
-          DEPENDENCY
-        </v-btn>
       </v-btn-toggle>
 
       <v-spacer></v-spacer>
@@ -151,20 +147,8 @@
         <v-icon size="64" color="grey-lighten-1">mdi-chart-tree</v-icon>
         <p class="mt-4 text-grey">Select code and click refresh to generate UML diagram</p>
 
-        <div
-          v-if="!aiAvailable && selectedType === 'dependency'"
-          class="mt-4"
-        >
-          <v-alert type="warning" variant="tonal" density="compact">
-            <v-alert-title>AI Required</v-alert-title>
-            Dependency diagrams require AI configuration. Please configure your AI provider
-            in settings.
-          </v-alert>
-        </div>
-
         <div v-if="generationMode" class="mt-4 text-caption text-grey">
-          Generation Mode: {{ generationMode }}
-          {{ aiAvailable ? '(AI Available)' : '(Native Only)' }}
+          Generation Mode: {{ generationMode }} (Native AST Analysis)
         </div>
       </div>
     </v-card-text>

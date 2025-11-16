@@ -421,83 +421,22 @@ describe('UML API', () => {
   });
 
   describe('GET /api/uml/supported-types', () => {
-    it('should return supported UML types when AI is available', async () => {
-      vi.mocked(ConfigService).mockImplementation(
-        () =>
-          ({
-            get: vi.fn().mockResolvedValue({
-              uml: {
-                generationMode: 'hybrid',
-                aiOptions: {
-                  enabledTypes: ['sequence', 'dependency'],
-                },
-              },
-            }),
-          }) as any
-      );
-
-      vi.mocked(AIService).mockImplementation(
-        () =>
-          ({
-            isConfigured: vi.fn().mockResolvedValue(true),
-          }) as any
-      );
-
+    it('should return supported UML types (native mode only)', async () => {
       const response = await request(app).get('/api/uml/supported-types');
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.generationMode).toBe('hybrid');
-      expect(response.body.data.aiAvailable).toBe(true);
-      expect(response.body.data.types).toHaveLength(4);
-      expect(response.body.data.types[0].id).toBe('class');
-    });
-
-    it('should return supported UML types when AI is not available', async () => {
-      vi.mocked(ConfigService).mockImplementation(
-        () =>
-          ({
-            get: vi.fn().mockResolvedValue({
-              uml: {
-                generationMode: 'native',
-              },
-            }),
-          }) as any
-      );
-
-      vi.mocked(AIService).mockImplementation(
-        () =>
-          ({
-            isConfigured: vi.fn().mockResolvedValue(false),
-          }) as any
-      );
-
-      const response = await request(app).get('/api/uml/supported-types');
-
-      expect(response.status).toBe(200);
-      expect(response.body.success).toBe(true);
+      expect(response.body.data.generationMode).toBe('native');
       expect(response.body.data.aiAvailable).toBe(false);
-      expect(response.body.data.types).toHaveLength(4);
-    });
-
-    it('should handle errors when getting supported types', async () => {
-      vi.mocked(ConfigService).mockImplementation(
-        () =>
-          ({
-            get: vi.fn().mockRejectedValue(new Error('Config failed')),
-          }) as any
-      );
-
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-      const response = await request(app).get('/api/uml/supported-types');
-
-      expect(response.status).toBe(500);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error).toBe('Config failed');
-      expect(consoleErrorSpy).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
+      expect(response.body.data.types).toHaveLength(3); // class, flowchart, sequence
+      expect(response.body.data.types[0].id).toBe('class');
+      expect(response.body.data.types[1].id).toBe('flowchart');
+      expect(response.body.data.types[2].id).toBe('sequence');
+      // All should have native mode only
+      response.body.data.types.forEach((type: any) => {
+        expect(type.modes).toEqual(['native']);
+        expect(type.defaultMode).toBe('native');
+      });
     });
   });
 });
