@@ -7,7 +7,6 @@ import * as vscode from 'vscode';
 import { UMLAnalyzer } from '@code-review-goose/analysis-core';
 import { VSCodeFileProvider } from '@code-review-goose/analysis-adapter-vscode';
 import { DiagramPanel } from '../views/diagram-panel.js';
-import { getConfiguration } from '../utils/config.js';
 
 export class GenerateFlowchartCommand {
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -45,38 +44,31 @@ export class GenerateFlowchartCommand {
           cancellable: false,
         },
         async (progress) => {
-          try {
-            // Get configuration
-            const config = getConfiguration();
+          // Create file provider and analyzer
+          const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
+          const analyzer = new UMLAnalyzer(fileProvider);
 
-            // Create file provider and analyzer
-            const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
-            const analyzer = new UMLAnalyzer(fileProvider);
+          // Generate flowchart
+          progress.report({ message: 'Analyzing control flow...' });
+          const result = await analyzer.generateUnifiedDiagram(
+            document.uri.fsPath,
+            'flowchart',
+            {
+              depth: 0, // Single file analysis for flowcharts
+            }
+          );
 
-            // Generate flowchart
-            progress.report({ message: 'Analyzing control flow...' });
-            const result = await analyzer.generateUnifiedDiagram(
-              document.uri.fsPath,
-              'flowchart',
-              {
-                depth: 0, // Single file analysis for flowcharts
-              }
-            );
+          // Display diagram in webview
+          progress.report({ message: 'Rendering diagram...' });
+          const panel = DiagramPanel.createOrShow(
+            this.context.extensionUri,
+            'Flowchart',
+            document.fileName
+          );
 
-            // Display diagram in webview
-            progress.report({ message: 'Rendering diagram...' });
-            const panel = DiagramPanel.createOrShow(
-              this.context.extensionUri,
-              'Flowchart',
-              document.fileName
-            );
+          panel.updateDiagram(result.mermaidCode, 'flowchart');
 
-            panel.updateDiagram(result.mermaidCode, 'flowchart');
-
-            vscode.window.showInformationMessage('Flowchart generated successfully');
-          } catch (error) {
-            throw error;
-          }
+          vscode.window.showInformationMessage('Flowchart generated successfully');
         }
       );
     } catch (error) {

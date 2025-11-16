@@ -45,39 +45,35 @@ export class GenerateClassDiagramCommand {
           cancellable: false,
         },
         async (progress) => {
-          try {
-            // Get configuration
-            const config = getConfiguration();
+          // Get configuration
+          const config = getConfiguration();
 
-            // Create file provider and analyzer
-            const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
-            const analyzer = new UMLAnalyzer(fileProvider);
+          // Create file provider and analyzer
+          const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
+          const analyzer = new UMLAnalyzer(fileProvider);
 
-            // Generate class diagram
-            progress.report({ message: 'Analyzing file structure...' });
-            const result = await analyzer.generateUnifiedDiagram(
-              document.uri.fsPath,
-              'class',
-              {
-                depth: config.analysisDepth,
-                mode: config.analysisMode === 'comprehensive' ? 'bidirectional' : 'forward',
-              }
-            );
+          // Generate class diagram
+          progress.report({ message: 'Analyzing file structure...' });
+          const result = await analyzer.generateUnifiedDiagram(
+            document.uri.fsPath,
+            'class',
+            {
+              depth: config.analysisDepth,
+              mode: config.analysisMode === 'comprehensive' ? 'bidirectional' : 'forward',
+            }
+          );
 
-            // Display diagram in webview
-            progress.report({ message: 'Rendering diagram...' });
-            const panel = DiagramPanel.createOrShow(
-              this.context.extensionUri,
-              'Class Diagram',
-              document.fileName
-            );
+          // Display diagram in webview
+          progress.report({ message: 'Rendering diagram...' });
+          const panel = DiagramPanel.createOrShow(
+            this.context.extensionUri,
+            'Class Diagram',
+            document.fileName
+          );
 
-            panel.updateDiagram(result.mermaidCode, 'class');
+          panel.updateDiagram(result.mermaidCode, 'class');
 
-            vscode.window.showInformationMessage('Class diagram generated successfully');
-          } catch (error) {
-            throw error;
-          }
+          vscode.window.showInformationMessage('Class diagram generated successfully');
         }
       );
     } catch (error) {

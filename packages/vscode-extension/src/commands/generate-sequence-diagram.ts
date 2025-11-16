@@ -7,7 +7,6 @@ import * as vscode from 'vscode';
 import { UMLAnalyzer } from '@code-review-goose/analysis-core';
 import { VSCodeFileProvider } from '@code-review-goose/analysis-adapter-vscode';
 import { DiagramPanel } from '../views/diagram-panel.js';
-import { getConfiguration } from '../utils/config.js';
 
 export class GenerateSequenceDiagramCommand {
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -45,38 +44,31 @@ export class GenerateSequenceDiagramCommand {
           cancellable: false,
         },
         async (progress) => {
-          try {
-            // Get configuration
-            const config = getConfiguration();
+          // Create file provider and analyzer
+          const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
+          const analyzer = new UMLAnalyzer(fileProvider);
 
-            // Create file provider and analyzer
-            const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
-            const analyzer = new UMLAnalyzer(fileProvider);
+          // Generate sequence diagram
+          progress.report({ message: 'Analyzing function calls...' });
+          const result = await analyzer.generateUnifiedDiagram(
+            document.uri.fsPath,
+            'sequence',
+            {
+              depth: 0, // Single file analysis for sequence diagrams
+            }
+          );
 
-            // Generate sequence diagram
-            progress.report({ message: 'Analyzing function calls...' });
-            const result = await analyzer.generateUnifiedDiagram(
-              document.uri.fsPath,
-              'sequence',
-              {
-                depth: 0, // Single file analysis for sequence diagrams
-              }
-            );
+          // Display diagram in webview
+          progress.report({ message: 'Rendering diagram...' });
+          const panel = DiagramPanel.createOrShow(
+            this.context.extensionUri,
+            'Sequence Diagram',
+            document.fileName
+          );
 
-            // Display diagram in webview
-            progress.report({ message: 'Rendering diagram...' });
-            const panel = DiagramPanel.createOrShow(
-              this.context.extensionUri,
-              'Sequence Diagram',
-              document.fileName
-            );
+          panel.updateDiagram(result.mermaidCode, 'sequence');
 
-            panel.updateDiagram(result.mermaidCode, 'sequence');
-
-            vscode.window.showInformationMessage('Sequence diagram generated successfully');
-          } catch (error) {
-            throw error;
-          }
+          vscode.window.showInformationMessage('Sequence diagram generated successfully');
         }
       );
     } catch (error) {

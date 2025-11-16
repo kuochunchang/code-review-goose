@@ -12,7 +12,7 @@ export class DiagramPanel {
 
   private constructor(
     panel: vscode.WebviewPanel,
-    extensionUri: vscode.Uri
+    _extensionUri: vscode.Uri
   ) {
     this._panel = panel;
 
