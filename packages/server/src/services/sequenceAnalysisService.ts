@@ -417,25 +417,52 @@ export class SequenceAnalysisService {
       'propertyIsEnumerable',
     ]);
 
-    // Common built-in type names (lowercase names that are commonly built-in types)
+    // Common built-in type names (both lowercase and capitalized)
     const builtInTypeNames = new Set([
       'array',
+      'Array',
       'map',
+      'Map',
       'set',
+      'Set',
       'console',
+      'Console',
       'math',
+      'Math',
       'json',
+      'JSON',
       'date',
+      'Date',
       'regexp',
+      'RegExp',
       'promise',
+      'Promise',
       'error',
+      'Error',
       'arraybuffer',
+      'ArrayBuffer',
       'dataview',
+      'DataView',
       'weakmap',
+      'WeakMap',
       'weakset',
+      'WeakSet',
+      'string',
+      'String',
+      'number',
+      'Number',
+      'boolean',
+      'Boolean',
+      'object',
+      'Object',
     ]);
 
-    // Check if target is a known built-in type and method is built-in
+    // Check if target is a known built-in type (case-sensitive check first)
+    if (builtInTypeNames.has(targetClass)) {
+      return true;
+    }
+
+    // Also check lowercase version with built-in methods
     const lowerTarget = targetClass.toLowerCase();
     if (builtInTypeNames.has(lowerTarget) && builtInMethods.has(methodName)) {
       return true;
@@ -448,9 +475,11 @@ export class SequenceAnalysisService {
     }
 
     // Filter out TypeScript/JavaScript type names that are commonly used as variables
-    const commonTypeVariableNames = new Set([
+    const commonVariableNames = new Set([
       'typeann',
       'typeannotation',
+      'typename',
+      'typeName',
       'node',
       'element',
       'item',
@@ -465,9 +494,21 @@ export class SequenceAnalysisService {
       'fn',
       'func',
       'callback',
+      'arg',
+      'args',
+      'param',
+      'params',
+      'opt',
+      'opts',
+      'primitiveTypes',
+      'primitivetypes',
+      'builtInTypes',
+      'builtintypes',
+      'types',
+      'type',
     ]);
 
-    if (commonTypeVariableNames.has(lowerTarget)) {
+    if (commonVariableNames.has(lowerTarget) || commonVariableNames.has(targetClass)) {
       return true;
     }
 
