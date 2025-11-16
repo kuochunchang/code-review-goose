@@ -603,7 +603,7 @@ export class UMLAnalyzer {
     // If no classes found, generate a placeholder to avoid empty diagram
     if (classes.length === 0) {
       mermaid += '  class NoClassesFound\n';
-      mermaid += '  NoClassesFound : <<No classes or interfaces found>>\n';
+      mermaid += '  NoClassesFound : No classes or interfaces found\n';
       mermaid += '  NoClassesFound : +This file may not contain\n';
       mermaid += '  NoClassesFound : +any class definitions\n';
       return mermaid;
@@ -753,6 +753,9 @@ export class UMLAnalyzer {
     return type
       .replace(/["']/g, '')
       .replace(/\s+/g, ' ')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\|/g, '&#124;')
       .trim();
   }
 
