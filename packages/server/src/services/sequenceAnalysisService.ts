@@ -321,7 +321,7 @@ export class SequenceAnalysisService {
           // Try to find the class of this property
           const targetClass = this.findClassForObject(propertyName);
 
-          // STRICT MODE: Only return if we can resolve to a known class
+          // If we can resolve to a known class, use it
           if (targetClass && this.classes.has(targetClass)) {
             return {
               targetClass,
@@ -329,7 +329,16 @@ export class SequenceAnalysisService {
             };
           }
 
-          // Cannot resolve to a known class, skip this call
+          // Otherwise, use property name if it looks like a class name (starts with uppercase)
+          // This will be filtered later by isBuiltInMethod if it's a built-in type
+          if (propertyName[0] === propertyName[0].toUpperCase()) {
+            return {
+              targetClass: propertyName,
+              methodName,
+            };
+          }
+
+          // Lowercase property name - likely not a class, skip
           return null;
         }
       } else if (t.isIdentifier(callee.object)) {
@@ -340,7 +349,7 @@ export class SequenceAnalysisService {
         // Try to find the class of this object
         const targetClass = this.findClassForObject(objectName);
 
-        // STRICT MODE: Only return if we can resolve to a known class
+        // If we can resolve to a known class, use it
         if (targetClass && this.classes.has(targetClass)) {
           return {
             targetClass,
@@ -348,7 +357,16 @@ export class SequenceAnalysisService {
           };
         }
 
-        // Cannot resolve to a known class, skip this call
+        // Otherwise, use object name if it looks like a class name (starts with uppercase)
+        // This will be filtered later by isBuiltInMethod if it's a built-in type
+        if (objectName[0] === objectName[0].toUpperCase()) {
+          return {
+            targetClass: objectName,
+            methodName,
+          };
+        }
+
+        // Lowercase object name - likely not a class, skip
         return null;
       }
     }
