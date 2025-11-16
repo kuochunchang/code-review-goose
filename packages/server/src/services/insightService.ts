@@ -8,7 +8,7 @@ import type {
   UMLDiagrams,
 } from '../types/insight.js';
 import type { AnalysisResult, ExplainResult } from '../types/ai.js';
-import type { UMLResult } from './umlService.js';
+import type { UMLResult } from '@code-review-goose/analysis-types';
 
 const INSIGHTS_DIR = '.code-review/insights';
 
