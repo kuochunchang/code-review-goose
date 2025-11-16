@@ -9,20 +9,19 @@ import type {
   FileAnalysisResult,
   ImportInfo,
 } from '../types/ast.js';
-import type { ProjectConfig } from '../types/config.js';
-import type { AIService } from './aiService.js';
 import { CrossFileAnalysisService } from './crossFileAnalysisService.js';
 import { OOAnalysisService } from './ooAnalysisService.js';
+import { SequenceAnalysisService } from './sequenceAnalysisService.js';
 import { MermaidValidator } from './uml/mermaidValidator.js';
 
 // Correct way to import @babel/traverse
 const traverse = (traverseModule as any).default || traverseModule;
 
-// UML diagram type
-export type DiagramType = 'class' | 'flowchart' | 'sequence' | 'dependency';
+// UML diagram type (native mode only)
+export type DiagramType = 'class' | 'flowchart' | 'sequence';
 
-// UML generation mode
-export type DiagramGenerationMode = 'native' | 'ai' | 'hybrid';
+// UML generation mode (only native is supported)
+export type DiagramGenerationMode = 'native';
 
 // Class information
 export interface ClassInfo {
@@ -108,45 +107,19 @@ export interface InteractionInfo {
 
 export class UMLService {
   private validator: MermaidValidator;
-  private aiService?: AIService;
-  private config?: ProjectConfig;
 
-  constructor(aiService?: AIService, config?: ProjectConfig) {
+  constructor() {
     this.validator = new MermaidValidator();
-    this.aiService = aiService;
-    this.config = config;
   }
 
   /**
-   * Generate UML diagram (with AI mode and fallback support)
+   * Generate UML diagram (native mode only)
    */
   async generateDiagram(code: string, type: DiagramType): Promise<UMLResult> {
-    const mode = this.config?.uml?.generationMode || 'hybrid';
-    const aiEnabled = this.shouldUseAI(type);
-
     try {
-      // Choose generation strategy based on mode
-      if (mode === 'ai' && aiEnabled) {
-        return await this.generateWithAI(code, type);
-      } else if (mode === 'hybrid' && aiEnabled) {
-        return await this.generateWithHybrid(code, type);
-      } else {
-        return await this.generateWithNative(code, type);
-      }
+      return await this.generateWithNative(code, type);
     } catch (error) {
-      console.error(`Failed to generate ${type} diagram with ${mode} mode:`, error);
-
-      // Fallback to native if AI fails
-      if (mode !== 'native') {
-        console.log('Falling back to native generation...');
-        try {
-          return await this.generateWithNative(code, type);
-        } catch (nativeError) {
-          throw new Error(`All generation methods failed: ${(error as Error).message}`);
-        }
-      }
-
-      throw new Error(`Failed to generate UML diagram: ${(error as Error).message}`);
+      throw new Error(`Failed to generate ${type} diagram: ${(error as Error).message}`);
     }
   }
 
@@ -494,18 +467,6 @@ export class UMLService {
   }
 
   /**
-   * Determine if AI should be used
-   */
-  private shouldUseAI(type: DiagramType): boolean {
-    if (!this.aiService) {
-      return false;
-    }
-
-    const enabledTypes = this.config?.uml?.aiOptions?.enabledTypes || ['sequence', 'dependency'];
-    return enabledTypes.includes(type);
-  }
-
-  /**
    * Get Mermaid relationship symbol
    */
   private getRelationshipSymbol(type: string): string {
@@ -530,96 +491,6 @@ export class UMLService {
   }
 
   /**
-   * Generate diagram using AI
-   */
-  private async generateWithAI(code: string, type: DiagramType): Promise<UMLResult> {
-    if (!this.aiService) {
-      throw new Error('AI service not available');
-    }
-
-    const provider = await (this.aiService as any).getProvider();
-    if (!provider.generateDiagram) {
-      throw new Error('AI provider does not support diagram generation');
-    }
-
-    const maxRetries = this.config?.uml?.aiOptions?.maxRetries || 2;
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const result = await provider.generateDiagram(code, type);
-
-        if (!result.success || !result.mermaidCode) {
-          throw new Error(result.error || 'AI generation failed');
-        }
-
-        // Validate generated Mermaid code
-        const validation = this.validator.validate(result.mermaidCode);
-
-        if (validation.valid) {
-          return {
-            type,
-            mermaidCode: result.mermaidCode,
-            generationMode: 'ai',
-            metadata: result.metadata,
-          };
-        }
-
-        // If auto-fix is enabled, attempt to fix
-        if (this.config?.uml?.aiOptions?.autoFixSyntax) {
-          const fixed = this.validator.autoFix(result.mermaidCode);
-          const fixedValidation = this.validator.validate(fixed);
-
-          if (fixedValidation.valid) {
-            return {
-              type,
-              mermaidCode: fixed,
-              generationMode: 'ai',
-              metadata: {
-                ...result.metadata,
-                autoFixed: true,
-              },
-            };
-          }
-        }
-
-        throw new Error(`Invalid Mermaid syntax: ${validation.errors.join(', ')}`);
-      } catch (error) {
-        lastError = error as Error;
-        console.log(`AI generation attempt ${attempt + 1} failed:`, error);
-      }
-    }
-
-    throw lastError || new Error('AI generation failed after retries');
-  }
-
-  /**
-   * Generate diagram using hybrid mode
-   */
-  private async generateWithHybrid(code: string, type: DiagramType): Promise<UMLResult> {
-    try {
-      // Try AI generation first
-      const aiResult = await this.generateWithAI(code, type);
-      return {
-        ...aiResult,
-        generationMode: 'hybrid',
-      };
-    } catch (aiError) {
-      console.log('AI generation failed in hybrid mode, falling back to native:', aiError);
-      // AI failed, use Native
-      const nativeResult = await this.generateWithNative(code, type);
-      return {
-        ...nativeResult,
-        generationMode: 'hybrid',
-        metadata: {
-          ...nativeResult.metadata,
-          fallbackReason: (aiError as Error).message,
-        },
-      };
-    }
-  }
-
-  /**
    * Generate diagram using native AST parsing
    */
   private async generateWithNative(code: string, type: DiagramType): Promise<UMLResult> {
@@ -630,9 +501,8 @@ export class UMLService {
       return this.generateClassDiagram(ast, code);
     } else if (type === 'flowchart') {
       return this.generateFlowchart(ast, code);
-    } else if (type === 'sequence' || type === 'dependency') {
-      // Native mode does not support these complex diagrams yet
-      throw new Error(`Native mode does not support ${type} diagrams. Please use AI mode.`);
+    } else if (type === 'sequence') {
+      return this.generateSequenceDiagram(ast, code);
     }
 
     throw new Error(`Unsupported diagram type: ${type}`);
@@ -1145,6 +1015,129 @@ export class UMLService {
       default:
         return '+';
     }
+  }
+
+  /**
+   * Generate sequence diagram using AST analysis
+   */
+  private generateSequenceDiagram(ast: t.File, _code: string): UMLResult {
+    const sequenceAnalysisService = new SequenceAnalysisService();
+    const analysis = sequenceAnalysisService.analyze(ast);
+
+    // Generate Mermaid sequence diagram syntax
+    const mermaidCode = this.generateMermaidSequenceDiagram(analysis);
+
+    // Extract metadata for backward compatibility
+    const sequences: SequenceInfo[] = this.convertToSequenceInfo(analysis);
+
+    return {
+      type: 'sequence',
+      mermaidCode,
+      generationMode: 'native',
+      metadata: {
+        sequences,
+        participants: analysis.participants,
+        interactions: analysis.interactions,
+        entryPoints: analysis.entryPoints,
+      },
+    };
+  }
+
+  /**
+   * Generate Mermaid sequence diagram syntax
+   */
+  private generateMermaidSequenceDiagram(analysis: {
+    participants: Array<{ name: string; type: string }>;
+    interactions: Array<{ from: string; to: string; message: string; type: string }>;
+    entryPoints: string[];
+  }): string {
+    let mermaid = 'sequenceDiagram\n';
+
+    // If no interactions found, generate a placeholder
+    if (analysis.interactions.length === 0) {
+      mermaid += '  participant NoCode\n';
+      mermaid += '  Note over NoCode: No function calls detected\n';
+      return mermaid;
+    }
+
+    // Add participants in order
+    const addedParticipants = new Set<string>();
+    for (const participant of analysis.participants) {
+      if (!addedParticipants.has(participant.name)) {
+        mermaid += `  participant ${this.sanitizeParticipantName(participant.name)}\n`;
+        addedParticipants.add(participant.name);
+      }
+    }
+
+    mermaid += '\n';
+
+    // Add interactions
+    for (const interaction of analysis.interactions) {
+      const from = this.sanitizeParticipantName(interaction.from);
+      const to = this.sanitizeParticipantName(interaction.to);
+      const message = this.sanitizeMessage(interaction.message);
+
+      // Choose arrow type based on interaction type
+      let arrow = '->>';
+      if (interaction.type === 'async') {
+        arrow = '-)';
+      } else if (interaction.type === 'return') {
+        arrow = '-->>';
+      }
+
+      mermaid += `  ${from}${arrow}${to}: ${message}\n`;
+    }
+
+    return mermaid;
+  }
+
+  /**
+   * Sanitize participant name for Mermaid
+   */
+  private sanitizeParticipantName(name: string): string {
+    // Replace dots with underscores for nested names (e.g., Class.method -> Class_method)
+    return name.replace(/\./g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+  }
+
+  /**
+   * Sanitize message for Mermaid
+   */
+  private sanitizeMessage(message: string): string {
+    // Escape special characters that might break Mermaid syntax
+    return message.replace(/"/g, '\\"');
+  }
+
+  /**
+   * Convert analysis result to legacy SequenceInfo format for backward compatibility
+   */
+  private convertToSequenceInfo(analysis: {
+    participants: Array<{ name: string }>;
+    interactions: Array<{ from: string; to: string; message: string; type: string }>;
+  }): SequenceInfo[] {
+    const participantMap = new Map<string, SequenceInfo>();
+
+    // Initialize all participants
+    for (const participant of analysis.participants) {
+      participantMap.set(participant.name, {
+        participant: participant.name,
+        interactions: [],
+      });
+    }
+
+    // Group interactions by participant
+    for (const interaction of analysis.interactions) {
+      const fromInfo = participantMap.get(interaction.from);
+      if (fromInfo) {
+        fromInfo.interactions.push({
+          from: interaction.from,
+          to: interaction.to,
+          message: interaction.message,
+          type: interaction.type as 'sync' | 'async' | 'return',
+        });
+      }
+    }
+
+    return Array.from(participantMap.values());
   }
 
   /**

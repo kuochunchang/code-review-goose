@@ -1,52 +1,20 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { UMLService } from '../../../services/umlService.js';
-import type { AIService } from '../../../services/aiService.js';
-import type { ProjectConfig } from '../../../types/config.js';
 
 describe('UMLService', () => {
   let umlService: UMLService;
-  let mockAIService: Partial<AIService>;
 
   beforeEach(() => {
-    mockAIService = {
-      getProvider: vi.fn(),
-    };
+    umlService = new UMLService();
   });
 
   describe('Constructor', () => {
-    it('should create instance without AI service', () => {
-      umlService = new UMLService();
-      expect(umlService).toBeDefined();
-    });
-
-    it('should create instance with AI service', () => {
-      umlService = new UMLService(mockAIService as AIService);
-      expect(umlService).toBeDefined();
-    });
-
-    it('should create instance with config', () => {
-      const config: ProjectConfig = {
-        aiProvider: 'openai',
-        ignorePatterns: [],
-        projectPath: '/test',
-        uml: {
-          generationMode: 'hybrid',
-          aiOptions: {
-            enabledTypes: ['class', 'flowchart'],
-            maxRetries: 3,
-            autoFixSyntax: true,
-          },
-        },
-      };
-      umlService = new UMLService(mockAIService as AIService, config);
+    it('should create instance', () => {
       expect(umlService).toBeDefined();
     });
   });
 
-  describe('generateDiagram - Native Mode', () => {
-    beforeEach(() => {
-      umlService = new UMLService();
-    });
+  describe('generateDiagram', () => {
 
     it('should generate class diagram for simple class', async () => {
       const code = `
@@ -269,20 +237,101 @@ describe('UMLService', () => {
       expect(result.mermaidCode).toContain('Code execution');
     });
 
-    it('should throw error for sequence diagram in native mode', async () => {
-      const code = 'class Test {}';
+    it('should generate sequence diagram with function calls', async () => {
+      const code = `
+        function helper() {
+          return 42;
+        }
 
-      await expect(umlService.generateDiagram(code, 'sequence')).rejects.toThrow(
-        'Native mode does not support sequence diagrams'
-      );
+        function main() {
+          helper();
+        }
+      `;
+
+      const result = await umlService.generateDiagram(code, 'sequence');
+
+      expect(result.type).toBe('sequence');
+      expect(result.generationMode).toBe('native');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      expect(result.mermaidCode).toContain('participant');
+      expect(result.mermaidCode).toContain('main');
+      expect(result.mermaidCode).toContain('helper');
+      expect(result.metadata?.participants).toBeDefined();
+      expect(result.metadata?.interactions).toBeDefined();
     });
 
-    it('should throw error for dependency diagram in native mode', async () => {
-      const code = 'class Test {}';
+    it('should generate sequence diagram with class method calls', async () => {
+      const code = `
+        class Service {
+          process() {
+            this.validate();
+          }
 
-      await expect(umlService.generateDiagram(code, 'dependency')).rejects.toThrow(
-        'Native mode does not support dependency diagrams'
-      );
+          validate() {
+            return true;
+          }
+        }
+      `;
+
+      const result = await umlService.generateDiagram(code, 'sequence');
+
+      expect(result.type).toBe('sequence');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      expect(result.mermaidCode).toContain('Service');
+      expect(result.metadata?.participants).toBeDefined();
+    });
+
+    it('should generate sequence diagram with async calls', async () => {
+      const code = `
+        async function fetchData() {
+          return { data: 'value' };
+        }
+
+        async function main() {
+          await fetchData();
+        }
+      `;
+
+      const result = await umlService.generateDiagram(code, 'sequence');
+
+      expect(result.type).toBe('sequence');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      expect(result.mermaidCode).toContain('main');
+      expect(result.mermaidCode).toContain('fetchData');
+      // Async calls use -) arrow
+      expect(result.mermaidCode).toContain('-)');
+    });
+
+    it('should generate sequence diagram with return statements', async () => {
+      const code = `
+        function calculate() {
+          return 42;
+        }
+
+        function main() {
+          calculate();
+        }
+      `;
+
+      const result = await umlService.generateDiagram(code, 'sequence');
+
+      expect(result.type).toBe('sequence');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      // Return calls use -->> arrow
+      expect(result.mermaidCode).toContain('-->>');
+    });
+
+    it('should generate placeholder for empty sequence diagram', async () => {
+      const code = `
+        const x = 42;
+        const y = 'hello';
+      `;
+
+      const result = await umlService.generateDiagram(code, 'sequence');
+
+      expect(result.type).toBe('sequence');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      expect(result.mermaidCode).toContain('No function calls detected');
     });
 
     it('should handle parsing errors gracefully', async () => {
@@ -294,178 +343,7 @@ describe('UMLService', () => {
     });
   });
 
-  describe('generateDiagram - AI Mode', () => {
-    let mockProvider: any;
-
-    beforeEach(() => {
-      mockProvider = {
-        generateDiagram: vi.fn(),
-      };
-      mockAIService.getProvider = vi.fn().mockResolvedValue(mockProvider);
-    });
-
-    it('should generate diagram using AI when mode is ai', async () => {
-      const config: ProjectConfig = {
-        aiProvider: 'openai',
-        ignorePatterns: [],
-        projectPath: '/test',
-        uml: {
-          generationMode: 'ai',
-          aiOptions: {
-            enabledTypes: ['class'],
-            maxRetries: 1,
-          },
-        },
-      };
-      umlService = new UMLService(mockAIService as AIService, config);
-
-      mockProvider.generateDiagram.mockResolvedValue({
-        success: true,
-        mermaidCode: 'classDiagram\n  class Test',
-        metadata: {},
-      });
-
-      const result = await umlService.generateDiagram('class Test {}', 'class');
-
-      expect(result.generationMode).toBe('ai');
-      expect(mockProvider.generateDiagram).toHaveBeenCalled();
-    });
-
-    it('should retry AI generation on failure', async () => {
-      const config: ProjectConfig = {
-        aiProvider: 'openai',
-        ignorePatterns: [],
-        projectPath: '/test',
-        uml: {
-          generationMode: 'ai',
-          aiOptions: {
-            enabledTypes: ['class'],
-            maxRetries: 2,
-          },
-        },
-      };
-      umlService = new UMLService(mockAIService as AIService, config);
-
-      mockProvider.generateDiagram
-        .mockResolvedValueOnce({ success: false, error: 'Failed' })
-        .mockResolvedValueOnce({ success: false, error: 'Failed' })
-        .mockResolvedValueOnce({
-          success: true,
-          mermaidCode: 'classDiagram\n  class Test',
-        });
-
-      const result = await umlService.generateDiagram('class Test {}', 'class');
-
-      expect(result.generationMode).toBe('ai');
-      expect(mockProvider.generateDiagram).toHaveBeenCalledTimes(3);
-    });
-
-    it('should fall back to native when AI fails', async () => {
-      const config: ProjectConfig = {
-        aiProvider: 'openai',
-        ignorePatterns: [],
-        projectPath: '/test',
-        uml: {
-          generationMode: 'ai',
-          aiOptions: {
-            enabledTypes: ['class'],
-            maxRetries: 1,
-          },
-        },
-      };
-      umlService = new UMLService(mockAIService as AIService, config);
-
-      mockProvider.generateDiagram.mockRejectedValue(new Error('AI failed'));
-
-      const result = await umlService.generateDiagram('class Test {}', 'class');
-
-      expect(result.generationMode).toBe('native');
-    });
-
-    it('should fall back to native when AI service is not available', async () => {
-      const config: ProjectConfig = {
-        aiProvider: 'openai',
-        ignorePatterns: [],
-        projectPath: '/test',
-        uml: {
-          generationMode: 'ai',
-          aiOptions: {
-            enabledTypes: ['class'],
-          },
-        },
-      };
-      umlService = new UMLService(undefined, config);
-
-      // Should fall back to native since AI is not available
-      const result = await umlService.generateDiagram('class Test {}', 'class');
-      expect(result.generationMode).toBe('native');
-    });
-  });
-
-  describe('generateDiagram - Hybrid Mode', () => {
-    let mockProvider: any;
-
-    beforeEach(() => {
-      mockProvider = {
-        generateDiagram: vi.fn(),
-      };
-      mockAIService.getProvider = vi.fn().mockResolvedValue(mockProvider);
-    });
-
-    it('should use AI first in hybrid mode', async () => {
-      const config: ProjectConfig = {
-        aiProvider: 'openai',
-        ignorePatterns: [],
-        projectPath: '/test',
-        uml: {
-          generationMode: 'hybrid',
-          aiOptions: {
-            enabledTypes: ['class'],
-            maxRetries: 1,
-          },
-        },
-      };
-      umlService = new UMLService(mockAIService as AIService, config);
-
-      mockProvider.generateDiagram.mockResolvedValue({
-        success: true,
-        mermaidCode: 'classDiagram\n  class Test',
-      });
-
-      const result = await umlService.generateDiagram('class Test {}', 'class');
-
-      expect(result.generationMode).toBe('hybrid');
-      expect(mockProvider.generateDiagram).toHaveBeenCalled();
-    });
-
-    it('should fall back to native when AI fails in hybrid mode', async () => {
-      const config: ProjectConfig = {
-        aiProvider: 'openai',
-        ignorePatterns: [],
-        projectPath: '/test',
-        uml: {
-          generationMode: 'hybrid',
-          aiOptions: {
-            enabledTypes: ['class'],
-            maxRetries: 1,
-          },
-        },
-      };
-      umlService = new UMLService(mockAIService as AIService, config);
-
-      mockProvider.generateDiagram.mockRejectedValue(new Error('AI failed'));
-
-      const result = await umlService.generateDiagram('class Test {}', 'class');
-
-      expect(result.generationMode).toBe('hybrid');
-      expect(result.metadata?.fallbackReason).toContain('AI failed');
-    });
-  });
-
   describe('Interface Handling', () => {
-    beforeEach(() => {
-      umlService = new UMLService();
-    });
 
     it('should handle interface with extends', async () => {
       const code = `
@@ -500,10 +378,6 @@ describe('UMLService', () => {
   });
 
   describe('Complex Type Handling', () => {
-    beforeEach(() => {
-      umlService = new UMLService();
-    });
-
     it('should handle void return type', async () => {
       const code = `
         class Test {

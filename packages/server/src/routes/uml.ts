@@ -1,6 +1,4 @@
 import { Request, Response, Router } from 'express';
-import { AIService } from '../services/aiService.js';
-import { ConfigService } from '../services/configService.js';
 import { InsightService } from '../services/insightService.js';
 import { DiagramType, UMLService } from '../services/umlService.js';
 
@@ -42,7 +40,7 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
     }
 
     // Validate type
-    const validTypes: DiagramType[] = ['class', 'flowchart', 'sequence', 'dependency'];
+    const validTypes: DiagramType[] = ['class', 'flowchart', 'sequence'];
     if (!type || !validTypes.includes(type)) {
       res.status(400).json({
         success: false,
@@ -80,25 +78,8 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // Load configuration
-    const configService = new ConfigService(projectPath);
-    const config = await configService.get();
-
-    // Initialize AI Service (if needed)
-    let aiService: AIService | undefined;
-    try {
-      aiService = new AIService(projectPath);
-      const isConfigured = await aiService.isConfigured();
-      if (!isConfigured) {
-        aiService = undefined;
-      }
-    } catch (error) {
-      console.log('AI service not available:', error);
-      aiService = undefined;
-    }
-
-    // Generate UML diagram using unified method
-    const umlService = new UMLService(aiService, config);
+    // Generate UML diagram using unified method (native mode only)
+    const umlService = new UMLService();
     const result = await umlService.generateUnifiedDiagram(filePath, projectPath, type, {
       depth: finalDepth,
       mode: analysisMode || 'bidirectional',
@@ -179,63 +160,36 @@ umlRouter.get('/cache/stats', async (req: Request, res: Response): Promise<void>
 
 /**
  * GET /api/uml/supported-types
- * Get supported UML diagram types
+ * Get supported UML diagram types (native mode only)
  */
-umlRouter.get('/supported-types', async (req: Request, res: Response): Promise<void> => {
+umlRouter.get('/supported-types', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const projectPath = req.app.locals.projectPath;
-
-    // Load configuration
-    const configService = new ConfigService(projectPath);
-    const config = await configService.get();
-
-    // Check if AI is available
-    let aiAvailable = false;
-    try {
-      const aiService = new AIService(projectPath);
-      aiAvailable = await aiService.isConfigured();
-    } catch (error) {
-      aiAvailable = false;
-    }
-
-    const generationMode = config.uml?.generationMode || 'hybrid';
-    const aiEnabledTypes = config.uml?.aiOptions?.enabledTypes || ['sequence', 'dependency'];
-
     res.json({
       success: true,
       data: {
-        generationMode,
-        aiAvailable,
+        generationMode: 'native',
+        aiAvailable: false,
         types: [
           {
             id: 'class',
             name: 'Class Diagram',
             description: 'Visualize classes, interfaces, and their relationships',
-            modes: ['native', 'ai', 'hybrid'],
-            defaultMode: aiEnabledTypes.includes('class') ? generationMode : 'native',
+            modes: ['native'],
+            defaultMode: 'native',
           },
           {
             id: 'flowchart',
             name: 'Flowchart',
             description: 'Visualize function control flow and logic',
-            modes: ['native', 'ai', 'hybrid'],
-            defaultMode: aiEnabledTypes.includes('flowchart') ? generationMode : 'native',
+            modes: ['native'],
+            defaultMode: 'native',
           },
           {
             id: 'sequence',
             name: 'Sequence Diagram',
             description: 'Visualize method calls and interactions between objects',
-            modes: ['ai'],
-            defaultMode: aiAvailable ? 'ai' : 'unavailable',
-            requiresAI: true,
-          },
-          {
-            id: 'dependency',
-            name: 'Dependency Graph',
-            description: 'Visualize module dependencies and relationships',
-            modes: ['ai'],
-            defaultMode: aiAvailable ? 'ai' : 'unavailable',
-            requiresAI: true,
+            modes: ['native'],
+            defaultMode: 'native',
           },
         ],
       },
