@@ -1,0 +1,41 @@
+{
+  "name": "@code-review-goose/analysis-adapter-node",
+  "version": "0.1.0",
+  "description": "Node.js file system adapter for code analysis engine",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "nodejs",
+    "file-system",
+    "adapter",
+    "code-analysis"
+  ],
+  "author": "KCC",
+  "license": "MIT",
+  "dependencies": {
+    "@code-review-goose/analysis-types": "*",
+    "fs-extra": "^11.1.1"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.1",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
