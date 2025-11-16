@@ -9,19 +9,19 @@ import type { IFileProvider } from '@code-review-goose/analysis-types';
 export class NodeFileProvider implements IFileProvider {
   constructor(private basePath: string) {}
 
-  async readFile(path: string): Promise<string> {
+  async readFile(_path: string): Promise<string> {
     throw new Error('Not implemented yet - Phase 4');
   }
 
-  async resolveImport(from: string, to: string): Promise<string | null> {
+  async resolveImport(_from: string, _to: string): Promise<string | null> {
     throw new Error('Not implemented yet - Phase 4');
   }
 
-  async listFiles(pattern: string): Promise<string[]> {
+  async listFiles(_pattern: string): Promise<string[]> {
     throw new Error('Not implemented yet - Phase 4');
   }
 
-  async exists(path: string): Promise<boolean> {
+  async exists(_path: string): Promise<boolean> {
     throw new Error('Not implemented yet - Phase 4');
   }
 }

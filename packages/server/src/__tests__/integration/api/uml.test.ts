@@ -99,15 +99,13 @@ describe('UML API', () => {
           }) as any
       );
 
-      const response = await request(app)
-        .post('/api/uml/generate')
-        .send({
-          code: 'class Test {}',
-          type: 'class',
-          filePath: '/test/file.ts',
-          depth: 1,
-          analysisMode: 'forward',
-        });
+      const response = await request(app).post('/api/uml/generate').send({
+        code: 'class Test {}',
+        type: 'class',
+        filePath: '/test/file.ts',
+        depth: 1,
+        analysisMode: 'forward',
+      });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -164,14 +162,12 @@ describe('UML API', () => {
     });
 
     it('should return 400 for cross-file analysis on non-class diagrams', async () => {
-      const response = await request(app)
-        .post('/api/uml/generate')
-        .send({
-          code: 'function test() {}',
-          type: 'flowchart',
-          filePath: '/test/file.ts',
-          depth: 1,
-        });
+      const response = await request(app).post('/api/uml/generate').send({
+        code: 'function test() {}',
+        type: 'flowchart',
+        filePath: '/test/file.ts',
+        depth: 1,
+      });
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
@@ -179,9 +175,7 @@ describe('UML API', () => {
     });
 
     it('should handle UML generation errors', async () => {
-      const mockGenerateUnifiedDiagram = vi
-        .fn()
-        .mockRejectedValue(new Error('Generation failed'));
+      const mockGenerateUnifiedDiagram = vi.fn().mockRejectedValue(new Error('Generation failed'));
 
       vi.mocked(ConfigService).mockImplementation(
         () =>

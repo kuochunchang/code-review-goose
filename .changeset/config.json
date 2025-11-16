@@ -7,8 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "@code-review-goose/web",
-    "@code-review-goose/server"
-  ]
+  "ignore": ["@code-review-goose/web", "@code-review-goose/server"]
 }

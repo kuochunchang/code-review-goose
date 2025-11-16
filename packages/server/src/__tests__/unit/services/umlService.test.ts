@@ -15,7 +15,6 @@ describe('UMLService', () => {
   });
 
   describe('generateDiagram', () => {
-
     it('should generate class diagram for simple class', async () => {
       const code = `
         class User {
@@ -344,7 +343,6 @@ describe('UMLService', () => {
   });
 
   describe('Interface Handling', () => {
-
     it('should handle interface with extends', async () => {
       const code = `
         interface Base {

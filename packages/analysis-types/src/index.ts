@@ -1,23 +1,68 @@
 /**
  * @code-review-goose/analysis-types
  * Shared type definitions for code analysis - zero dependencies
+ *
+ * This package provides platform-agnostic type definitions for code analysis,
+ * enabling dependency inversion and multi-platform support (Node.js, VS Code, Browser).
+ *
+ * @packageDocumentation
  */
 
-// Export placeholder - types will be added in Phase 2
-export interface IFileProvider {
-  readFile(path: string): Promise<string>;
-  resolveImport(from: string, to: string): Promise<string | null>;
-  listFiles(pattern: string): Promise<string[]>;
-  exists(path: string): Promise<boolean>;
-}
+// ============================================================================
+// Provider Interfaces (Dependency Inversion)
+// ============================================================================
+export type { IFileProvider, ICacheProvider } from './providers.js';
 
-export interface ICacheProvider {
-  get<T>(key: string): Promise<T | null>;
-  set<T>(key: string, value: T, ttl?: number): Promise<void>;
-  delete(key: string): Promise<void>;
-  clear(): Promise<void>;
-}
+// ============================================================================
+// AST Types (Abstract Syntax Tree)
+// ============================================================================
+export type {
+  // Language support
+  SupportedLanguage,
+  // Import/Export
+  ImportInfo,
+  ExportInfo,
+  // Object-Oriented relationships
+  OORelationshipType,
+  Cardinality,
+  DependencyInfo,
+  // Class structure
+  PropertyInfo,
+  ParameterInfo,
+  MethodInfo,
+  ResolvedTypeInfo,
+  ClassInfo,
+  InterfaceInfo,
+  FunctionInfo,
+  // Unified AST
+  UnifiedAST,
+  ASTCacheEntry,
+  // Analysis results
+  OOAnalysisResult,
+  CrossFileAnalysisOptions,
+  FileAnalysisResult,
+  BidirectionalAnalysisResult,
+  // Import index
+  ImportIndex,
+  ImportIndexOptions,
+  CrossFileDependencyGraph,
+} from './ast.js';
 
-// Placeholder - full types will be migrated in Phase 2
-export type DiagramType = 'class' | 'flowchart' | 'sequence';
-export type DiagramGenerationMode = 'native';
+// ============================================================================
+// UML Types (Diagram Generation)
+// ============================================================================
+export type {
+  // Diagram types
+  DiagramType,
+  DiagramGenerationMode,
+  // Flowchart
+  FlowNode,
+  // Sequence diagram
+  InteractionInfo,
+  SequenceInfo,
+  // Dependencies
+  SimpleDependencyInfo,
+  // Results
+  UMLResult,
+  UMLDiagrams,
+} from './uml.js';

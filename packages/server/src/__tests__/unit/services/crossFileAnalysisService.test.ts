@@ -268,19 +268,15 @@ describe('CrossFileAnalysisService', () => {
         expect(carResult?.classes[0].name).toBe('Car');
       });
 
-      it(
-        '應該處理沒有依賴者的檔案',
-        async () => {
-          const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
+      it('應該處理沒有依賴者的檔案', async () => {
+        const carFile = path.join(FIXTURES_PATH, 'simple/Car.ts');
 
-          const result = await service.analyzeReverse(carFile, 1);
+        const result = await service.analyzeReverse(carFile, 1);
 
-          // 只有 Car.ts 自己
-          expect(result.size).toBe(1);
-          expect(result.get(carFile)?.depth).toBe(0);
-        },
-        10000
-      ); // Increase timeout for reverse analysis
+        // 只有 Car.ts 自己
+        expect(result.size).toBe(1);
+        expect(result.get(carFile)?.depth).toBe(0);
+      }, 10000); // Increase timeout for reverse analysis
 
       it('應該找到多個檔案依賴同一個目標', async () => {
         // Wheel is used by Car (could be used by other classes too)
@@ -375,26 +371,22 @@ describe('CrossFileAnalysisService', () => {
     });
 
     describe('Complex Scenarios', () => {
-      it(
-        '應該處理 re-exports (index.ts)',
-        async () => {
-          const userFile = path.join(FIXTURES_PATH, 'complex/models/User.ts');
-          const indexFile = path.join(FIXTURES_PATH, 'complex/models/index.ts');
-          const userServiceFile = path.join(FIXTURES_PATH, 'complex/services/UserService.ts');
+      it('應該處理 re-exports (index.ts)', async () => {
+        const userFile = path.join(FIXTURES_PATH, 'complex/models/User.ts');
+        const indexFile = path.join(FIXTURES_PATH, 'complex/models/index.ts');
+        const userServiceFile = path.join(FIXTURES_PATH, 'complex/services/UserService.ts');
 
-          const result = await service.analyzeReverse(userFile, 2);
+        const result = await service.analyzeReverse(userFile, 2);
 
         // User.ts 被 index.ts 匯出，index.ts 被 UserService.ts 使用
         expect(result.size).toBeGreaterThanOrEqual(2);
         expect(result.get(userFile)?.depth).toBe(0);
 
-          // 應該找到 index.ts 或 UserService.ts
-          const hasIndexOrService =
-            result.get(indexFile) !== undefined || result.get(userServiceFile) !== undefined;
-          expect(hasIndexOrService).toBe(true);
-        },
-        10000
-      ); // Increase timeout to 10s for complex reverse analysis
+        // 應該找到 index.ts 或 UserService.ts
+        const hasIndexOrService =
+          result.get(indexFile) !== undefined || result.get(userServiceFile) !== undefined;
+        expect(hasIndexOrService).toBe(true);
+      }, 10000); // Increase timeout to 10s for complex reverse analysis
     });
 
     describe('Error Handling', () => {
@@ -657,7 +649,9 @@ describe('CrossFileAnalysisService', () => {
         const result = await service.analyzeBidirectional(carFile, 1);
 
         // 驗證統計資訊
-        expect(result.stats.totalFiles).toBe(result.forwardDeps.length + result.reverseDeps.length + 1);
+        expect(result.stats.totalFiles).toBe(
+          result.forwardDeps.length + result.reverseDeps.length + 1
+        );
         expect(result.stats.totalClasses).toBe(result.allClasses.length);
         expect(result.stats.totalRelationships).toBe(result.relationships.length);
         expect(result.stats.maxDepth).toBeGreaterThanOrEqual(0);
@@ -802,13 +796,13 @@ describe('CrossFileAnalysisService', () => {
         expect(controllerResult?.depth).toBe(0);
 
         // Find OrderController class (may not be the first due to interfaces)
-        const orderController = controllerResult?.classes.find(c => c.name === 'OrderController');
+        const orderController = controllerResult?.classes.find((c) => c.name === 'OrderController');
         expect(orderController).toBeDefined();
         expect(orderController?.name).toBe('OrderController');
 
         // Should import from Layer 2
-        const layer2Imports = controllerResult?.imports.filter(
-          (imp) => imp.source.includes('services/')
+        const layer2Imports = controllerResult?.imports.filter((imp) =>
+          imp.source.includes('services/')
         );
         expect(layer2Imports?.length).toBeGreaterThan(0);
 
@@ -819,7 +813,7 @@ describe('CrossFileAnalysisService', () => {
         expect(orderServiceResult?.depth).toBe(1);
 
         // Find OrderService class
-        const orderService = orderServiceResult?.classes.find(c => c.name === 'OrderService');
+        const orderService = orderServiceResult?.classes.find((c) => c.name === 'OrderService');
         expect(orderService).toBeDefined();
         expect(orderService?.name).toBe('OrderService');
 
@@ -830,7 +824,7 @@ describe('CrossFileAnalysisService', () => {
         expect(productResult?.depth).toBe(2);
 
         // Find Product class
-        const product = productResult?.classes.find(c => c.name === 'Product');
+        const product = productResult?.classes.find((c) => c.name === 'Product');
         expect(product).toBeDefined();
         expect(product?.name).toBe('Product');
       });
@@ -880,7 +874,7 @@ describe('CrossFileAnalysisService', () => {
         expect(controllerResult?.depth).toBe(0);
 
         // Find OrderController class
-        const orderController = controllerResult?.classes.find(c => c.name === 'OrderController');
+        const orderController = controllerResult?.classes.find((c) => c.name === 'OrderController');
         expect(orderController).toBeDefined();
         expect(orderController?.name).toBe('OrderController');
 
@@ -913,7 +907,7 @@ describe('CrossFileAnalysisService', () => {
         expect(productResult?.depth).toBe(0);
 
         // Find Product class
-        const product = productResult?.classes.find(c => c.name === 'Product');
+        const product = productResult?.classes.find((c) => c.name === 'Product');
         expect(product).toBeDefined();
         expect(product?.name).toBe('Product');
 

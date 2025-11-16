@@ -101,7 +101,6 @@ cd packages/web && npm run dev              # Vite dev server with HMR
 
 ## Project-Specific Patterns
 
-
 ## Testing Strategy
 
 ### Unit Tests (Vitest)
@@ -204,16 +203,18 @@ Or simply: `npm run build` (handles order automatically)
 
 **Published npm Packages** (Post-Refactoring):
 
-**Application Packages**:
-5. `@kuochunchang/goose-code-review` - CLI tool (includes server and web)
-   - Includes: `dist/`, `server-dist/`, `web-dist/`
-   - Binary commands: `goose` and `goose-code-review`
+**Application Packages**: 5. `@kuochunchang/goose-code-review` - CLI tool (includes server and web)
+
+- Includes: `dist/`, `server-dist/`, `web-dist/`
+- Binary commands: `goose` and `goose-code-review`
 
 **Future Packages**:
+
 - `@code-review-goose/analysis-adapter-vscode` - VS Code adapter
 - VS Code Extension - Published to VS Code Marketplace (not npm)
 
 **Version Management**:
+
 - Uses **Changesets** for independent versioning
 - Each package can have its own version number
 - `npx changeset` to create a changeset
@@ -221,6 +222,7 @@ Or simply: `npm run build` (handles order automatically)
 - `npx changeset publish` to publish all updated packages
 
 **Publishing Workflow**:
+
 ```bash
 # 1. Make changes to packages
 # 2. Create changeset
@@ -241,7 +243,6 @@ npx changeset publish
 
 - CLI automatically opens default browser unless `--no-open` flag
 - Use `--port` or `-p` to specify custom port
-
 
 ## Workflow Guidelines
 
@@ -362,7 +363,6 @@ git checkout -b feature/add-new-analysis-type
 - Coverage reports must be checked after EVERY code change
 - Pull requests with <80% coverage will be REJECTED
 
-
 ### Server Key Dependencies
 
 - `express` - Web framework
@@ -406,11 +406,13 @@ git checkout -b feature/add-new-analysis-type
 ### Test failures
 
 **Unit test failures (Vitest)**:
+
 - Mock issues: Ensure all external dependencies are properly mocked
 - Import errors: Check module resolution and TypeScript configuration
 - Coverage drops: Run `npm run test:coverage` to identify uncovered code
 
 **E2E test failures (Playwright)**:
+
 - **Server startup**: E2E tests automatically start their own server - no manual server needed
 - **Timeout issues**:
   - Increase timeout in `playwright.config.ts` for slow operations
@@ -440,7 +442,6 @@ git checkout -b feature/add-new-analysis-type
   - Pause execution: Add `await page.pause()` in test code
   - View trace files: `npx playwright show-trace trace.zip`
   - Run headed mode: `npm run test:e2e -- --headed`
-
 
 ### External Documentation
 

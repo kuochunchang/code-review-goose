@@ -33,7 +33,7 @@ test.describe('Cross-File Analysis Workflow', () => {
     // (This assumes the UI has data-testid attributes for these controls)
     const analysisPanel = page.locator('[data-testid="analysis-panel"]');
 
-    if (await analysisPanel.count() > 0) {
+    if ((await analysisPanel.count()) > 0) {
       await expect(analysisPanel).toBeVisible();
     }
   });
@@ -55,12 +55,12 @@ test.describe('Cross-File Analysis Workflow', () => {
       // Look for depth selector (assuming it exists with data-testid)
       const depthSelector = page.locator('[data-testid="depth-selector"]');
 
-      if (await depthSelector.count() > 0) {
+      if ((await depthSelector.count()) > 0) {
         await expect(depthSelector).toBeVisible();
 
         // Try to select depth 2
         const depth2Option = depthSelector.locator('text=2');
-        if (await depth2Option.count() > 0) {
+        if ((await depth2Option.count()) > 0) {
           await depth2Option.click();
           await page.waitForTimeout(500);
         }
@@ -80,7 +80,7 @@ test.describe('Cross-File Analysis Workflow', () => {
     // Look for bidirectional analysis indicator
     const bidirectionalIndicator = page.getByText('Bidirectional analysis', { exact: false });
 
-    if (await bidirectionalIndicator.count() > 0) {
+    if ((await bidirectionalIndicator.count()) > 0) {
       await expect(bidirectionalIndicator).toBeVisible();
     }
   });
@@ -99,10 +99,10 @@ test.describe('Cross-File Analysis Workflow', () => {
     const generateButton = page.locator('[data-testid="generate-uml-button"]');
 
     // Try to click any available button
-    if (await analyzeButton.count() > 0) {
+    if ((await analyzeButton.count()) > 0) {
       await analyzeButton.click();
       await page.waitForTimeout(2000); // Wait for analysis
-    } else if (await generateButton.count() > 0) {
+    } else if ((await generateButton.count()) > 0) {
       await generateButton.click();
       await page.waitForTimeout(2000); // Wait for UML generation
     }
@@ -212,16 +212,16 @@ test.describe('Cross-File Analysis Workflow', () => {
     // Look for depth selector
     const depthSelector = page.locator('[data-testid="depth-selector"]');
 
-    if (await depthSelector.count() > 0) {
+    if ((await depthSelector.count()) > 0) {
       // Try to select depth 3
       const depth3Option = depthSelector.locator('text=3');
-      if (await depth3Option.count() > 0) {
+      if ((await depth3Option.count()) > 0) {
         await depth3Option.click();
         await page.waitForTimeout(500);
 
         // Trigger analysis if there's a button
         const analyzeButton = page.locator('[data-testid="analyze-cross-file-button"]');
-        if (await analyzeButton.count() > 0) {
+        if ((await analyzeButton.count()) > 0) {
           await analyzeButton.click();
           // Wait longer for depth 3 analysis
           await page.waitForTimeout(3000);
@@ -257,7 +257,9 @@ test.describe('Cross-File Analysis Workflow', () => {
     expect(hasError || true).toBe(true);
   });
 
-  test('should show analysis statistics (file count, class count, relationship count)', async ({ page }) => {
+  test('should show analysis statistics (file count, class count, relationship count)', async ({
+    page,
+  }) => {
     // Wait for file tree to load
     await expect(page.locator('[data-testid="file-tree"]')).toBeVisible({ timeout: 10000 });
 
@@ -309,19 +311,25 @@ test.describe('Cross-File Analysis Workflow', () => {
       await page.waitForTimeout(1000);
 
       // Open UML viewer
-      const umlButton = page.locator('button', { hasText: 'UML' }).or(page.locator('[data-testid="uml-button"]'));
+      const umlButton = page
+        .locator('button', { hasText: 'UML' })
+        .or(page.locator('[data-testid="uml-button"]'));
       if ((await umlButton.count()) > 0) {
         await umlButton.click();
         await page.waitForTimeout(1000);
 
         // Look for CLASS tab
-        const classTab = page.getByRole('tab', { name: 'CLASS' }).or(page.locator('button:has-text("CLASS")'));
+        const classTab = page
+          .getByRole('tab', { name: 'CLASS' })
+          .or(page.locator('button:has-text("CLASS")'));
         if ((await classTab.count()) > 0) {
           await classTab.click();
           await page.waitForTimeout(500);
 
           // Toggle cross-file analysis
-          const crossFileToggle = page.locator('button[title*="Cross-file"]').or(page.locator('[aria-label*="cross-file"]'));
+          const crossFileToggle = page
+            .locator('button[title*="Cross-file"]')
+            .or(page.locator('[aria-label*="cross-file"]'));
           if ((await crossFileToggle.count()) > 0) {
             await crossFileToggle.click();
             await page.waitForTimeout(500);

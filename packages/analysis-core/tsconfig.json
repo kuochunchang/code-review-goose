@@ -7,10 +7,7 @@
     "moduleResolution": "NodeNext",
     "composite": true
   },
-  "references": [
-    { "path": "../analysis-types" },
-    { "path": "../analysis-utils" }
-  ],
+  "references": [{ "path": "../analysis-types" }, { "path": "../analysis-utils" }],
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }
