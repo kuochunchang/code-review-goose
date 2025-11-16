@@ -225,9 +225,8 @@ umlRouter.get('/supported-types', async (req: Request, res: Response): Promise<v
             id: 'sequence',
             name: 'Sequence Diagram',
             description: 'Visualize method calls and interactions between objects',
-            modes: ['ai'],
-            defaultMode: aiAvailable ? 'ai' : 'unavailable',
-            requiresAI: true,
+            modes: ['native', 'ai', 'hybrid'],
+            defaultMode: aiEnabledTypes.includes('sequence') ? generationMode : 'native',
           },
           {
             id: 'dependency',

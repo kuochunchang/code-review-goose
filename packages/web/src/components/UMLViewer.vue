@@ -10,7 +10,7 @@
           <v-icon size="small" class="mr-1">mdi-chart-timeline</v-icon>
           FLOW
         </v-btn>
-        <v-btn value="sequence" size="small" :disabled="!aiAvailable">
+        <v-btn value="sequence" size="small">
           <v-icon size="small" class="mr-1">mdi-chart-gantt</v-icon>
           SEQUENCE
         </v-btn>
@@ -152,12 +152,12 @@
         <p class="mt-4 text-grey">Select code and click refresh to generate UML diagram</p>
 
         <div
-          v-if="!aiAvailable && (selectedType === 'sequence' || selectedType === 'dependency')"
+          v-if="!aiAvailable && selectedType === 'dependency'"
           class="mt-4"
         >
           <v-alert type="warning" variant="tonal" density="compact">
             <v-alert-title>AI Required</v-alert-title>
-            {{ selectedType }} diagrams require AI configuration. Please configure your AI provider
+            Dependency diagrams require AI configuration. Please configure your AI provider
             in settings.
           </v-alert>
         </div>
@@ -352,14 +352,18 @@ async function generateDiagram(forceRefresh = false) {
 
   try {
     // Build unified options object
+    // Note: depth and analysisMode only apply to class diagrams
     const options: {
       forceRefresh?: boolean;
       depth?: number;
       analysisMode?: 'forward' | 'reverse' | 'bidirectional';
     } = {
       forceRefresh,
-      depth: analysisDepth.value,
-      analysisMode: analysisMode.value,
+      // Only pass depth/analysisMode for class diagrams
+      ...(selectedType.value === 'class' && {
+        depth: analysisDepth.value,
+        analysisMode: analysisMode.value,
+      }),
     };
 
     const result = await umlApi.generateDiagram(
