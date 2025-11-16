@@ -320,5 +320,89 @@ describe('SequenceAnalysisService', () => {
       );
       expect(dbCall).toBeDefined();
     });
+
+    it('should handle calls to imported classes', () => {
+      const code = `
+        import { Level3 } from './Level3';
+
+        export class Level2 {
+          private level3: Level3;
+
+          constructor() {
+            this.level3 = new Level3('initial data');
+          }
+
+          processData(): string {
+            return this.level3.process();
+          }
+        }
+      `;
+
+      const ast = parseCode(code);
+      const service = new SequenceAnalysisService();
+      const result = service.analyze(ast);
+
+      // Should have Level2 as local class and Level3 as imported class
+      expect(result.participants.map((p) => p.name)).toContain('Level2');
+      expect(result.participants.map((p) => p.name)).toContain('Level3');
+
+      // Should have call from Level2 to level3.process()
+      const processCall = result.interactions.find(
+        (i) => i.from === 'Level2' && i.to === 'Level3' && i.message.includes('process')
+      );
+      expect(processCall).toBeDefined();
+      expect(processCall?.type).toBe('sync');
+    });
+
+    it('should handle multiple imported class interactions', () => {
+      const code = `
+        import { OrderService } from '../services/OrderService';
+        import { ProductService } from '../services/ProductService';
+
+        export class OrderController {
+          private orderService: OrderService;
+          private productService: ProductService;
+
+          constructor(orderService: OrderService, productService: ProductService) {
+            this.orderService = orderService;
+            this.productService = productService;
+          }
+
+          handleCreateOrder(request, customer) {
+            const product = this.productService.getProduct(1);
+            const order = this.orderService.createOrder(request, customer, [product]);
+            this.productService.updateStock(1, 10);
+            return order;
+          }
+        }
+      `;
+
+      const ast = parseCode(code);
+      const service = new SequenceAnalysisService();
+      const result = service.analyze(ast);
+
+      // Should have OrderController as local class
+      expect(result.participants.map((p) => p.name)).toContain('OrderController');
+      // Should have imported classes as participants
+      expect(result.participants.map((p) => p.name)).toContain('OrderService');
+      expect(result.participants.map((p) => p.name)).toContain('ProductService');
+
+      // Should have calls to ProductService
+      const getProductCall = result.interactions.find(
+        (i) => i.from === 'OrderController' && i.to === 'ProductService' && i.message.includes('getProduct')
+      );
+      expect(getProductCall).toBeDefined();
+
+      const updateStockCall = result.interactions.find(
+        (i) => i.from === 'OrderController' && i.to === 'ProductService' && i.message.includes('updateStock')
+      );
+      expect(updateStockCall).toBeDefined();
+
+      // Should have call to OrderService
+      const createOrderCall = result.interactions.find(
+        (i) => i.from === 'OrderController' && i.to === 'OrderService' && i.message.includes('createOrder')
+      );
+      expect(createOrderCall).toBeDefined();
+    });
   });
 });

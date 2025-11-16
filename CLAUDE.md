@@ -15,10 +15,15 @@
 ### Monorepo Structure (npm workspaces)
 
 ```
-packages/
-├── cli/          # Entry point CLI tool (published to npm as @kuochunchang/goose-code-review)
-├── server/       # Express.js backend API
-└── web/          # Vue 3 + Vuetify frontend
+code-review-goose/
+├── packages/
+│   ├── cli/          # CLI entry point (published to npm)
+│   ├── server/       # Express.js backend
+│   └── web/          # Vue 3 frontend
+│
+└── docs/
+    ├── REFACTORING_PLAN.md       # 🆕 Planned architecture refactoring
+    └── DEVELOPMENT.md            # Development guide
 ```
 
 ### Key Components
@@ -26,6 +31,7 @@ packages/
 - **CLI Package**: Launches server, auto-opens browser, handles port detection
 - **Server Package**: REST API for file operations, AI analysis, UML generation, config management
 - **Web Package**: SPA with Monaco Editor, Mermaid diagrams, Vuetify UI components
+- **VsCode Extension**: Future extension for VS Code integration
 
 ## Common Commands
 
@@ -95,37 +101,6 @@ cd packages/web && npm run dev              # Vite dev server with HMR
 
 ## Project-Specific Patterns
 
-### Service Layer Architecture
-
-Server uses service-based architecture:
-
-- `aiService.ts` - OpenAI API integration
-- `umlService.ts` - Mermaid UML generation
-- `fileService.ts` - File system operations
-- `projectService.ts` - Project scanning and analysis
-- `configService.ts` - Configuration management
-- `reviewService.ts` - Code review logic
-- `searchService.ts` - Code search functionality
-
-### API Routes
-
-All routes under `packages/server/src/routes/`:
-
-- `/api/config` - Configuration CRUD
-- `/api/files` - File operations and content retrieval
-- `/api/project` - Project scanning and structure
-- `/api/analysis` - AI-powered code analysis
-- `/api/review` - Code review generation
-- `/api/uml` - UML diagram generation
-- `/api/search` - Code search
-
-### Frontend Structure
-
-- **Views**: Main page components in `packages/web/src/views/`
-- **Components**: Reusable components in `packages/web/src/components/`
-- **Stores**: Pinia stores in `packages/web/src/stores/`
-- **Composables**: Vue composables in `packages/web/src/composables/`
-- **Services**: API client services in `packages/web/src/services/`
 
 ## Testing Strategy
 
@@ -164,17 +139,6 @@ npm run test:e2e -- --headed          # Run tests in headed mode (visible browse
 npm run test:e2e -- --project=chromium # Run only on Chromium browser
 ```
 
-#### Test Scenarios Coverage
-
-The project requires E2E tests for the following critical workflows:
-
-1. **Smoke Tests** - Basic application loading and navigation
-2. **File Analysis** - File tree navigation, file selection, content display
-3. **Review Workflow** - Code review generation, AI analysis, review display
-4. **UML Generation** - UML diagram generation, rendering, and interaction
-5. **Search Functionality** - Code search, result display, navigation
-6. **Configuration Management** - Settings update, API key configuration
-
 #### Playwright Test Structure
 
 E2E tests should follow this structure:
@@ -203,74 +167,6 @@ test.describe('Feature Name', () => {
   });
 });
 ```
-
-#### Playwright Best Practices
-
-**Selectors**:
-- Prefer user-facing attributes: `data-testid`, `aria-label`, `role`
-- Avoid brittle selectors: CSS classes, complex XPath
-- Use Playwright's built-in locators: `page.getByRole()`, `page.getByText()`, `page.getByTestId()`
-
-**Waiting**:
-- Use auto-waiting: Playwright waits for elements automatically
-- Avoid hard waits: Don't use `setTimeout()` or `page.waitForTimeout()`
-- Use explicit waits when necessary: `page.waitForSelector()`, `page.waitForResponse()`
-
-**Assertions**:
-- Use Playwright's expect API: `expect(locator).toBeVisible()`
-- Test user-visible behavior, not implementation details
-- Assert on multiple conditions to ensure complete validation
-
-**Test Isolation**:
-- Each test should be independent and can run in any order
-- Don't rely on test execution order
-- Clean up state between tests
-
-**Page Object Model (POM)**:
-- Consider using POM for complex pages to reduce duplication
-- Keep page objects simple and focused on user interactions
-- Example: Create `FileTreePage`, `ReviewPage`, `SettingsPage` classes
-
-#### Playwright-Specific Requirements
-
-**MANDATORY for all UI changes**:
-- Any change to Vue components, views, or user interactions **MUST** include Playwright E2E tests
-- Tests must verify the complete user workflow, not just component rendering
-- Tests must run in real browser environment (Chromium, Firefox, WebKit)
-
-**Browser Coverage**:
-- Tests run on Chromium by default
-- Critical workflows should be tested on multiple browsers
-- Configure in `playwright.config.ts` if multi-browser testing is needed
-
-**Visual Testing** (Optional but Recommended):
-- Use `await expect(page).toHaveScreenshot()` for visual regression testing
-- Useful for UML diagrams, Monaco editor, complex layouts
-- Store screenshots in `e2e/__screenshots__/`
-
-**Network Mocking**:
-- Mock external API calls (OpenAI API) in E2E tests when appropriate
-- Use `page.route()` to intercept and mock network requests
-- Example:
-  ```typescript
-  await page.route('**/api/analysis', route => {
-    route.fulfill({
-      status: 200,
-      body: JSON.stringify({ analysis: 'Mocked result' })
-    });
-  });
-  ```
-
-**Timeouts**:
-- Default timeout: 30 seconds (configurable in `playwright.config.ts`)
-- Increase timeout for slow operations (AI analysis, large file loading)
-- Use `test.setTimeout()` for specific tests that need longer execution time
-
-**Debugging Tips**:
-- Use `npm run test:e2e:ui` for visual debugging
-- Use `await page.pause()` to pause test execution and inspect the page
-- Use `DEBUG=pw:api npm run test:e2e` for verbose logging
-- Check trace files: `npx playwright show-trace trace.zip`
 
 #### Playwright Test Checklist
 
@@ -306,29 +202,34 @@ Or simply: `npm run build` (handles order automatically)
 
 ### Publishing
 
-- Published package: `@kuochunchang/goose-code-review` (CLI package)
-- Includes: `dist/`, `server-dist/`, `web-dist/`
-- `prepublishOnly` script ensures build before publish
-- Binary commands: `goose` and `goose-code-review`
+**Published npm Packages** (Post-Refactoring):
 
-## Configuration
+**Application Packages**:
+5. `@kuochunchang/goose-code-review` - CLI tool (includes server and web)
+   - Includes: `dist/`, `server-dist/`, `web-dist/`
+   - Binary commands: `goose` and `goose-code-review`
 
-### AI Provider Setup
+**Future Packages**:
+- `@code-review-goose/analysis-adapter-vscode` - VS Code adapter
+- VS Code Extension - Published to VS Code Marketplace (not npm)
 
-- Config stored in `.code-review/config.json` in target project directory
-- Default provider: OpenAI (GPT-4)
-- Required: `apiKey` for OpenAI
-- Optional: `model`, `ignorePatterns`, `maxFileSize`
+**Version Management**:
+- Uses **Changesets** for independent versioning
+- Each package can have its own version number
+- `npx changeset` to create a changeset
+- `npx changeset version` to bump versions
+- `npx changeset publish` to publish all updated packages
 
-### Ignored Patterns
+**Publishing Workflow**:
+```bash
+# 1. Make changes to packages
+# 2. Create changeset
+npx changeset
 
-Default ignore patterns:
-
-- `node_modules`, `.git`, `dist`, `build`, `coverage`
-- `*.log`, `.DS_Store`, `.env*`
-- User-configurable via `ignorePatterns` in config
-
-## Important Behaviors & Warnings
+# 3. Version and publish (usually in CI/CD)
+npx changeset version
+npx changeset publish
+```
 
 ### Port Detection
 
@@ -341,17 +242,6 @@ Default ignore patterns:
 - CLI automatically opens default browser unless `--no-open` flag
 - Use `--port` or `-p` to specify custom port
 
-### File Size Limits
-
-- Default max file size: 5MB (configurable)
-- Large files skipped to prevent memory issues
-
-### Security Considerations
-
-- API key stored locally in `.code-review/config.json`
-- Never commit `.code-review/` directory to git (in .gitignore)
-- CORS enabled for local development only
-- No authentication/authorization (designed for local use only)
 
 ## Workflow Guidelines
 
@@ -472,74 +362,14 @@ git checkout -b feature/add-new-analysis-type
 - Coverage reports must be checked after EVERY code change
 - Pull requests with <80% coverage will be REJECTED
 
-### Common Development Tasks
-
-**Adding a new API endpoint**:
-
-1. Define route in `packages/server/src/routes/`
-2. Implement service logic in `packages/server/src/services/`
-3. Add types in `packages/server/src/types/`
-4. **Create comprehensive unit tests in `__tests__/`**
-   - Test success cases
-   - Test error cases
-   - Test edge cases
-   - Mock external dependencies
-5. **Run `npm run test:coverage` and verify ≥80% coverage**
-6. Update frontend service in `packages/web/src/services/`
-7. **Add E2E test if user-facing (MANDATORY for UI-exposed endpoints)**
-8. **Run full test suite and verify all tests pass**
-
-**Adding a new Vue component**:
-
-1. Create in `packages/web/src/components/`
-2. Use Composition API with `<script setup lang="ts">`
-3. Import Vuetify components as needed
-4. Add props/emits with TypeScript types
-5. **Write comprehensive unit tests with `@vue/test-utils`**
-   - Test component rendering
-   - Test user interactions (clicks, input, etc.)
-   - Test props and emits
-   - Test computed properties and state changes
-6. **MANDATORY: Add E2E tests for user-facing components**
-   - Test component in real browser environment
-   - Test integration with other components
-   - Test user workflows that involve this component
-7. **Run `npm run test:coverage` and verify ≥80% coverage**
-8. **Run `npm run test:e2e` to verify E2E tests pass**
-
-**Modifying existing functionality**:
-
-1. Read and understand existing code and tests
-2. Make your changes to the code
-3. **Update ALL existing tests to reflect changes**
-4. **Add new tests for new behavior**
-5. **If UI is modified, update or add E2E tests**
-6. **Run `npm run test:coverage` - coverage must not decrease**
-7. **If coverage drops below 80%, add more tests immediately**
-8. Verify all tests pass before committing
-
-**Debugging issues**:
-
-- Server errors: Check terminal logs, add `console.error` in services
-- Frontend errors: Check browser console and Network tab
-- Build errors: Run `npm run clean && npm install && npm run build`
-- E2E failures: Use `npm run test:e2e:ui` or `npm run test:e2e:debug`
-
-### Git Conventions
-
-- Branch naming: `feature/description`, `fix/description`, `docs/description`
-- Commit messages: Conventional format (`feat:`, `fix:`, `docs:`, `test:`, `chore:`)
-- Before PR: Ensure all tests pass, code is formatted, build succeeds
-
-## Dependencies to Remember
 
 ### Server Key Dependencies
 
 - `express` - Web framework
 - `openai` - OpenAI API client
-- `@babel/parser`, `@babel/traverse` - JavaScript/TypeScript AST parsing for UML
-- `fs-extra` - Enhanced file system operations
-- `ignore` - `.gitignore`-style pattern matching
+- `@code-review-goose/analysis-core` - Core UML analysis engine
+- `@code-review-goose/analysis-adapter-node` - Node.js file system adapter
+- `detect-port` - Port availability checking
 
 ### Web Key Dependencies
 
@@ -611,13 +441,16 @@ git checkout -b feature/add-new-analysis-type
   - View trace files: `npx playwright show-trace trace.zip`
   - Run headed mode: `npm run test:e2e -- --headed`
 
-## Additional Resources
 
-- Development guide: `docs/DEVELOPMENT.md`
-- GitHub repo: https://github.com/kuochunchang/code-review-goose
-- OpenAI API docs: https://platform.openai.com/docs
-- Mermaid syntax: https://mermaid.js.org/
-- Vuetify docs: https://vuetifyjs.com/
-- Monaco Editor API: https://microsoft.github.io/monaco-editor/
-- Playwright docs: https://playwright.dev/
-- Playwright best practices: https://playwright.dev/docs/best-practices
+### External Documentation
+
+- **GitHub repo**: https://github.com/kuochunchang/code-review-goose
+- **OpenAI API docs**: https://platform.openai.com/docs
+- **Mermaid syntax**: https://mermaid.js.org/
+- **Vuetify docs**: https://vuetifyjs.com/
+- **Monaco Editor API**: https://microsoft.github.io/monaco-editor/
+- **Playwright docs**: https://playwright.dev/
+- **Playwright best practices**: https://playwright.dev/docs/best-practices
+- **npm workspaces**: https://docs.npmjs.com/cli/v8/using-npm/workspaces
+- **TypeScript Project References**: https://www.typescriptlang.org/docs/handbook/project-references.html
+- **Changesets**: https://github.com/changesets/changesets
