@@ -4,8 +4,6 @@
  */
 
 import * as vscode from 'vscode';
-import { UMLAnalyzer } from '@code-review-goose/analysis-core';
-import { VSCodeFileProvider } from '@code-review-goose/analysis-adapter-vscode';
 import { DiagramPanel } from '../views/diagram-panel.js';
 
 export class GenerateSequenceDiagramCommand {
@@ -36,44 +34,16 @@ export class GenerateSequenceDiagramCommand {
         return;
       }
 
-      // Show progress
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: 'Generating sequence diagram...',
-          cancellable: false,
-        },
-        async (progress) => {
-          // Create file provider and analyzer
-          const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
-          const analyzer = new UMLAnalyzer(fileProvider);
+      // Open unified panel and generate sequence diagram
+      const panel = DiagramPanel.createOrShow(this.context.extensionUri, document.uri);
 
-          // Generate sequence diagram
-          progress.report({ message: 'Analyzing function calls...' });
-          const result = await analyzer.generateUnifiedDiagram(
-            document.uri.fsPath,
-            'sequence',
-            {
-              depth: 0, // Single file analysis for sequence diagrams
-            }
-          );
+      // Generate sequence diagram
+      await panel.generateDiagram(document.uri, 'sequence');
 
-          // Display diagram in webview
-          progress.report({ message: 'Rendering diagram...' });
-          const panel = DiagramPanel.createOrShow(
-            this.context.extensionUri,
-            'Sequence Diagram',
-            document.fileName
-          );
-
-          panel.updateDiagram(result.mermaidCode, 'sequence');
-
-          vscode.window.showInformationMessage('Sequence diagram generated successfully');
-        }
-      );
+      vscode.window.showInformationMessage('Sequence diagram panel opened');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      vscode.window.showErrorMessage(`Failed to generate sequence diagram: ${errorMessage}`);
+      vscode.window.showErrorMessage(`Failed to open UML panel: ${errorMessage}`);
       console.error('Sequence diagram generation error:', error);
     }
   }

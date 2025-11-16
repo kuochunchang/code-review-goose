@@ -4,8 +4,6 @@
  */
 
 import * as vscode from 'vscode';
-import { UMLAnalyzer } from '@code-review-goose/analysis-core';
-import { VSCodeFileProvider } from '@code-review-goose/analysis-adapter-vscode';
 import { DiagramPanel } from '../views/diagram-panel.js';
 
 export class GenerateFlowchartCommand {
@@ -36,44 +34,16 @@ export class GenerateFlowchartCommand {
         return;
       }
 
-      // Show progress
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: 'Generating flowchart...',
-          cancellable: false,
-        },
-        async (progress) => {
-          // Create file provider and analyzer
-          const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
-          const analyzer = new UMLAnalyzer(fileProvider);
+      // Open unified panel and generate flowchart
+      const panel = DiagramPanel.createOrShow(this.context.extensionUri, document.uri);
 
-          // Generate flowchart
-          progress.report({ message: 'Analyzing control flow...' });
-          const result = await analyzer.generateUnifiedDiagram(
-            document.uri.fsPath,
-            'flowchart',
-            {
-              depth: 0, // Single file analysis for flowcharts
-            }
-          );
+      // Generate flowchart
+      await panel.generateDiagram(document.uri, 'flowchart');
 
-          // Display diagram in webview
-          progress.report({ message: 'Rendering diagram...' });
-          const panel = DiagramPanel.createOrShow(
-            this.context.extensionUri,
-            'Flowchart',
-            document.fileName
-          );
-
-          panel.updateDiagram(result.mermaidCode, 'flowchart');
-
-          vscode.window.showInformationMessage('Flowchart generated successfully');
-        }
-      );
+      vscode.window.showInformationMessage('Flowchart panel opened');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      vscode.window.showErrorMessage(`Failed to generate flowchart: ${errorMessage}`);
+      vscode.window.showErrorMessage(`Failed to open UML panel: ${errorMessage}`);
       console.error('Flowchart generation error:', error);
     }
   }

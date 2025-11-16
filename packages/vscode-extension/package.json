@@ -21,6 +21,7 @@
     "ai"
   ],
   "activationEvents": [
+    "onCommand:gooseCodeReview.openUMLPanel",
     "onCommand:gooseCodeReview.generateClassDiagram",
     "onCommand:gooseCodeReview.generateSequenceDiagram",
     "onCommand:gooseCodeReview.generateFlowchart",
@@ -30,6 +31,12 @@
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
+      {
+        "command": "gooseCodeReview.openUMLPanel",
+        "title": "Open UML Panel",
+        "category": "Goose Code Review",
+        "icon": "$(graph)"
+      },
       {
         "command": "gooseCodeReview.generateClassDiagram",
         "title": "Generate Class Diagram",
@@ -46,8 +53,21 @@
         "category": "Goose Code Review"
       }
     ],
+    "keybindings": [
+      {
+        "command": "gooseCodeReview.openUMLPanel",
+        "key": "ctrl+shift+u",
+        "mac": "cmd+shift+u",
+        "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact"
+      }
+    ],
     "menus": {
       "editor/context": [
+        {
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "command": "gooseCodeReview.openUMLPanel",
+          "group": "gooseCodeReview@0"
+        },
         {
           "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
           "command": "gooseCodeReview.generateClassDiagram",
