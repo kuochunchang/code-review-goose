@@ -97,7 +97,7 @@ describe('DiagramPanel', () => {
       expect(vscode.window.createWebviewPanel).toHaveBeenCalledWith(
         'gooseCodeReviewUML',
         '🦆 UML Diagram',
-        vscode.ViewColumn.Two,
+        vscode.ViewColumn.Beside,
         expect.objectContaining({
           enableScripts: true,
           retainContextWhenHidden: true,

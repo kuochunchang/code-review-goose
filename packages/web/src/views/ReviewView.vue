@@ -31,12 +31,12 @@
         <!-- Middle: Code Viewer with optional UML Panel -->
         <Pane :size="getPaneSize('code')" :min-size="20">
           <div class="panel-content">
-            <!-- Nested horizontal split when UML is visible -->
-            <Splitpanes v-if="showUMLPanel" horizontal :dbl-click-splitter="false">
-              <Pane :size="60" :min-size="30">
+            <!-- Nested vertical split when UML is visible (side-by-side) -->
+            <Splitpanes v-if="showUMLPanel" :dbl-click-splitter="false">
+              <Pane :size="50" :min-size="30">
                 <CodeViewer ref="codeViewerRef" :file-path="selectedFile" />
               </Pane>
-              <Pane :size="40" :min-size="20">
+              <Pane :size="50" :min-size="20">
                 <UMLViewer
                   :code="umlCode"
                   :file-path="umlFilePath"

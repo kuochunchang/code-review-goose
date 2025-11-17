@@ -67,9 +67,8 @@ export class DiagramPanel {
     extensionUri: vscode.Uri,
     file?: vscode.Uri
   ): DiagramPanel {
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+    // Open panel beside the active editor (side-by-side)
+    const column = vscode.ViewColumn.Beside;
 
     // If we already have a panel, show it
     if (DiagramPanel.currentPanel) {
@@ -81,11 +80,11 @@ export class DiagramPanel {
       return DiagramPanel.currentPanel;
     }
 
-    // Otherwise, create a new panel
+    // Otherwise, create a new panel beside the active editor
     const panel = vscode.window.createWebviewPanel(
       'gooseCodeReviewUML',
       '🦆 UML Diagram',
-      column || vscode.ViewColumn.Two,
+      column,
       {
         enableScripts: true,
         retainContextWhenHidden: true,
