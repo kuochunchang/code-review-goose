@@ -663,10 +663,7 @@ export class UMLAnalyzer {
 
     // Generate OO relationship dependencies (composition, aggregation, etc.)
     if (dependencies && dependencies.length > 0) {
-      // Filter out external dependencies (only show internal class relationships)
-      const internalDeps = dependencies.filter(
-        (dep) => !dep.isExternal && this.classExists(dep.to, classes)
-      );
+      const internalDeps = dependencies.filter((dep) => this.classExists(dep.to, classes));
 
       internalDeps.forEach((dep) => {
         const { from, to, type, cardinality, context } = dep;
