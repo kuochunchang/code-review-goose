@@ -28,6 +28,12 @@
   "contributes": {
     "commands": [
       {
+        "command": "gooseCodeReview.openAnalysisPanel",
+        "title": "Open Analysis Panel",
+        "category": "Goose Code Review",
+        "icon": "$(beaker)"
+      },
+      {
         "command": "gooseCodeReview.openUMLPanel",
         "title": "Open UML Panel",
         "category": "Goose Code Review",
@@ -51,6 +57,12 @@
     ],
     "keybindings": [
       {
+        "command": "gooseCodeReview.openAnalysisPanel",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a",
+        "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact"
+      },
+      {
         "command": "gooseCodeReview.openUMLPanel",
         "key": "ctrl+shift+u",
         "mac": "cmd+shift+u",
@@ -61,6 +73,11 @@
       "editor/title": [
         {
           "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "command": "gooseCodeReview.openAnalysisPanel",
+          "group": "navigation"
+        },
+        {
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
           "command": "gooseCodeReview.openUMLPanel",
           "group": "navigation"
         }
@@ -68,29 +85,53 @@
       "editor/context": [
         {
           "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
-          "command": "gooseCodeReview.openUMLPanel",
+          "command": "gooseCodeReview.openAnalysisPanel",
           "group": "gooseCodeReview@0"
         },
         {
           "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
-          "command": "gooseCodeReview.generateClassDiagram",
+          "command": "gooseCodeReview.openUMLPanel",
           "group": "gooseCodeReview@1"
         },
         {
           "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
-          "command": "gooseCodeReview.generateSequenceDiagram",
+          "command": "gooseCodeReview.generateClassDiagram",
           "group": "gooseCodeReview@2"
         },
         {
           "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
-          "command": "gooseCodeReview.generateFlowchart",
+          "command": "gooseCodeReview.generateSequenceDiagram",
           "group": "gooseCodeReview@3"
+        },
+        {
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "command": "gooseCodeReview.generateFlowchart",
+          "group": "gooseCodeReview@4"
         }
       ]
     },
     "configuration": {
       "title": "Goose Code Review",
       "properties": {
+        "gooseCodeReview.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API Key for code analysis (prefer using Secret Storage for security)",
+          "scope": "application"
+        },
+        "gooseCodeReview.analysisModel": {
+          "type": "string",
+          "default": "gpt-4",
+          "enum": [
+            "gpt-4",
+            "gpt-4-turbo",
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-3.5-turbo"
+          ],
+          "description": "OpenAI model to use for code analysis",
+          "scope": "application"
+        },
         "gooseCodeReview.analysisDepth": {
           "type": "number",
           "default": 2,
@@ -135,7 +176,8 @@
   "dependencies": {
     "@code-review-goose/analysis-core": "*",
     "@code-review-goose/analysis-adapter-vscode": "*",
-    "@code-review-goose/analysis-types": "*"
+    "@code-review-goose/analysis-types": "*",
+    "openai": "^4.20.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
