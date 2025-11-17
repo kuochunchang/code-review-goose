@@ -88,14 +88,25 @@ export class UMLAnalyzer {
         }
       }
 
-      // For other diagram types, currently only support single-file (depth = 0)
+      // For sequence diagrams, support both single-file and cross-file analysis
+      if (type === 'sequence') {
+        if (depth === 0) {
+          // Single-file sequence diagram
+          return await this.generateSingleFileDiagram(filePath, type);
+        } else {
+          // Cross-file sequence diagram
+          return await this.generateCrossFileSequenceDiagram(filePath, depth as 1 | 2 | 3, mode);
+        }
+      }
+
+      // For other diagram types (flowchart), currently only support single-file (depth = 0)
       if (depth > 0) {
         throw new Error(
-          `Cross-file analysis (depth > 0) is only supported for class diagrams. Type '${type}' only supports depth=0`
+          `Cross-file analysis (depth > 0) is only supported for class and sequence diagrams. Type '${type}' only supports depth=0`
         );
       }
 
-      // Single-file analysis for flowchart, sequence, dependency
+      // Single-file analysis for flowchart, dependency
       return await this.generateSingleFileDiagram(filePath, type);
     } catch (error) {
       throw new Error(
@@ -191,6 +202,124 @@ export class UMLAnalyzer {
       metadata: {
         classes: analysisResult.allClasses,
         dependencies: analysisResult.relationships,
+        depth,
+        mode,
+        singleFile: false,
+        filePath,
+        crossFileStats: analysisResult.stats,
+        forwardDependencies: analysisResult.forwardDeps.map((dep) => dep.filePath),
+        reverseDependencies: analysisResult.reverseDeps.map((dep) => dep.filePath),
+      },
+    };
+  }
+
+  /**
+   * Generate cross-file sequence diagram
+   * Analyzes method call flows across multiple files based on dependencies
+   */
+  async generateCrossFileSequenceDiagram(
+    filePath: string,
+    depth: 1 | 2 | 3 = 1,
+    mode: 'forward' | 'reverse' | 'bidirectional' = 'bidirectional'
+  ): Promise<UMLResult> {
+    // Validate depth parameter
+    if (depth < 1 || depth > 3) {
+      throw new Error('Cross-file analysis depth must be between 1 and 3');
+    }
+
+    // Create CrossFileAnalyzer instance to get related files
+    const crossFileAnalyzer = new CrossFileAnalyzer(this.fileProvider);
+
+    // Execute analysis to get related files
+    const analysisResult = await crossFileAnalyzer.analyzeBidirectional(filePath, depth);
+
+    // Collect all files to analyze (main file + dependencies)
+    const filesToAnalyze = new Set<string>();
+    filesToAnalyze.add(filePath);
+
+    // Add forward dependencies
+    for (const dep of analysisResult.forwardDeps) {
+      filesToAnalyze.add(dep.filePath);
+    }
+
+    // Add reverse dependencies
+    for (const dep of analysisResult.reverseDeps) {
+      filesToAnalyze.add(dep.filePath);
+    }
+
+    // Analyze each file and collect sequence information
+    const allParticipants = new Map<string, { name: string; type: string; sourceFile?: string }>();
+    const allInteractions: Array<{
+      from: string;
+      to: string;
+      message: string;
+      type: string;
+      sourceFile?: string;
+    }> = [];
+    const allEntryPoints = new Set<string>();
+
+    for (const file of filesToAnalyze) {
+      try {
+        const code = await this.fileProvider.readFile(file);
+        const ast = this.parseCode(code);
+        const sequenceAnalyzer = new SequenceAnalyzer();
+        const analysis = sequenceAnalyzer.analyze(ast);
+
+        // Get relative file name for annotation
+        const fileName = file.split('/').pop() || file;
+
+        // Add participants with source file annotation
+        for (const participant of analysis.participants) {
+          const key = `${participant.name}_${fileName}`;
+          if (!allParticipants.has(key)) {
+            allParticipants.set(key, {
+              ...participant,
+              sourceFile: fileName,
+            });
+          }
+        }
+
+        // Add interactions with source file annotation
+        for (const interaction of analysis.interactions) {
+          allInteractions.push({
+            ...interaction,
+            sourceFile: fileName,
+          });
+        }
+
+        // Add entry points
+        for (const entryPoint of analysis.entryPoints) {
+          allEntryPoints.add(entryPoint);
+        }
+      } catch (error) {
+        // Skip files that can't be analyzed
+        console.warn(`Failed to analyze ${file} for sequence diagram:`, error);
+      }
+    }
+
+    // Generate Mermaid sequence diagram from merged results
+    const mermaidCode = this.generateMermaidSequenceDiagram({
+      participants: Array.from(allParticipants.values()),
+      interactions: allInteractions,
+      entryPoints: Array.from(allEntryPoints),
+    });
+
+    // Convert to SequenceInfo for metadata
+    const sequences = this.convertToSequenceInfo({
+      participants: Array.from(allParticipants.values()),
+      interactions: allInteractions,
+    });
+
+    // Return UML result with cross-file metadata
+    return {
+      type: 'sequence',
+      mermaidCode,
+      generationMode: 'native',
+      metadata: {
+        sequences,
+        participants: Array.from(allParticipants.values()),
+        interactions: allInteractions,
+        entryPoints: Array.from(allEntryPoints),
         depth,
         mode,
         singleFile: false,

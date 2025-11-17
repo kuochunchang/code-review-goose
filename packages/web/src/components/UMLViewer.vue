@@ -51,9 +51,9 @@
       <v-btn icon="mdi-close" size="small" @click="$emit('close')"></v-btn>
     </v-toolbar>
 
-    <!-- Unified analysis options panel (always visible for class diagrams) -->
+    <!-- Unified analysis options panel (always visible for class and sequence diagrams) -->
     <v-card
-      v-if="selectedType === 'class'"
+      v-if="selectedType === 'class' || selectedType === 'sequence'"
       class="analysis-options"
       flat
       :color="theme.global.current.value.dark ? 'grey-darken-4' : 'grey-lighten-4'"
@@ -336,15 +336,15 @@ async function generateDiagram(forceRefresh = false) {
 
   try {
     // Build unified options object
-    // Note: depth and analysisMode only apply to class diagrams
+    // Note: depth and analysisMode apply to class and sequence diagrams
     const options: {
       forceRefresh?: boolean;
       depth?: number;
       analysisMode?: 'forward' | 'reverse' | 'bidirectional';
     } = {
       forceRefresh,
-      // Only pass depth/analysisMode for class diagrams
-      ...(selectedType.value === 'class' && {
+      // Pass depth/analysisMode for class and sequence diagrams
+      ...((selectedType.value === 'class' || selectedType.value === 'sequence') && {
         depth: analysisDepth.value,
         analysisMode: analysisMode.value,
       }),

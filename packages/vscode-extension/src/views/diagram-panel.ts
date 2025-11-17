@@ -160,13 +160,13 @@ export class DiagramPanel {
 
       // Determine options based on diagram type
       const generateOptions =
-        this._currentType === 'class'
+        this._currentType === 'class' || this._currentType === 'sequence'
           ? {
               depth: this._currentOptions.depth,
               mode: this._currentOptions.mode,
             }
           : {
-              depth: 0, // Sequence and flowchart only support single-file (depth 0)
+              depth: 0, // Flowchart only supports single-file (depth 0)
             };
 
       let result;
@@ -504,8 +504,8 @@ export class DiagramPanel {
             </div>
         </div>
 
-        <!-- Row 2: Class Diagram Options -->
-        <div class="toolbar-row" id="classOptions" style="display: ${this._currentType === 'class' ? 'flex' : 'none'}">
+        <!-- Row 2: Class & Sequence Diagram Options -->
+        <div class="toolbar-row" id="classOptions" style="display: ${this._currentType === 'class' || this._currentType === 'sequence' ? 'flex' : 'none'}">
             <span class="toolbar-label tooltip">
                 Depth:
                 <span class="tooltiptext">
@@ -832,9 +832,9 @@ export class DiagramPanel {
                 btn.disabled = state.depth === 0;
             });
 
-            // Show/hide class options
+            // Show/hide class & sequence options
             const classOptions = document.getElementById('classOptions');
-            classOptions.style.display = state.type === 'class' ? 'flex' : 'none';
+            classOptions.style.display = (state.type === 'class' || state.type === 'sequence') ? 'flex' : 'none';
         }
 
         function disableZoomButtons() {
