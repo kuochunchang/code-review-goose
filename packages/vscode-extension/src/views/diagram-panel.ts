@@ -277,8 +277,9 @@ export class DiagramPanel {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https://cdn.jsdelivr.net; font-src https://cdn.jsdelivr.net; script-src 'nonce-${nonce}' https://cdn.jsdelivr.net;">
     <title>Goose Code Review - UML Diagram</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.35/dist/codicon.css">
     <style>
         * {
             box-sizing: border-box;
@@ -299,43 +300,50 @@ export class DiagramPanel {
         .toolbar {
             background-color: var(--vscode-sideBar-background);
             border-bottom: 1px solid var(--vscode-panel-border);
-            padding: 12px 16px;
+            padding: 8px 12px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 8px;
             flex-shrink: 0;
         }
 
         .toolbar-row {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
             flex-wrap: wrap;
         }
 
         .toolbar-label {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--vscode-descriptionForeground);
-            min-width: 60px;
+            min-width: 50px;
         }
 
         .btn-group {
             display: flex;
-            gap: 4px;
+            gap: 1px;
         }
 
         .btn {
             background-color: var(--vscode-button-secondaryBackground);
             color: var(--vscode-button-secondaryForeground);
             border: 1px solid transparent;
-            padding: 6px 12px;
-            border-radius: 4px;
+            padding: 4px 8px;
+            border-radius: 2px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 11px;
             font-family: var(--vscode-font-family);
             transition: all 0.2s;
             white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn .codicon {
+            font-size: 13px;
         }
 
         .btn:hover {
@@ -362,15 +370,27 @@ export class DiagramPanel {
             background-color: var(--vscode-button-hoverBackground);
         }
 
+        .btn-icon {
+            padding: 4px 6px;
+            min-width: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon .codicon {
+            font-size: 16px;
+        }
+
         .separator {
             width: 1px;
-            height: 24px;
+            height: 20px;
             background-color: var(--vscode-panel-border);
-            margin: 0 8px;
+            margin: 0 4px;
         }
 
         .file-path {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--vscode-descriptionForeground);
             font-family: var(--vscode-editor-font-family);
         }
@@ -483,14 +503,17 @@ export class DiagramPanel {
 
             <div class="separator"></div>
 
-            <button class="btn btn-primary" id="refreshBtn">
-                ↻ Refresh
+            <button class="btn btn-primary btn-icon tooltip" id="refreshBtn" title="Refresh diagram">
+                <i class="codicon codicon-refresh"></i>
+                <span class="tooltiptext">Refresh diagram</span>
             </button>
-            <button class="btn" id="copyBtn">
-                Copy Code
+            <button class="btn btn-icon tooltip" id="copyBtn" title="Copy Mermaid code">
+                <i class="codicon codicon-copy"></i>
+                <span class="tooltiptext">Copy Mermaid code to clipboard</span>
             </button>
-            <button class="btn" id="downloadBtn">
-                Download SVG
+            <button class="btn btn-icon tooltip" id="downloadBtn" title="Download SVG">
+                <i class="codicon codicon-cloud-download"></i>
+                <span class="tooltiptext">Download diagram as SVG file</span>
             </button>
 
             <div class="separator"></div>
@@ -522,26 +545,29 @@ export class DiagramPanel {
             <span class="toolbar-label tooltip">
                 Mode:
                 <span class="tooltiptext">
-                    Bidirectional: Both dependencies<br>
-                    Forward: What this file imports<br>
+                    Both: All dependencies (imports + reverse)<br>
+                    Imports: What this file imports<br>
                     Reverse: What imports this file
                 </span>
             </span>
             <div class="btn-group" id="modeSelector">
-                <button class="btn ${this._currentOptions.mode === 'bidirectional' ? 'active' : ''}"
+                <button class="btn tooltip ${this._currentOptions.mode === 'bidirectional' ? 'active' : ''}"
                         data-mode="bidirectional"
                         ${this._currentOptions.depth === 0 ? 'disabled' : ''}>
-                    Bidirectional
+                    <i class="codicon codicon-arrow-both"></i> Both
+                    <span class="tooltiptext">Both: Show all dependencies (what this file imports + what imports this file)</span>
                 </button>
-                <button class="btn ${this._currentOptions.mode === 'forward' ? 'active' : ''}"
+                <button class="btn tooltip ${this._currentOptions.mode === 'forward' ? 'active' : ''}"
                         data-mode="forward"
                         ${this._currentOptions.depth === 0 ? 'disabled' : ''}>
-                    Forward
+                    <i class="codicon codicon-arrow-right"></i> Imports
+                    <span class="tooltiptext">Imports: Show only what this file imports</span>
                 </button>
-                <button class="btn ${this._currentOptions.mode === 'reverse' ? 'active' : ''}"
+                <button class="btn tooltip ${this._currentOptions.mode === 'reverse' ? 'active' : ''}"
                         data-mode="reverse"
                         ${this._currentOptions.depth === 0 ? 'disabled' : ''}>
-                    Reverse
+                    <i class="codicon codicon-arrow-left"></i> Reverse
+                    <span class="tooltiptext">Reverse: Show only what imports this file</span>
                 </button>
             </div>
         </div>

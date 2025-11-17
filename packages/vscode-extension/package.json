@@ -21,10 +21,6 @@
     "ai"
   ],
   "activationEvents": [
-    "onCommand:gooseCodeReview.openUMLPanel",
-    "onCommand:gooseCodeReview.generateClassDiagram",
-    "onCommand:gooseCodeReview.generateSequenceDiagram",
-    "onCommand:gooseCodeReview.generateFlowchart",
     "onLanguage:typescript",
     "onLanguage:javascript"
   ],
@@ -35,7 +31,7 @@
         "command": "gooseCodeReview.openUMLPanel",
         "title": "Open UML Panel",
         "category": "Goose Code Review",
-        "icon": "$(graph)"
+        "icon": "$(type-hierarchy)"
       },
       {
         "command": "gooseCodeReview.generateClassDiagram",
@@ -62,6 +58,13 @@
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "command": "gooseCodeReview.openUMLPanel",
+          "group": "navigation"
+        }
+      ],
       "editor/context": [
         {
           "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
