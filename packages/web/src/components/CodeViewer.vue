@@ -76,6 +76,11 @@ interface Props {
 
 const props = defineProps<Props>();
 
+// Emit events
+const emit = defineEmits<{
+  'open-uml': [code: string, filePath: string];
+}>();
+
 const projectStore = useProjectStore();
 const uiStore = useUIStore();
 const { renderMarkdown } = useMarkdown();
@@ -255,15 +260,8 @@ const openUMLViewer = () => {
     uiStore.showSnackbar('Please select a file first', 'warning');
     return;
   }
-  // Store code and filePath in sessionStorage to pass to new window
-  sessionStorage.setItem('uml_code', fileContent.value);
-  sessionStorage.setItem('uml_filePath', currentFile.value);
-  // Open UML viewer in a new window
-  const width = 1400;
-  const height = 900;
-  const left = window.screenX + (window.outerWidth - width) / 2;
-  const top = window.screenY + (window.outerHeight - height) / 2;
-  window.open('/uml', 'UML_Viewer', `width=${width},height=${height},left=${left},top=${top}`);
+  // Emit event to parent to show UML panel inline
+  emit('open-uml', fileContent.value, currentFile.value);
 };
 
 // Jump to specified line

@@ -161,7 +161,7 @@ describe('UML API', () => {
       expect(response.body.error).toContain('depth must be between 0');
     });
 
-    it('should return 400 for cross-file analysis on non-class diagrams', async () => {
+    it('should return 400 for cross-file analysis on flowchart diagrams', async () => {
       const response = await request(app).post('/api/uml/generate').send({
         code: 'function test() {}',
         type: 'flowchart',
@@ -171,7 +171,7 @@ describe('UML API', () => {
 
       expect(response.status).toBe(400);
       expect(response.body.success).toBe(false);
-      expect(response.body.error).toContain('only supported for class diagrams');
+      expect(response.body.error).toContain('only supported for class and sequence diagrams');
     });
 
     it('should handle UML generation errors', async () => {
@@ -324,7 +324,7 @@ describe('UML API', () => {
         );
       });
 
-      it('should return 400 when crossFileAnalysis is used with non-class diagram', async () => {
+      it('should return 400 when crossFileAnalysis is used with flowchart diagram', async () => {
         const response = await request(app).post('/api/uml/generate').send({
           code: 'class Test {}',
           type: 'flowchart',
@@ -334,7 +334,7 @@ describe('UML API', () => {
 
         expect(response.status).toBe(400);
         expect(response.body.success).toBe(false);
-        expect(response.body.error).toContain('only supported for class diagrams');
+        expect(response.body.error).toContain('only supported for class and sequence diagrams');
       });
 
       it('should return 400 for invalid depth value', async () => {
@@ -408,6 +408,72 @@ describe('UML API', () => {
           'sequence',
           expect.objectContaining({
             depth: 0,
+          })
+        );
+      });
+
+      it('should generate cross-file sequence diagram with depth > 0', async () => {
+        const mockCrossFileSequenceResult: UMLResult = {
+          type: 'sequence',
+          mermaidCode:
+            'sequenceDiagram\n  participant Main\n  participant Helper\n  Main->>Helper: doWork()',
+          generationMode: 'native',
+          metadata: {
+            participants: [
+              { name: 'Main', type: 'class', sourceFile: 'main.ts' },
+              { name: 'Helper', type: 'class', sourceFile: 'helper.ts' },
+            ],
+            interactions: [
+              { from: 'Main', to: 'Helper', message: 'doWork()', type: 'sync', sourceFile: 'main.ts' },
+            ],
+            entryPoints: ['Main.run'],
+            depth: 1,
+            mode: 'bidirectional',
+            singleFile: false,
+          },
+        };
+
+        const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockCrossFileSequenceResult);
+
+        vi.mocked(ConfigService).mockImplementation(
+          () =>
+            ({
+              get: vi.fn().mockResolvedValue({ aiProvider: 'openai' }),
+            }) as any
+        );
+
+        vi.mocked(AIService).mockImplementation(
+          () =>
+            ({
+              isConfigured: vi.fn().mockResolvedValue(false),
+            }) as any
+        );
+
+        vi.mocked(UMLService).mockImplementation(
+          () =>
+            ({
+              generateUnifiedDiagram: mockGenerateUnifiedDiagram,
+            }) as any
+        );
+
+        const response = await request(app).post('/api/uml/generate').send({
+          code: 'import { Helper } from "./helper"; class Main { helper = new Helper(); run() { this.helper.doWork(); } }',
+          type: 'sequence',
+          filePath: '/test/main.ts',
+          depth: 1,
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.mermaidCode).toContain('sequenceDiagram');
+        expect(response.body.data.metadata.depth).toBe(1);
+        expect(response.body.data.metadata.singleFile).toBe(false);
+        expect(mockGenerateUnifiedDiagram).toHaveBeenCalledWith(
+          '/test/main.ts',
+          '/test/project',
+          'sequence',
+          expect.objectContaining({
+            depth: 1,
           })
         );
       });

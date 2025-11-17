@@ -11,6 +11,7 @@ describe('UMLAnalyzer', () => {
       readFile: vi.fn(),
       exists: vi.fn(),
       resolveImport: vi.fn(),
+      listFiles: vi.fn(),
       getProjectRoot: vi.fn(),
     };
 
@@ -472,10 +473,39 @@ describe('UMLAnalyzer', () => {
       ).rejects.toThrow('Depth must be between 0');
     });
 
-    it('should throw error for cross-file sequence diagram', async () => {
-      await expect(
-        analyzer.generateUnifiedDiagram('foo.ts', 'sequence', { depth: 1 })
-      ).rejects.toThrow('only supports depth=0');
+    it('should generate cross-file sequence diagram with depth > 0', async () => {
+      const mainCode = `
+        import { Helper } from './helper';
+        class Main {
+          helper = new Helper();
+          run() {
+            this.helper.doWork();
+          }
+        }
+      `;
+      const helperCode = `
+        export class Helper {
+          doWork() {
+            console.log('working');
+          }
+        }
+      `;
+
+      (mockFileProvider.readFile as any).mockImplementation((path: string) => {
+        if (path === 'main.ts') return Promise.resolve(mainCode);
+        if (path.includes('helper')) return Promise.resolve(helperCode);
+        return Promise.reject(new Error('File not found'));
+      });
+      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.resolveImport as any).mockResolvedValue('helper.ts');
+      (mockFileProvider.listFiles as any).mockResolvedValue(['helper.ts']);
+
+      const result = await analyzer.generateUnifiedDiagram('main.ts', 'sequence', { depth: 1 });
+
+      expect(result.type).toBe('sequence');
+      expect(result.mermaidCode).toContain('sequenceDiagram');
+      expect(result.metadata?.depth).toBe(1);
+      expect(result.metadata?.singleFile).toBe(false);
     });
 
     it('should generate single-file flowchart with depth 0', async () => {

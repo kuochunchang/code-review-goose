@@ -28,15 +28,34 @@
           </div>
         </Pane>
 
-        <!-- Middle: Code Viewer -->
-        <Pane :size="showFileTree ? 50 : 60" :min-size="30">
+        <!-- Middle: Code Viewer with optional UML Panel -->
+        <Pane :size="getPaneSize('code')" :min-size="20">
           <div class="panel-content">
-            <CodeViewer ref="codeViewerRef" :file-path="selectedFile" />
+            <!-- Nested vertical split when UML is visible (side-by-side) -->
+            <Splitpanes v-if="showUMLPanel" :dbl-click-splitter="false">
+              <Pane :size="50" :min-size="30">
+                <CodeViewer ref="codeViewerRef" :file-path="selectedFile" />
+              </Pane>
+              <Pane :size="50" :min-size="20">
+                <UMLViewer
+                  :code="umlCode"
+                  :file-path="umlFilePath"
+                  @close="closeUMLPanel"
+                />
+              </Pane>
+            </Splitpanes>
+            <!-- Single code viewer when UML is hidden -->
+            <CodeViewer
+              v-else
+              ref="codeViewerRef"
+              :file-path="selectedFile"
+              @open-uml="handleOpenUML"
+            />
           </div>
         </Pane>
 
         <!-- Right: Analysis Panel -->
-        <Pane :size="showFileTree ? 30 : 40" :min-size="15" :max-size="50">
+        <Pane :size="getPaneSize('analysis')" :min-size="15" :max-size="50">
           <div class="panel-content">
             <AnalysisPanel :file-path="selectedFile" @jump-to-line="handleJumpToLine" />
           </div>
@@ -143,11 +162,13 @@ import { Splitpanes, Pane } from 'splitpanes';
 import FileTree from '../components/FileTree.vue';
 import CodeViewer from '../components/CodeViewer.vue';
 import AnalysisPanel from '../components/AnalysisPanel.vue';
+import UMLViewer from '../components/UMLViewer.vue';
 import SettingsDialog from '../components/SettingsDialog.vue';
 import SearchDialog from '../components/SearchDialog.vue';
 import KeyboardShortcutsDialog from '../components/KeyboardShortcutsDialog.vue';
 import AppFooter from '../components/AppFooter.vue';
 import { useUIStore } from '../stores/ui';
+import { useProjectStore } from '../stores/project';
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts';
 import type { KeyboardShortcut } from '../composables/useKeyboardShortcuts';
 import axios from 'axios';
@@ -155,6 +176,7 @@ import { useDisplay } from 'vuetify';
 import { projectApi } from '../services/api';
 
 const uiStore = useUIStore();
+const projectStore = useProjectStore();
 const { mdAndUp } = useDisplay();
 
 const selectedFile = ref<string | undefined>(undefined);
@@ -166,10 +188,50 @@ const mobileDrawer = ref(false);
 const mobileTab = ref('code');
 const currentFileInfo = ref<{ path?: string; lineCount?: number }>({});
 const showFileTree = ref(true);
+const showUMLPanel = ref(false);
+const umlCode = ref<string>('');
+const umlFilePath = ref<string>('');
 
 // Toggle file tree visibility
 const toggleFileTree = () => {
   showFileTree.value = !showFileTree.value;
+};
+
+// Calculate pane sizes based on visible panels
+const getPaneSize = (panel: 'code' | 'analysis') => {
+  if (panel === 'code') {
+    return showFileTree.value ? 50 : 60;
+  } else {
+    // analysis panel
+    return showFileTree.value ? 30 : 40;
+  }
+};
+
+// Handle opening UML panel
+const handleOpenUML = async (code: string, filePath: string) => {
+  // If code is not provided, fetch it from the codeViewerRef
+  if (!code && codeViewerRef.value?.currentFile) {
+    try {
+      const content = await projectStore.fetchFileContent(codeViewerRef.value.currentFile);
+      code = content;
+      filePath = codeViewerRef.value.currentFile;
+    } catch (err) {
+      console.error('Failed to fetch file content for UML:', err);
+      uiStore.showSnackbar('Failed to load file content', 'error');
+      return;
+    }
+  }
+
+  umlCode.value = code;
+  umlFilePath.value = filePath;
+  showUMLPanel.value = true;
+};
+
+// Close UML panel
+const closeUMLPanel = () => {
+  showUMLPanel.value = false;
+  umlCode.value = '';
+  umlFilePath.value = '';
 };
 
 // Define keyboard shortcuts
@@ -193,9 +255,11 @@ const keyboardShortcuts: KeyboardShortcut[] = [
   {
     key: 'u',
     ctrl: true,
-    description: 'Open UML Diagram',
+    description: 'Toggle UML Diagram',
     handler: () => {
-      if (codeViewerRef.value) {
+      if (showUMLPanel.value) {
+        closeUMLPanel();
+      } else if (codeViewerRef.value && codeViewerRef.value.currentFile) {
         codeViewerRef.value.openUMLViewer();
       }
     },
@@ -413,14 +477,18 @@ onMounted(async () => {
   background-color: transparent !important;
   position: relative;
   transition: all 0.2s ease;
-  width: 4px !important;
-  min-width: 4px !important;
-  cursor: col-resize !important;
   z-index: 10;
   border: none !important;
 }
 
-.desktop-layout :deep(.splitpanes__splitter::before) {
+/* Vertical splitter (default - for left/right panels) */
+.desktop-layout :deep(.splitpanes__splitter:not(.splitpanes__splitter-horizontal)) {
+  width: 4px !important;
+  min-width: 4px !important;
+  cursor: col-resize !important;
+}
+
+.desktop-layout :deep(.splitpanes__splitter:not(.splitpanes__splitter-horizontal)::before) {
   content: '';
   position: absolute;
   left: 50%;
@@ -432,8 +500,33 @@ onMounted(async () => {
   transition: all 0.2s ease;
 }
 
-.desktop-layout :deep(.splitpanes__splitter:hover::before) {
+.desktop-layout :deep(.splitpanes__splitter:not(.splitpanes__splitter-horizontal):hover::before) {
   width: 3px;
+  background-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 4px rgba(var(--v-theme-primary), 0.3);
+}
+
+/* Horizontal splitter (for code/UML split) */
+.desktop-layout :deep(.splitpanes__splitter-horizontal) {
+  height: 4px !important;
+  min-height: 4px !important;
+  cursor: row-resize !important;
+}
+
+.desktop-layout :deep(.splitpanes__splitter-horizontal::before) {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.12);
+  transform: translateY(-50%);
+  transition: all 0.2s ease;
+}
+
+.desktop-layout :deep(.splitpanes__splitter-horizontal:hover::before) {
+  height: 3px;
   background-color: rgb(var(--v-theme-primary));
   box-shadow: 0 0 4px rgba(var(--v-theme-primary), 0.3);
 }

@@ -64,11 +64,11 @@ umlRouter.post('/generate', async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // For non-class diagrams, only depth=0 is supported
-    if (type !== 'class' && finalDepth > 0) {
+    // For flowchart diagrams, only depth=0 is supported
+    if (type === 'flowchart' && finalDepth > 0) {
       res.status(400).json({
         success: false,
-        error: `Cross-file analysis (depth > 0) is only supported for class diagrams. Type '${type}' only supports depth=0`,
+        error: `Cross-file analysis (depth > 0) is only supported for class and sequence diagrams. Type '${type}' only supports depth=0`,
       });
       return;
     }

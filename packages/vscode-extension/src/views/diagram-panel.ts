@@ -67,9 +67,8 @@ export class DiagramPanel {
     extensionUri: vscode.Uri,
     file?: vscode.Uri
   ): DiagramPanel {
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+    // Open panel beside the active editor (side-by-side)
+    const column = vscode.ViewColumn.Beside;
 
     // If we already have a panel, show it
     if (DiagramPanel.currentPanel) {
@@ -81,11 +80,11 @@ export class DiagramPanel {
       return DiagramPanel.currentPanel;
     }
 
-    // Otherwise, create a new panel
+    // Otherwise, create a new panel beside the active editor
     const panel = vscode.window.createWebviewPanel(
       'gooseCodeReviewUML',
       '🦆 UML Diagram',
-      column || vscode.ViewColumn.Two,
+      column,
       {
         enableScripts: true,
         retainContextWhenHidden: true,
@@ -160,13 +159,13 @@ export class DiagramPanel {
 
       // Determine options based on diagram type
       const generateOptions =
-        this._currentType === 'class'
+        this._currentType === 'class' || this._currentType === 'sequence'
           ? {
               depth: this._currentOptions.depth,
               mode: this._currentOptions.mode,
             }
           : {
-              depth: 0, // Sequence and flowchart only support single-file (depth 0)
+              depth: 0, // Flowchart only supports single-file (depth 0)
             };
 
       let result;
@@ -504,8 +503,8 @@ export class DiagramPanel {
             </div>
         </div>
 
-        <!-- Row 2: Class Diagram Options -->
-        <div class="toolbar-row" id="classOptions" style="display: ${this._currentType === 'class' ? 'flex' : 'none'}">
+        <!-- Row 2: Class & Sequence Diagram Options -->
+        <div class="toolbar-row" id="classOptions" style="display: ${this._currentType === 'class' || this._currentType === 'sequence' ? 'flex' : 'none'}">
             <span class="toolbar-label tooltip">
                 Depth:
                 <span class="tooltiptext">
@@ -832,9 +831,9 @@ export class DiagramPanel {
                 btn.disabled = state.depth === 0;
             });
 
-            // Show/hide class options
+            // Show/hide class & sequence options
             const classOptions = document.getElementById('classOptions');
-            classOptions.style.display = state.type === 'class' ? 'flex' : 'none';
+            classOptions.style.display = (state.type === 'class' || state.type === 'sequence') ? 'flex' : 'none';
         }
 
         function disableZoomButtons() {
