@@ -403,7 +403,30 @@ export class UMLAnalyzer {
    * For Java/Python, uses unified parser system
    */
   private async parseCode(code: string, filePath: string): Promise<UnifiedAST | t.File> {
-    const language = LanguageDetector.detectFromFilePath(filePath);
+    // Normalize file path (handle file:// URIs from VS Code)
+    let normalizedPath = filePath;
+    if (filePath.startsWith('file://')) {
+      try {
+        const url = new URL(filePath);
+        normalizedPath = url.pathname;
+        // On Windows, remove leading slash from pathname (e.g., /C:/path -> C:/path)
+        if (process.platform === 'win32' && normalizedPath.match(/^\/[A-Z]:/)) {
+          normalizedPath = normalizedPath.substring(1);
+        }
+      } catch {
+        // If URL parsing fails, try simple string replacement
+        normalizedPath = filePath.replace(/^file:\/\//, '');
+      }
+    }
+    
+    const language = LanguageDetector.detectFromFilePath(normalizedPath);
+    
+    // Debug logging (can be removed in production)
+    if (!language) {
+      console.warn(`[UMLAnalyzer] Could not detect language for file: ${filePath} (normalized: ${normalizedPath})`);
+    } else {
+      console.debug(`[UMLAnalyzer] Detected language: ${language} for file: ${filePath}`);
+    }
     
     // For TypeScript/JavaScript, use Babel parser (backward compatible)
     if (language === 'typescript' || language === 'javascript') {
@@ -426,15 +449,15 @@ export class UMLAnalyzer {
     
     // For other languages (Java, Python), use unified parser
     if (language) {
-      if (!this.parserService.canParse(filePath)) {
+      if (!this.parserService.canParse(normalizedPath)) {
         throw new Error(
-          `No parser available for language '${language}' (file: ${filePath}). ` +
+          `No parser available for language '${language}' (file: ${normalizedPath}). ` +
           `Supported languages: ${this.parserService.getSupportedLanguages().join(', ')}`
         );
       }
       
       try {
-        return await this.parserService.parse(code, filePath);
+        return await this.parserService.parse(code, normalizedPath);
       } catch (error) {
         throw new Error(
           `Failed to parse ${language} code: ${(error as Error).message}`
@@ -443,7 +466,7 @@ export class UMLAnalyzer {
     }
     
     throw new Error(
-      `Unsupported file type: ${filePath}. ` +
+      `Unsupported file type: ${normalizedPath}. ` +
       `Could not detect language from file path. ` +
       `Supported extensions: .ts, .tsx, .js, .jsx, .java, .py, .pyi, .pyw`
     );
