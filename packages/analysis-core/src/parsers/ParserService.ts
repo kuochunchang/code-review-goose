@@ -72,7 +72,12 @@ export class ParserService {
    * @returns true if a parser is available for this file
    */
   canParse(filePath: string): boolean {
-    return LanguageDetector.isSupported(filePath);
+    const language = LanguageDetector.detectFromFilePath(filePath);
+    if (!language) {
+      return false;
+    }
+    // Check if we have a parser registered for this language
+    return this.registry.hasParser(language);
   }
 
   /**
