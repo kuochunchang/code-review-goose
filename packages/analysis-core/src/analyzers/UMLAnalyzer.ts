@@ -425,11 +425,28 @@ export class UMLAnalyzer {
     }
     
     // For other languages (Java, Python), use unified parser
-    if (language && this.parserService.canParse(filePath)) {
-      return await this.parserService.parse(code, filePath);
+    if (language) {
+      if (!this.parserService.canParse(filePath)) {
+        throw new Error(
+          `No parser available for language '${language}' (file: ${filePath}). ` +
+          `Supported languages: ${this.parserService.getSupportedLanguages().join(', ')}`
+        );
+      }
+      
+      try {
+        return await this.parserService.parse(code, filePath);
+      } catch (error) {
+        throw new Error(
+          `Failed to parse ${language} code: ${(error as Error).message}`
+        );
+      }
     }
     
-    throw new Error(`Unsupported file type: ${filePath}`);
+    throw new Error(
+      `Unsupported file type: ${filePath}. ` +
+      `Could not detect language from file path. ` +
+      `Supported extensions: .ts, .tsx, .js, .jsx, .java, .py, .pyi, .pyw`
+    );
   }
 
   /**

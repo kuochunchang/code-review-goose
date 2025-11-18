@@ -109,4 +109,13 @@ export class ParserService {
   async getParserForFile(filePath: string): Promise<ILanguageParser | undefined> {
     return await this.registry.getParserForFile(filePath);
   }
+
+  /**
+   * Get list of supported languages
+   * 
+   * @returns Array of supported language identifiers
+   */
+  getSupportedLanguages(): SupportedLanguage[] {
+    return this.registry.getRegisteredLanguages();
+  }
 }
