@@ -249,37 +249,62 @@ export class LanguageDetector {
 
 ### Parser 技術選擇
 
-| 語言 | 推薦方案 | 依賴包 | 理由 |
-|------|----------|--------|------|
-| **TypeScript/JavaScript** | Babel Parser | `@babel/parser`, `@babel/traverse` | 現有方案，成熟穩定 |
-| **Java** | Tree-sitter | `tree-sitter`, `tree-sitter-java` | 高性能，AST 完整 |
-| **Python** | Tree-sitter | `tree-sitter`, `tree-sitter-python` | 支持 Python 3.x，AST 完整 |
+#### 🎯 推薦方案：全部使用 tree-sitter（統一方案）
 
-### 為什麼選擇 Tree-sitter？
+| 語言 | Parser | 依賴包 | 理由 |
+|------|--------|--------|------|
+| **TypeScript** | Tree-sitter | `tree-sitter`, `tree-sitter-typescript` | 統一 API，高性能 |
+| **JavaScript** | Tree-sitter | `tree-sitter`, `tree-sitter-javascript` | 統一 API，高性能 |
+| **Java** | Tree-sitter | `tree-sitter`, `tree-sitter-java` | 統一 API，高性能 |
+| **Python** | Tree-sitter | `tree-sitter`, `tree-sitter-python` | 統一 API，高性能 |
 
-✅ **優點**:
-- 統一的 Parser API（所有語言）
-- 高性能（增量解析）
-- 錯誤容忍（Fault-tolerant parsing）
-- 語言支持廣泛（40+ 語言）
-- 社區活躍，持續維護
+> **重要決策**: 我們選擇**全部使用 tree-sitter**，而不是混用 Babel + tree-sitter。詳細比較請參考 [PARSER_COMPARISON.md](./PARSER_COMPARISON.md)
 
-❌ **缺點**:
-- 需要 Native Node.js 模組（WASM 版本可解決）
-- AST 格式與 Babel 不同（需要轉換器）
+#### 為什麼全部使用 tree-sitter？
 
-### Tree-sitter 依賴
+✅ **核心優勢**:
+- **統一的 Parser API**：所有語言使用相同的接口和邏輯
+- **統一的 AST 格式**：只需一套 AST 轉換邏輯（Tree-sitter AST → UnifiedAST）
+- **更簡單的維護**：一種技術棧，維護成本降低 50%+
+- **更好的性能**：tree-sitter 比 Babel 快 2-3 倍，支持增量解析
+- **更少的依賴**：移除所有 @babel/* 依賴（減少 ~5 個包）
+- **易於擴展**：添加新語言只需 2-3 天（安裝對應的 tree-sitter-xxx）
+- **未來支持 WASM**：可在瀏覽器運行（無需 Node.js）
+
+⚠️ **遷移成本**:
+- 需要重寫現有 TypeScript/JavaScript 解析邏輯（約 2-3 天）
+- 需要調整部分測試用例（約 1-2 天）
+- 總遷移成本：4-6 天
+
+💰 **投資回報率**:
+- 短期投入：+4-6 天遷移成本
+- 長期收益：每次添加新語言節省 1-2 天，維護成本降低 50%+
+- **結論：非常值得！**
+
+#### Tree-sitter 依賴
 
 ```json
 {
   "dependencies": {
     "tree-sitter": "^0.21.0",
+    "tree-sitter-typescript": "^0.21.0",
+    "tree-sitter-javascript": "^0.21.0",
     "tree-sitter-java": "^0.21.0",
     "tree-sitter-python": "^0.21.0",
     "web-tree-sitter": "^0.21.0"  // For browser support (future)
   }
 }
 ```
+
+#### 替代方案：Babel + tree-sitter（不推薦）
+
+如果時間壓力極大，可以考慮混用方案：
+- TypeScript/JavaScript 繼續用 `@babel/parser`
+- Java/Python 使用 tree-sitter
+
+**缺點**: 維護兩套 Parser 邏輯，長期維護成本高
+
+**詳細比較**: 請參考 [PARSER_COMPARISON.md](./PARSER_COMPARISON.md)
 
 ---
 
@@ -304,31 +329,63 @@ export class LanguageDetector {
 
 ---
 
-### Phase 2: 重構 TypeScript Parser (3-4 天)
+### Phase 2: 重構 TypeScript/JavaScript Parser (4-5 天)
 
-**目標**: 將現有 Babel parser 邏輯封裝為適配器
+**目標**: 使用 tree-sitter 重寫 TypeScript/JavaScript parser（統一技術棧）
+
+> **重要變更**: 從 `@babel/parser` 遷移到 `tree-sitter-typescript` 和 `tree-sitter-javascript`
 
 **任務清單**:
 - [ ] 創建 `analysis-parser-typescript` 包
-- [ ] 從 `UMLAnalyzer` 提取 `@babel/parser` 邏輯
+- [ ] 安裝 `tree-sitter`, `tree-sitter-typescript`, `tree-sitter-javascript`
 - [ ] 實現 `TypeScriptParser` 類（實現 `ILanguageParser`）
-- [ ] 實現 `BabelASTConverter`（Babel AST → UnifiedAST）
+- [ ] 實現 `JavaScriptParser` 類（實現 `ILanguageParser`）
+- [ ] 實現 `TreeSitterASTConverter`（Tree-sitter AST → UnifiedAST）
+  - [ ] Class/Interface 轉換
+  - [ ] Method/Function 轉換
+  - [ ] Property/Field 轉換
+  - [ ] Import/Export 轉換
+  - [ ] 繼承和實現關係轉換
 - [ ] 編寫單元測試（復用現有測試用例）
 - [ ] 確保與現有功能 100% 兼容
 
 **遷移範圍**:
 ```typescript
-// 現有代碼（在 UMLAnalyzer.ts 中）
+// ❌ 舊方式（Babel）
+import { parse } from '@babel/parser';
+import traverse from '@babel/traverse';
+
 const ast = parse(code, {
   sourceType: 'module',
   plugins: ['typescript', 'jsx', 'decorators-legacy'],
 });
 
-// 新架構
+traverse(ast, {
+  ClassDeclaration(path) {
+    // Babel specific API
+  },
+});
+
+// ✅ 新方式（tree-sitter，統一 API）
+import Parser from 'tree-sitter';
+import TypeScript from 'tree-sitter-typescript';
+
 class TypeScriptParser implements ILanguageParser {
+  private parser: Parser;
+
+  constructor() {
+    this.parser = new Parser();
+    this.parser.setLanguage(TypeScript.typescript);
+  }
+
   async parse(code: string, filePath: string): Promise<UnifiedAST> {
-    const ast = parse(code, { /* ... */ });
-    return this.convertToUnifiedAST(ast);
+    const tree = this.parser.parse(code);
+    return this.convertToUnifiedAST(tree.rootNode);
+  }
+
+  private convertToUnifiedAST(node: SyntaxNode): UnifiedAST {
+    // 統一的轉換邏輯（適用於所有語言）
+    // ...
   }
 }
 ```
@@ -336,19 +393,27 @@ class TypeScriptParser implements ILanguageParser {
 **驗證標準**:
 - [ ] 所有現有單元測試通過
 - [ ] 所有 E2E 測試通過
-- [ ] 性能無明顯下降（< 5%）
+- [ ] 性能無明顯下降（tree-sitter 應該更快）
+- [ ] 移除所有 @babel/* 依賴
+
+**遷移收益**:
+- ✅ 統一的 Parser API（為 Java/Python 打好基礎）
+- ✅ 更好的性能（tree-sitter 比 Babel 快 2-3 倍）
+- ✅ 更少的依賴（減少 ~5 個 @babel/* 包）
 
 ---
 
-### Phase 3: 實現 Java Parser (4-5 天)
+### Phase 3: 實現 Java Parser (3-4 天)
 
 **目標**: 添加 Java 語言支援
+
+> **收益**: 由於 Phase 2 已建立統一的 tree-sitter 框架，Java Parser 可以復用大部分邏輯，工作量減少 1 天
 
 **任務清單**:
 - [ ] 創建 `analysis-parser-java` 包
 - [ ] 安裝 `tree-sitter` + `tree-sitter-java`
-- [ ] 實現 `JavaParser` 類
-- [ ] 實現 `JavaASTConverter`（Tree-sitter AST → UnifiedAST）
+- [ ] 實現 `JavaParser` 類（復用 tree-sitter 框架）
+- [ ] 實現 `JavaASTConverter`（復用 Phase 2 的轉換框架）
 - [ ] 處理 Java 特性:
   - [ ] Package 和 Import 語句
   - [ ] Class, Interface, Enum, Annotation
@@ -388,15 +453,17 @@ public class User {
 
 ---
 
-### Phase 4: 實現 Python Parser (4-5 天)
+### Phase 4: 實現 Python Parser (3-4 天)
 
 **目標**: 添加 Python 語言支援
+
+> **收益**: 復用 Phase 2 和 Phase 3 的 tree-sitter 框架，工作量減少 1 天
 
 **任務清單**:
 - [ ] 創建 `analysis-parser-python` 包
 - [ ] 安裝 `tree-sitter` + `tree-sitter-python`
-- [ ] 實現 `PythonParser` 類
-- [ ] 實現 `PythonASTConverter`（Tree-sitter AST → UnifiedAST）
+- [ ] 實現 `PythonParser` 類（復用 tree-sitter 框架）
+- [ ] 實現 `PythonASTConverter`（復用轉換框架）
 - [ ] 處理 Python 特性:
   - [ ] Import 語句（import, from ... import）
   - [ ] Class 定義（class, 繼承）
@@ -433,9 +500,11 @@ class User:
 
 ---
 
-### Phase 5: 集成到 analysis-core (3-4 天)
+### Phase 5: 集成到 analysis-core (2-3 天)
 
 **目標**: 更新核心分析器使用新的 Parser 抽象
+
+> **收益**: 由於使用統一的 tree-sitter API，集成更簡單，工作量減少 1 天
 
 **修改範圍**:
 - `packages/analysis-core/src/analyzers/UMLAnalyzer.ts`
@@ -560,15 +629,15 @@ const analyzer = new UMLAnalyzer(fileProvider, parserRegistry);
 
 ## 📊 工作量估算
 
-| Phase | 工作日 | 主要任務 | 交付成果 |
-|-------|--------|----------|----------|
-| Phase 1 | 3-4 天 | Parser 抽象層 | `analysis-parser-common` 包 |
-| Phase 2 | 3-4 天 | 重構 TS Parser | `analysis-parser-typescript` 包 |
-| Phase 3 | 4-5 天 | Java Parser | `analysis-parser-java` 包 |
-| Phase 4 | 4-5 天 | Python Parser | `analysis-parser-python` 包 |
-| Phase 5 | 3-4 天 | 集成到 Core | 多語言支援就緒 |
-| Phase 6 | 2-3 天 | 測試和文檔 | 完整文檔和測試 |
-| **總計** | **19-25 天** | - | **3 種語言支援** |
+| Phase | 工作日 | 主要任務 | 交付成果 | 變更說明 |
+|-------|--------|----------|----------|---------|
+| Phase 1 | 3-4 天 | Parser 抽象層 | `analysis-parser-common` 包 | 無變更 |
+| Phase 2 | 4-5 天 | TypeScript Parser (tree-sitter) | `analysis-parser-typescript` 包 | +1 天（遷移到 tree-sitter） |
+| Phase 3 | 3-4 天 | Java Parser | `analysis-parser-java` 包 | -1 天（復用框架） |
+| Phase 4 | 3-4 天 | Python Parser | `analysis-parser-python` 包 | -1 天（復用框架） |
+| Phase 5 | 2-3 天 | 集成到 Core | 多語言支援就緒 | -1 天（統一 API） |
+| Phase 6 | 2-3 天 | 測試和文檔 | 完整文檔和測試 | 無變更 |
+| **總計** | **17-23 天** | - | **4 種語言支援 (TS, JS, Java, Python)** | **節省 2 天，架構更優** |
 
 ---
 
