@@ -89,24 +89,53 @@ export class AnalysisPanel {
       const apiKey = await this._context.secrets.get('openai-api-key') ||
                      config.get<string>('openaiApiKey', '');
       const model = config.get<string>('analysisModel', 'gpt-4');
+      const useCustomApi = config.get<boolean>('useCustomApi', false);
+      const customApiUrl = config.get<string>('customApiUrl', '');
 
-      if (!apiKey) {
-        vscode.window.showWarningMessage(
-          'OpenAI API key not configured. Please set it in the extension settings or use the secret storage.',
-          'Configure'
-        ).then(selection => {
-          if (selection === 'Configure') {
-            vscode.commands.executeCommand('workbench.action.openSettings', 'gooseCodeReview.openaiApiKey');
-          }
+      // Check if using custom API
+      if (useCustomApi) {
+        if (!customApiUrl) {
+          vscode.window.showWarningMessage(
+            'Custom API is enabled but no URL is configured. Please set the custom API URL in the extension settings.',
+            'Configure'
+          ).then(selection => {
+            if (selection === 'Configure') {
+              vscode.commands.executeCommand('workbench.action.openSettings', 'gooseCodeReview.customApiUrl');
+            }
+          });
+          return;
+        }
+
+        this._analysisService = new AnalysisService({
+          apiKey: apiKey || 'dummy-key', // Some custom APIs don't require API key
+          model,
+          timeout: 60000,
+          baseURL: customApiUrl,
         });
-        return;
-      }
 
-      this._analysisService = new AnalysisService({
-        apiKey,
-        model,
-        timeout: 60000,
-      });
+        vscode.window.showInformationMessage(
+          `Using custom API: ${customApiUrl}`
+        );
+      } else {
+        // Using official OpenAI API
+        if (!apiKey) {
+          vscode.window.showWarningMessage(
+            'OpenAI API key not configured. Please set it in the extension settings or use the secret storage.',
+            'Configure'
+          ).then(selection => {
+            if (selection === 'Configure') {
+              vscode.commands.executeCommand('workbench.action.openSettings', 'gooseCodeReview.openaiApiKey');
+            }
+          });
+          return;
+        }
+
+        this._analysisService = new AnalysisService({
+          apiKey,
+          model,
+          timeout: 60000,
+        });
+      }
     } catch (error) {
       console.error('Failed to initialize analysis service:', error);
     }
@@ -213,12 +242,8 @@ export class AnalysisPanel {
       // Save to cache
       await this._cacheService.saveAnalysis(this._currentFile.fsPath, this._currentHash, result);
 
-      // Update webview
-      this._panel.webview.postMessage({
-        command: 'analysisResult',
-        result,
-        isUpToDate: true
-      });
+      // Update webview with new results
+      this._updateWebview();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       vscode.window.showErrorMessage(`Analysis failed: ${errorMessage}`);
@@ -254,12 +279,8 @@ export class AnalysisPanel {
       // Save to cache
       await this._cacheService.saveExplain(this._currentFile.fsPath, this._currentHash, result);
 
-      // Update webview
-      this._panel.webview.postMessage({
-        command: 'explainResult',
-        result,
-        isUpToDate: true
-      });
+      // Update webview with new results
+      this._updateWebview();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       vscode.window.showErrorMessage(`Explanation failed: ${errorMessage}`);
@@ -292,7 +313,7 @@ export class AnalysisPanel {
   /**
    * Handle copy to clipboard request
    */
-  private async _handleCopyToClipboard(data: any): Promise<void> {
+  private async _handleCopyToClipboard(data: unknown): Promise<void> {
     try {
       await vscode.env.clipboard.writeText(JSON.stringify(data, null, 2));
       vscode.window.showInformationMessage('Copied to clipboard');
@@ -382,7 +403,6 @@ export class AnalysisPanel {
     <script nonce="${nonce}">
         ${this._getJavaScript(analysisResultJson, explainResultJson)}
     </script>
-    <script type="module" nonce="${nonce}" src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs"></script>
 </body>
 </html>`;
   }
@@ -488,6 +508,7 @@ export class AnalysisPanel {
 
         .tab-content.active {
             display: block;
+            animation: fadeIn 0.2s ease-in-out;
         }
 
         .empty-state {
@@ -516,15 +537,24 @@ export class AnalysisPanel {
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            transition: all 0.2s ease;
         }
 
         .btn:hover {
             background-color: var(--vscode-button-hoverBackground);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: none;
         }
 
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            transform: none;
         }
 
         .loading {
@@ -534,19 +564,67 @@ export class AnalysisPanel {
             height: 100%;
             flex-direction: column;
             gap: 16px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .loading p {
+            animation: pulse 2s ease-in-out infinite;
         }
 
         .spinner {
-            width: 40px;
-            height: 40px;
+            width: 48px;
+            height: 48px;
+            position: relative;
+        }
+
+        .spinner::before,
+        .spinner::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .spinner::before {
+            width: 48px;
+            height: 48px;
             border: 4px solid var(--vscode-progressBar-background);
             border-top-color: var(--vscode-button-background);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+            border-right-color: var(--vscode-button-background);
+            animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+        }
+
+        .spinner::after {
+            width: 32px;
+            height: 32px;
+            top: 8px;
+            left: 8px;
+            border: 3px solid transparent;
+            border-top-color: var(--vscode-focusBorder);
+            animation: spin 0.6s linear infinite reverse;
         }
 
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
         }
 
         .summary {
@@ -567,6 +645,12 @@ export class AnalysisPanel {
             border-radius: 4px;
             margin-bottom: 8px;
             border-left: 3px solid;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .issue:hover {
+            transform: translateX(2px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
         .issue.critical { border-left-color: #dc3545; }
@@ -666,12 +750,100 @@ export class AnalysisPanel {
             color: var(--vscode-button-secondaryForeground);
         }
 
-        .mermaid-container {
-            background-color: white;
-            padding: 16px;
+        .component-icon {
+            font-size: 16px;
+            margin-right: 4px;
+        }
+
+        .component-icon.class { color: #f1c40f; }
+        .component-icon.function { color: #9b59b6; }
+        .component-icon.module { color: #3498db; }
+        .component-icon.interface { color: #e74c3c; }
+        .component-icon.constant { color: #1abc9c; }
+        .component-icon.type { color: #e67e22; }
+        .component-icon.variable { color: #95a5a6; }
+
+        .dependency-list {
+            background-color: var(--vscode-editor-inactiveSelectionBackground);
+            padding: 12px;
             border-radius: 4px;
-            margin: 12px 0;
-            overflow-x: auto;
+            margin-top: 8px;
+        }
+
+        .dependency-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-family: var(--vscode-editor-font-family);
+            font-size: 13px;
+        }
+
+        .dependency-arrow {
+            color: var(--vscode-focusBorder);
+            font-weight: bold;
+        }
+
+        .dependency-method-wrapper {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .dependency-caller,
+        .dependency-callee {
+            font-family: 'Courier New', monospace;
+            background-color: var(--vscode-editor-background);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .dependency-line-number {
+            font-family: var(--vscode-editor-font-family);
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+            cursor: pointer;
+            text-decoration: none;
+            padding: 2px 4px;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+
+        .dependency-line-number:hover {
+            color: var(--vscode-textLink-foreground);
+            background-color: var(--vscode-list-hoverBackground);
+            text-decoration: underline;
+        }
+
+        .dependency-description {
+            color: var(--vscode-descriptionForeground);
+            font-style: italic;
+        }
+
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: start;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .feature-icon {
+            color: var(--vscode-testing-iconPassed);
+            margin-top: 2px;
         }
 
         ul {
@@ -693,7 +865,7 @@ export class AnalysisPanel {
         <div class="empty-state">
             <span class="codicon codicon-bug empty-state-icon"></span>
             <p>No analysis results yet</p>
-            <button class="btn" onclick="runAnalysis()">
+            <button class="btn" data-action="runAnalysis">
                 <span class="codicon codicon-play"></span>
                 Run Analysis
             </button>
@@ -703,10 +875,10 @@ export class AnalysisPanel {
 
     const issuesHtml = this._analysisResult.issues.map((issue, index) => `
       <div class="issue ${issue.severity}">
-        <div class="issue-header" onclick="toggleIssue(${index})">
+        <div class="issue-header" data-action="toggleIssue" data-index="${index}">
           <span class="severity-badge">${issue.severity}</span>
           <span class="issue-message">${this._escapeHtml(issue.message)}</span>
-          <span class="line-number" onclick="event.stopPropagation(); jumpToLine(${issue.line})">Line ${issue.line}</span>
+          <span class="line-number" data-action="jumpToLine" data-line="${issue.line}">Line ${issue.line}</span>
         </div>
         <div class="issue-details" id="issue-${index}">
           <p><strong>Suggestion:</strong> ${this._escapeHtml(issue.suggestion)}</p>
@@ -734,11 +906,27 @@ export class AnalysisPanel {
         </h3>
         ${issuesHtml || '<p>No issues found</p>'}
       </div>
-      <button class="btn" onclick="runAnalysis()">
+      <button class="btn" data-action="runAnalysis">
         <span class="codicon codicon-refresh"></span>
         Re-analyze
       </button>
     `;
+  }
+
+  /**
+   * Get icon for component type
+   */
+  private _getComponentIcon(type: string): string {
+    const iconMap: Record<string, string> = {
+      'class': 'symbol-class',
+      'function': 'symbol-method',
+      'module': 'symbol-namespace',
+      'interface': 'symbol-interface',
+      'constant': 'symbol-constant',
+      'type': 'symbol-type-parameter',
+      'variable': 'symbol-variable',
+    };
+    return iconMap[type] || 'symbol-misc';
   }
 
   /**
@@ -750,7 +938,7 @@ export class AnalysisPanel {
         <div class="empty-state">
             <span class="codicon codicon-book empty-state-icon"></span>
             <p>No explanation yet</p>
-            <button class="btn" onclick="runExplain()">
+            <button class="btn" data-action="runExplain">
                 <span class="codicon codicon-play"></span>
                 Generate Explanation
             </button>
@@ -760,16 +948,6 @@ export class AnalysisPanel {
 
     const result = this._explainResult;
 
-    // Generate Mermaid sequence diagram
-    let sequenceDiagram = '';
-    if (result.methodDependencies && result.methodDependencies.length > 0) {
-      sequenceDiagram = 'sequenceDiagram\n';
-      result.methodDependencies.forEach(dep => {
-        const description = dep.description || 'calls';
-        sequenceDiagram += `    ${dep.caller}->>${dep.callee}: ${description}\n`;
-      });
-    }
-
     return `
       <div class="section">
         <h3><span class="codicon codicon-info"></span> Overview</h3>
@@ -778,13 +956,14 @@ export class AnalysisPanel {
 
       ${result.mainComponents && result.mainComponents.length > 0 ? `
         <div class="section">
-          <h3><span class="codicon codicon-symbol-class"></span> Main Components</h3>
+          <h3><span class="codicon codicon-symbol-class"></span> Main Components (${result.mainComponents.length})</h3>
           ${result.mainComponents.map(comp => `
             <div class="component-card">
               <div class="component-header">
+                <span class="codicon codicon-${this._getComponentIcon(comp.type)} component-icon ${comp.type}"></span>
                 <span class="component-type">${comp.type}</span>
                 <strong>${this._escapeHtml(comp.name)}</strong>
-                ${comp.line ? `<span class="line-number" onclick="jumpToLine(${comp.line})">Line ${comp.line}</span>` : ''}
+                ${comp.line ? `<span class="line-number" data-action="jumpToLine" data-line="${comp.line}">Line ${comp.line}</span>` : ''}
               </div>
               <p>${this._escapeHtml(comp.description)}</p>
               ${comp.codeSnippet ? `<pre><code>${this._escapeHtml(comp.codeSnippet)}</code></pre>` : ''}
@@ -793,11 +972,24 @@ export class AnalysisPanel {
         </div>
       ` : ''}
 
-      ${sequenceDiagram ? `
+      ${result.methodDependencies && result.methodDependencies.length > 0 ? `
         <div class="section">
-          <h3><span class="codicon codicon-type-hierarchy"></span> Method Dependencies</h3>
-          <div class="mermaid-container">
-            <pre class="mermaid">${sequenceDiagram}</pre>
+          <h3><span class="codicon codicon-type-hierarchy"></span> Method Dependencies (${result.methodDependencies.length})</h3>
+          <div class="dependency-list">
+            ${result.methodDependencies.map(dep => `
+              <div class="dependency-item">
+                <span class="dependency-method-wrapper">
+                  <span class="dependency-caller">${this._escapeHtml(dep.caller)}</span>
+                  ${dep.callerLine ? `<span class="dependency-line-number" data-action="jumpToLine" data-line="${dep.callerLine}" title="Jump to line ${dep.callerLine}">:${dep.callerLine}</span>` : ''}
+                </span>
+                <span class="dependency-arrow codicon codicon-arrow-right"></span>
+                <span class="dependency-method-wrapper">
+                  <span class="dependency-callee">${this._escapeHtml(dep.callee)}</span>
+                  ${dep.calleeLine ? `<span class="dependency-line-number" data-action="jumpToLine" data-line="${dep.calleeLine}" title="Jump to line ${dep.calleeLine}">:${dep.calleeLine}</span>` : ''}
+                </span>
+                ${dep.description ? `<span class="dependency-description">${this._escapeHtml(dep.description)}</span>` : ''}
+              </div>
+            `).join('')}
           </div>
         </div>
       ` : ''}
@@ -808,8 +1000,9 @@ export class AnalysisPanel {
           ${result.howItWorks.map(step => `
             <div class="component-card">
               <div class="component-header">
-                <strong>Step ${step.step}: ${this._escapeHtml(step.title)}</strong>
-                ${step.line ? `<span class="line-number" onclick="jumpToLine(${step.line})">Line ${step.line}</span>` : ''}
+                <span class="step-number">${step.step}</span>
+                <strong>${this._escapeHtml(step.title)}</strong>
+                ${step.line ? `<span class="line-number" data-action="jumpToLine" data-line="${step.line}">Line ${step.line}</span>` : ''}
               </div>
               <p>${this._escapeHtml(step.description)}</p>
             </div>
@@ -819,14 +1012,17 @@ export class AnalysisPanel {
 
       ${result.notableFeatures && result.notableFeatures.length > 0 ? `
         <div class="section">
-          <h3><span class="codicon codicon-star"></span> Notable Features</h3>
-          <ul>
-            ${result.notableFeatures.map(feature => `<li>${this._escapeHtml(feature)}</li>`).join('')}
-          </ul>
+          <h3><span class="codicon codicon-star"></span> Notable Features (${result.notableFeatures.length})</h3>
+          ${result.notableFeatures.map(feature => `
+            <div class="feature-item">
+              <span class="codicon codicon-check feature-icon"></span>
+              <span>${this._escapeHtml(feature)}</span>
+            </div>
+          `).join('')}
         </div>
       ` : ''}
 
-      <button class="btn" onclick="runExplain()">
+      <button class="btn" data-action="runExplain">
         <span class="codicon codicon-refresh"></span>
         Re-generate
       </button>
@@ -850,61 +1046,72 @@ export class AnalysisPanel {
         });
       });
 
-      // Run analysis
-      function runAnalysis() {
-        vscode.postMessage({ command: 'runAnalysis' });
-      }
-
-      // Run explain
-      function runExplain() {
-        vscode.postMessage({ command: 'runExplain' });
-      }
-
-      // Jump to line
-      function jumpToLine(line) {
-        vscode.postMessage({ command: 'jumpToLine', line });
-      }
-
-      // Toggle issue details
-      function toggleIssue(index) {
-        const details = document.getElementById('issue-' + index);
-        if (details) {
-          details.classList.toggle('expanded');
+      // Helper function to show loading state
+      function showLoading(tabId, message = 'Analyzing...') {
+        const tabContent = document.getElementById(tabId);
+        if (tabContent) {
+          tabContent.innerHTML = \`
+            <div class="loading">
+              <div class="spinner"></div>
+              <p>\${message}</p>
+            </div>
+          \`;
         }
       }
 
-      // Handle messages from extension
-      window.addEventListener('message', event => {
-        const message = event.data;
-        switch (message.command) {
-          case 'analysisLoading':
-            // Show loading state
+      // Event delegation for all click events
+      document.addEventListener('click', (event) => {
+        const target = event.target.closest('[data-action]');
+        if (!target) return;
+
+        const action = target.dataset.action;
+
+        switch (action) {
+          case 'runAnalysis':
+            showLoading('analysisTab', 'Analyzing code... This may take a moment.');
+            vscode.postMessage({ command: 'runAnalysis' });
             break;
-          case 'analysisResult':
-            analysisResult = message.result;
-            // Webview will be updated by extension
+
+          case 'runExplain':
+            showLoading('explainTab', 'Generating explanation... This may take a moment.');
+            vscode.postMessage({ command: 'runExplain' });
             break;
-          case 'explainLoading':
-            // Show loading state
+
+          case 'jumpToLine':
+            event.stopPropagation();
+            const line = parseInt(target.dataset.line, 10);
+            if (!isNaN(line)) {
+              vscode.postMessage({ command: 'jumpToLine', line });
+            }
             break;
-          case 'explainResult':
-            explainResult = message.result;
-            // Webview will be updated by extension
+
+          case 'toggleIssue':
+            const index = target.dataset.index;
+            const details = document.getElementById('issue-' + index);
+            if (details) {
+              details.classList.toggle('expanded');
+            }
             break;
         }
       });
 
-      // Initialize Mermaid
-      import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs')
-        .then(module => {
-          const mermaid = module.default;
-          mermaid.initialize({
-            startOnLoad: true,
-            theme: 'default',
-            securityLevel: 'loose'
-          });
-          mermaid.run();
-        });
+      // Handle messages from extension
+      // Note: analysisResult and explainResult are now handled by full webview refresh
+      window.addEventListener('message', event => {
+        const message = event.data;
+        switch (message.command) {
+          case 'analysisLoading':
+            if (message.isLoading) {
+              showLoading('analysisTab', 'Analyzing code... This may take a moment.');
+            }
+            break;
+          case 'explainLoading':
+            if (message.isLoading) {
+              showLoading('explainTab', 'Generating explanation... This may take a moment.');
+            }
+            break;
+        }
+      });
     `;
   }
 

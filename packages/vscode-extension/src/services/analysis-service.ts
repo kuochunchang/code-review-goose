@@ -10,6 +10,7 @@ export interface AnalysisServiceConfig {
   apiKey: string;
   model?: string;
   timeout?: number;
+  baseURL?: string;
 }
 
 /**
@@ -21,15 +22,24 @@ export class AnalysisService {
   private model: string;
 
   constructor(config: AnalysisServiceConfig) {
-    if (!config.apiKey) {
+    // API key is optional when using custom API (some local services don't require it)
+    const apiKey = config.apiKey || (config.baseURL ? 'dummy-key' : '');
+
+    if (!apiKey && !config.baseURL) {
       throw new Error('OpenAI API key is required');
     }
 
-    this.client = new OpenAI({
-      apiKey: config.apiKey,
+    const clientConfig: any = {
+      apiKey,
       timeout: config.timeout || 60000,
-    });
+    };
 
+    // Add custom baseURL if provided
+    if (config.baseURL) {
+      clientConfig.baseURL = config.baseURL;
+    }
+
+    this.client = new OpenAI(clientConfig);
     this.model = config.model || 'gpt-4';
   }
 
@@ -352,22 +362,37 @@ Guidelines:
    */
   private supportsJsonMode(): boolean {
     const jsonModeModels = [
+      // GPT-5 series (future)
       'gpt-5',
       'gpt-5-mini',
       'gpt-5-nano',
       'gpt-5-pro',
       'gpt-5-codex',
+      // GPT-4.1 series (future)
       'gpt-4.1',
       'gpt-4.1-mini',
       'gpt-4.1-nano',
+      // GPT-4 Turbo series
       'gpt-4-turbo',
       'gpt-4-turbo-preview',
       'gpt-4-1106-preview',
       'gpt-4-0125-preview',
+      // GPT-4o series (latest)
       'gpt-4o',
       'gpt-4o-mini',
       'gpt-4o-2024-05-13',
       'gpt-4o-2024-08-06',
+      'gpt-4o-2024-11-20',
+      'chatgpt-4o-latest',
+      // o1 series (reasoning models)
+      'o1',
+      'o1-preview',
+      'o1-mini',
+      'o1-2024-12-17',
+      // o3 series (future reasoning models)
+      'o3',
+      'o3-mini',
+      // GPT-3.5 Turbo series
       'gpt-3.5-turbo-1106',
       'gpt-3.5-turbo-0125',
     ];
@@ -382,12 +407,21 @@ Guidelines:
    */
   private supportsCustomTemperature(): boolean {
     const noCustomTempModels = [
+      // GPT-5 series (future) - may not support custom temperature
       'gpt-5',
       'gpt-5-mini',
       'gpt-5-nano',
       'gpt-5-pro',
       'gpt-5-codex',
       'chatgpt-5',
+      // o1 series - reasoning models do NOT support custom temperature
+      'o1',
+      'o1-preview',
+      'o1-mini',
+      'o1-2024-12-17',
+      // o3 series (future) - reasoning models do NOT support custom temperature
+      'o3',
+      'o3-mini',
     ];
 
     const isRestricted = noCustomTempModels.some(
