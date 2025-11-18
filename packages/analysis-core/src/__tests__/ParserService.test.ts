@@ -4,7 +4,6 @@
 
 import { describe, it, expect } from 'vitest';
 import { ParserService } from '../parsers/ParserService.js';
-import type { UnifiedAST } from '@code-review-goose/analysis-types';
 
 describe('ParserService', () => {
   const parserService = new ParserService();

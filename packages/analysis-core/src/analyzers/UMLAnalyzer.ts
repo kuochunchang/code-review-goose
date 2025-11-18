@@ -13,7 +13,6 @@ import type {
   MethodInfo,
   ParameterInfo,
   UnifiedAST,
-  SupportedLanguage,
   ImportInfo,
 } from '@code-review-goose/analysis-types';
 import { MermaidValidator } from '@code-review-goose/analysis-utils';
@@ -71,7 +70,7 @@ export class UMLAnalyzer {
    * @returns UML diagram with consistent metadata structure
    */
   async generateUnifiedDiagram(
-    filePath: string,
+    _filePath: string,
     type: DiagramType,
     options?: {
       depth?: number;
@@ -129,7 +128,7 @@ export class UMLAnalyzer {
   /**
    * Generate single-file class diagram from file path
    */
-  private async generateSingleFileClassDiagram(filePath: string): Promise<UMLResult> {
+  private async generateSingleFileClassDiagram(_filePath: string): Promise<UMLResult> {
     // Read file content using fileProvider
     const code = await this.fileProvider.readFile(filePath);
 
@@ -152,7 +151,7 @@ export class UMLAnalyzer {
    * Generate single-file diagram (flowchart, sequence, dependency) from file path
    */
   private async generateSingleFileDiagram(
-    filePath: string,
+    _filePath: string,
     type: DiagramType
   ): Promise<UMLResult> {
     // Read file content using fileProvider
@@ -182,7 +181,7 @@ export class UMLAnalyzer {
    * @returns UML class diagram with cross-file relationships
    */
   async generateCrossFileClassDiagram(
-    filePath: string,
+    _filePath: string,
     depth: 1 | 2 | 3 = 1,
     mode: 'forward' | 'reverse' | 'bidirectional' = 'bidirectional'
   ): Promise<UMLResult> {
@@ -229,7 +228,7 @@ export class UMLAnalyzer {
    * Analyzes method call flows across multiple files based on dependencies
    */
   async generateCrossFileSequenceDiagram(
-    filePath: string,
+    _filePath: string,
     depth: 1 | 2 | 3 = 1,
     mode: 'forward' | 'reverse' | 'bidirectional' = 'bidirectional'
   ): Promise<UMLResult> {
@@ -374,7 +373,7 @@ export class UMLAnalyzer {
   /**
    * Generate diagram using native AST parsing
    */
-  private async generateWithNative(code: string, type: DiagramType, filePath: string): Promise<UMLResult> {
+  private async generateWithNative(code: string, type: DiagramType, _filePath: string): Promise<UMLResult> {
     // Parse code to AST (supports multiple languages)
     const ast = await this.parseCode(code, filePath);
 
@@ -402,7 +401,7 @@ export class UMLAnalyzer {
    * For TypeScript/JavaScript, uses Babel parser (backward compatible)
    * For Java/Python, uses unified parser system
    */
-  private async parseCode(code: string, filePath: string): Promise<UnifiedAST | t.File> {
+  private async parseCode(code: string, _filePath: string): Promise<UnifiedAST | t.File> {
     // Normalize file path (handle file:// URIs from VS Code)
     let normalizedPath = filePath;
     if (filePath.startsWith('file://')) {
@@ -475,7 +474,7 @@ export class UMLAnalyzer {
   /**
    * Generate class diagram (supports both Babel AST and UnifiedAST)
    */
-  private generateClassDiagram(ast: UnifiedAST | t.File, _code: string, filePath: string): UMLResult {
+  private generateClassDiagram(ast: UnifiedAST | t.File, _code: string, _filePath: string): UMLResult {
     const classes: ClassInfo[] = [];
     const ooAnalyzer = new OOAnalyzer();
     let imports: ImportInfo[] = [];
