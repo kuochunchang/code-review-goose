@@ -1,0 +1,50 @@
+{
+  "name": "@code-review-goose/analysis-parser-typescript",
+  "version": "0.1.0",
+  "description": "TypeScript and JavaScript parser using tree-sitter",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "typescript",
+    "javascript",
+    "parser",
+    "tree-sitter",
+    "ast"
+  ],
+  "author": "KCC",
+  "license": "MIT",
+  "dependencies": {
+    "@code-review-goose/analysis-types": "*",
+    "@code-review-goose/analysis-parser-common": "*",
+    "tree-sitter": "^0.21.1",
+    "tree-sitter-typescript": "^0.21.2",
+    "tree-sitter-javascript": "^0.21.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@vitest/coverage-v8": "^1.2.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
