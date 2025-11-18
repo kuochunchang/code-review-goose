@@ -91,6 +91,7 @@ export class AnalysisPanel {
       const model = config.get<string>('analysisModel', 'gpt-4');
       const useCustomApi = config.get<boolean>('useCustomApi', false);
       const customApiUrl = config.get<string>('customApiUrl', '');
+      const customModelName = config.get<string>('customModelName', '');
 
       // Check if using custom API
       if (useCustomApi) {
@@ -106,15 +107,18 @@ export class AnalysisPanel {
           return;
         }
 
+        // Use custom model name if provided, otherwise fall back to analysisModel
+        const modelToUse = customModelName || model;
+
         this._analysisService = new AnalysisService({
           apiKey: apiKey || 'dummy-key', // Some custom APIs don't require API key
-          model,
+          model: modelToUse,
           timeout: 60000,
           baseURL: customApiUrl,
         });
 
         vscode.window.showInformationMessage(
-          `Using custom API: ${customApiUrl}`
+          `Using custom API: ${customApiUrl} with model: ${modelToUse}`
         );
       } else {
         // Using official OpenAI API

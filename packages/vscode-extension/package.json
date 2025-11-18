@@ -161,6 +161,12 @@
           "description": "Custom OpenAI-compatible API base URL (e.g., https://llm.webcomm.com.tw/v1)",
           "scope": "application"
         },
+        "gooseCodeReview.customModelName": {
+          "type": "string",
+          "default": "",
+          "description": "Custom model name to use when custom API is enabled (e.g., gpt-4o, claude-3-5-sonnet, etc.)",
+          "scope": "application"
+        },
         "gooseCodeReview.analysisDepth": {
           "type": "number",
           "default": 2,
