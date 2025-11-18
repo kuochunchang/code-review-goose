@@ -159,8 +159,7 @@ export class JavaASTConverter {
     }
 
     // Extract modifiers (public, private, protected, abstract, etc.)
-    const modifiers = this.extractModifiers(node);
-    const visibility = this.getVisibility(modifiers);
+    // Note: Class visibility is not stored in ClassInfo, only method/property visibility
 
     // Extract class body members - find body node (contains '{' and members)
     let bodyNode: SyntaxNode | null = null;
