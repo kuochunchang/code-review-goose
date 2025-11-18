@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '@babel/parser';
 import { OOAnalyzer } from '../analyzers/OOAnalyzer.js';
 import type { ImportInfo, ClassInfo } from '@code-review-goose/analysis-types';

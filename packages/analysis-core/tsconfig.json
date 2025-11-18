@@ -7,7 +7,14 @@
     "moduleResolution": "node",
     "composite": true
   },
-  "references": [{ "path": "../analysis-types" }, { "path": "../analysis-utils" }],
+  "references": [
+    { "path": "../analysis-types" },
+    { "path": "../analysis-utils" },
+    { "path": "../analysis-parser-common" },
+    { "path": "../analysis-parser-typescript" },
+    { "path": "../analysis-parser-java" },
+    { "path": "../analysis-parser-python" }
+  ],
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }

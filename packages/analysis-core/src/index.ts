@@ -38,3 +38,8 @@ export type {
  * Cross-File Analyzer - Analyzes dependencies across multiple files
  */
 export { CrossFileAnalyzer } from './analyzers/CrossFileAnalyzer.js';
+
+/**
+ * Parser Service - Unified parser service for multi-language support
+ */
+export { ParserService } from './parsers/ParserService.js';
