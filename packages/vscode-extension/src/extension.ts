@@ -5,6 +5,7 @@
 
 import * as vscode from 'vscode';
 import { DiagramPanel } from './views/diagram-panel.js';
+import { openAnalysisPanel } from './commands/open-analysis-panel.js';
 import { GenerateClassDiagramCommand } from './commands/generate-class-diagram.js';
 import { GenerateSequenceDiagramCommand } from './commands/generate-sequence-diagram.js';
 import { GenerateFlowchartCommand } from './commands/generate-flowchart.js';
@@ -15,6 +16,20 @@ import { GenerateFlowchartCommand } from './commands/generate-flowchart.js';
  */
 export function activate(context: vscode.ExtensionContext): void {
   console.log('Goose Code Review extension is now active');
+
+  // ==========================================
+  // Analysis Panel (NEW)
+  // ==========================================
+
+  /**
+   * Open Analysis Panel for AI-powered code review
+   */
+  const analysisPanel = vscode.commands.registerCommand(
+    'gooseCodeReview.openAnalysisPanel',
+    () => openAnalysisPanel(context)
+  );
+
+  context.subscriptions.push(analysisPanel);
 
   // ==========================================
   // Unified UML Panel (NEW)
