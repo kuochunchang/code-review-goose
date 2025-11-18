@@ -5,6 +5,10 @@
 
 import * as vscode from 'vscode';
 import { DiagramPanel } from '../views/diagram-panel.js';
+import {
+  isDiagramTypeSupported,
+  getUnsupportedDiagramTypeMessage,
+} from '../utils/language-support.js';
 
 export class GenerateFlowchartCommand {
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -18,11 +22,11 @@ export class GenerateFlowchartCommand {
         return;
       }
 
-      // Validate file type
+      // Validate file type and diagram type support
       const document = editor.document;
-      if (!this.isValidFileType(document.languageId)) {
+      if (!isDiagramTypeSupported(document.languageId, 'flowchart')) {
         vscode.window.showWarningMessage(
-          'Flowchart generation is only supported for TypeScript/JavaScript files'
+          getUnsupportedDiagramTypeMessage(document.languageId, 'flowchart')
         );
         return;
       }
@@ -48,7 +52,4 @@ export class GenerateFlowchartCommand {
     }
   }
 
-  private isValidFileType(languageId: string): boolean {
-    return ['typescript', 'javascript', 'typescriptreact', 'javascriptreact'].includes(languageId);
-  }
 }

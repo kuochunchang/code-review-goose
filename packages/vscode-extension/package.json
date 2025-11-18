@@ -22,7 +22,9 @@
   ],
   "activationEvents": [
     "onLanguage:typescript",
-    "onLanguage:javascript"
+    "onLanguage:javascript",
+    "onLanguage:java",
+    "onLanguage:python"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -60,51 +62,51 @@
         "command": "gooseCodeReview.openAnalysisPanel",
         "key": "ctrl+shift+a",
         "mac": "cmd+shift+a",
-        "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact"
+        "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python"
       },
       {
         "command": "gooseCodeReview.openUMLPanel",
         "key": "ctrl+shift+u",
         "mac": "cmd+shift+u",
-        "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact"
+        "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python"
       }
     ],
     "menus": {
       "editor/title": [
         {
-          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
           "command": "gooseCodeReview.openAnalysisPanel",
           "group": "navigation"
         },
         {
-          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
           "command": "gooseCodeReview.openUMLPanel",
           "group": "navigation"
         }
       ],
       "editor/context": [
         {
-          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
           "command": "gooseCodeReview.openAnalysisPanel",
           "group": "gooseCodeReview@0"
         },
         {
-          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
           "command": "gooseCodeReview.openUMLPanel",
           "group": "gooseCodeReview@1"
         },
         {
-          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
           "command": "gooseCodeReview.generateClassDiagram",
           "group": "gooseCodeReview@2"
         },
         {
-          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
           "command": "gooseCodeReview.generateSequenceDiagram",
           "group": "gooseCodeReview@3"
         },
         {
-          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact",
+          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
           "command": "gooseCodeReview.generateFlowchart",
           "group": "gooseCodeReview@4"
         }

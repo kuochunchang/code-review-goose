@@ -16,13 +16,14 @@ export async function openAnalysisPanel(
     return;
   }
 
-  // Check if file is analyzable (TypeScript or JavaScript)
+  // Check if file is analyzable
   const document = await vscode.workspace.openTextDocument(targetFile);
   const language = document.languageId;
+  const { isSupportedLanguage, getSupportedLanguagesList } = await import('../utils/language-support.js');
 
-  if (!['typescript', 'javascript', 'typescriptreact', 'javascriptreact'].includes(language)) {
+  if (!isSupportedLanguage(language)) {
     vscode.window.showWarningMessage(
-      `File type "${language}" is not supported. Currently only TypeScript and JavaScript files can be analyzed.`
+      `File type "${language}" is not supported. Currently only ${getSupportedLanguagesList()} files can be analyzed.`
     );
     return;
   }

@@ -5,6 +5,10 @@
 
 import * as vscode from 'vscode';
 import { DiagramPanel } from '../views/diagram-panel.js';
+import {
+  isDiagramTypeSupported,
+  getUnsupportedDiagramTypeMessage,
+} from '../utils/language-support.js';
 
 export class GenerateSequenceDiagramCommand {
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -18,11 +22,11 @@ export class GenerateSequenceDiagramCommand {
         return;
       }
 
-      // Validate file type
+      // Validate file type and diagram type support
       const document = editor.document;
-      if (!this.isValidFileType(document.languageId)) {
+      if (!isDiagramTypeSupported(document.languageId, 'sequence')) {
         vscode.window.showWarningMessage(
-          'Sequence diagram generation is only supported for TypeScript/JavaScript files'
+          getUnsupportedDiagramTypeMessage(document.languageId, 'sequence')
         );
         return;
       }
@@ -48,7 +52,4 @@ export class GenerateSequenceDiagramCommand {
     }
   }
 
-  private isValidFileType(languageId: string): boolean {
-    return ['typescript', 'javascript', 'typescriptreact', 'javascriptreact'].includes(languageId);
-  }
 }

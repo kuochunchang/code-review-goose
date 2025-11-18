@@ -340,7 +340,7 @@ describe('DiagramPanel', () => {
       DiagramPanel.createOrShow(mockExtensionUri);
 
       expect(mockWebview.html).toContain('empty-state');
-      expect(mockWebview.html).toContain('Select a TypeScript/JavaScript file');
+      expect(mockWebview.html).toContain('Select a supported file');
     });
 
     it('should include native zoom implementation', () => {

@@ -583,7 +583,7 @@ export class DiagramPanel {
             : `
         <div class="empty-state">
             <div class="empty-state-icon">📊</div>
-            <p>Select a TypeScript/JavaScript file and click Refresh to generate a UML diagram</p>
+            <p>Select a supported file (TypeScript, JavaScript, Java, or Python) and click Refresh to generate a UML diagram</p>
         </div>
         `
         }
