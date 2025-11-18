@@ -9,7 +9,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { umlRouter } from '../../../routes/uml.js';
 import { AIService } from '../../../services/aiService.js';
 import { ConfigService } from '../../../services/configService.js';
-import { UMLService } from '../../../services/umlService.js';
 import {
   mockPythonAnimalContent,
   mockPythonDogContent,
@@ -22,9 +21,16 @@ import {
 } from '../../fixtures/index.js';
 
 // Mock services
-vi.mock('../../../services/umlService.js');
 vi.mock('../../../services/aiService.js');
 vi.mock('../../../services/configService.js');
+vi.mock('@code-review-goose/analysis-core', () => {
+  const mockUMLAnalyzer = {
+    generateUnifiedDiagram: vi.fn(),
+  };
+  return {
+    UMLAnalyzer: vi.fn(() => mockUMLAnalyzer),
+  };
+});
 
 describe('Multi-Language UML API', () => {
   let app: express.Application;
@@ -73,9 +79,9 @@ describe('Multi-Language UML API', () => {
           }) as any
       );
 
+      const { UMLAnalyzer } = await import('@code-review-goose/analysis-core');
       const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(UMLService).mockImplementation(
+      vi.mocked(UMLAnalyzer).mockImplementation(
         () =>
           ({
             generateUnifiedDiagram: mockGenerateUnifiedDiagram,
@@ -142,9 +148,9 @@ describe('Multi-Language UML API', () => {
           }) as any
       );
 
+      const { UMLAnalyzer } = await import('@code-review-goose/analysis-core');
       const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(UMLService).mockImplementation(
+      vi.mocked(UMLAnalyzer).mockImplementation(
         () =>
           ({
             generateUnifiedDiagram: mockGenerateUnifiedDiagram,
@@ -207,9 +213,9 @@ describe('Multi-Language UML API', () => {
           }) as any
       );
 
+      const { UMLAnalyzer } = await import('@code-review-goose/analysis-core');
       const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(UMLService).mockImplementation(
+      vi.mocked(UMLAnalyzer).mockImplementation(
         () =>
           ({
             generateUnifiedDiagram: mockGenerateUnifiedDiagram,
@@ -270,9 +276,9 @@ describe('Multi-Language UML API', () => {
           }) as any
       );
 
+      const { UMLAnalyzer } = await import('@code-review-goose/analysis-core');
       const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(UMLService).mockImplementation(
+      vi.mocked(UMLAnalyzer).mockImplementation(
         () =>
           ({
             generateUnifiedDiagram: mockGenerateUnifiedDiagram,
@@ -331,9 +337,9 @@ describe('Multi-Language UML API', () => {
           }) as any
       );
 
+      const { UMLAnalyzer } = await import('@code-review-goose/analysis-core');
       const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(UMLService).mockImplementation(
+      vi.mocked(UMLAnalyzer).mockImplementation(
         () =>
           ({
             generateUnifiedDiagram: mockGenerateUnifiedDiagram,
@@ -395,9 +401,9 @@ describe('Multi-Language UML API', () => {
           }) as any
       );
 
+      const { UMLAnalyzer } = await import('@code-review-goose/analysis-core');
       const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(UMLService).mockImplementation(
+      vi.mocked(UMLAnalyzer).mockImplementation(
         () =>
           ({
             generateUnifiedDiagram: mockGenerateUnifiedDiagram,
@@ -459,9 +465,9 @@ describe('Multi-Language UML API', () => {
           }) as any
       );
 
+      const { UMLAnalyzer } = await import('@code-review-goose/analysis-core');
       const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(UMLService).mockImplementation(
+      vi.mocked(UMLAnalyzer).mockImplementation(
         () =>
           ({
             generateUnifiedDiagram: mockGenerateUnifiedDiagram,
@@ -515,9 +521,9 @@ describe('Multi-Language UML API', () => {
           }) as any
       );
 
+      const { UMLAnalyzer } = await import('@code-review-goose/analysis-core');
       const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(UMLService).mockImplementation(
+      vi.mocked(UMLAnalyzer).mockImplementation(
         () =>
           ({
             generateUnifiedDiagram: mockGenerateUnifiedDiagram,
@@ -561,9 +567,9 @@ describe('Multi-Language UML API', () => {
           }) as any
       );
 
+      const { UMLAnalyzer } = await import('@code-review-goose/analysis-core');
       const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(UMLService).mockImplementation(
+      vi.mocked(UMLAnalyzer).mockImplementation(
         () =>
           ({
             generateUnifiedDiagram: mockGenerateUnifiedDiagram,
@@ -609,9 +615,9 @@ describe('Multi-Language UML API', () => {
           }) as any
       );
 
+      const { UMLAnalyzer } = await import('@code-review-goose/analysis-core');
       const mockGenerateUnifiedDiagram = vi.fn().mockResolvedValue(mockUMLResult);
-
-      vi.mocked(UMLService).mockImplementation(
+      vi.mocked(UMLAnalyzer).mockImplementation(
         () =>
           ({
             generateUnifiedDiagram: mockGenerateUnifiedDiagram,

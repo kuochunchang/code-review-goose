@@ -22,6 +22,17 @@ export default defineConfig({
       statements: 80,
     },
     include: ['src/**/*.test.ts'],
+    // Fix workspace package resolution for Vitest
+    server: {
+      deps: {
+        inline: [
+          '@code-review-goose/analysis-parser-common',
+          '@code-review-goose/analysis-parser-typescript',
+          '@code-review-goose/analysis-parser-java',
+          '@code-review-goose/analysis-parser-python',
+        ],
+      },
+    },
   },
   resolve: {
     alias: {
