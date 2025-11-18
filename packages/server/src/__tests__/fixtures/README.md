@@ -11,6 +11,16 @@ fixtures/
 ├── config.fixtures.ts          # 配置相关的fixtures
 ├── file.fixtures.ts            # 文件相关的fixtures
 ├── project.fixtures.ts         # 项目相关的fixtures
+├── python/                     # Python 测试文件
+│   ├── Animal.py              # 基础 Animal 类
+│   ├── Dog.py                 # Dog 类（继承 Animal）
+│   └── User.py                # User 类（带类型注解）
+├── java/                       # Java 测试文件
+│   ├── Animal.java            # 基础 Animal 类
+│   ├── Dog.java               # Dog 类（继承 Animal）
+│   ├── Cat.java               # Cat 类（继承 Animal，实现 IAnimal）
+│   ├── IAnimal.java           # IAnimal 接口
+│   └── User.java              # User 类（带泛型）
 └── builders/                   # Builder模式的fixtures
     ├── index.ts
     ├── analysisBuilder.ts      # 动态构建AnalysisResult
@@ -188,6 +198,32 @@ describe('Hybrid Test', () => {
 | `mockFirstChunk`     | 第一块文件内容         |
 | `mockLastChunk`      | 最后一块文件内容       |
 | `mockCompleteFile`   | 完整文件（非大文件）   |
+| `mockPythonAnimalContent` | Python Animal 类内容 |
+| `mockPythonDogContent` | Python Dog 类内容（继承） |
+| `mockPythonUserContent` | Python User 类内容（类型注解） |
+| `mockJavaAnimalContent` | Java Animal 类内容 |
+| `mockJavaDogContent` | Java Dog 类内容（继承） |
+| `mockJavaUserContent` | Java User 类内容（泛型） |
+| `mockJavaIAnimalContent` | Java IAnimal 接口内容 |
+| `mockJavaCatContent` | Java Cat 类内容（继承+接口） |
+
+### Python Test Files (python/)
+
+| 文件 | 描述 | 特性 |
+|------|------|------|
+| `Animal.py` | 基础 Animal 类 | 类型注解、方法定义 |
+| `Dog.py` | Dog 类（继承 Animal） | 继承、方法重写 |
+| `User.py` | User 类 | 类型注解、泛型类型（List, Dict） |
+
+### Java Test Files (java/)
+
+| 文件 | 描述 | 特性 |
+|------|------|------|
+| `Animal.java` | 基础 Animal 类 | 访问修饰符、方法定义 |
+| `Dog.java` | Dog 类（继承 Animal） | 继承、方法重写 |
+| `Cat.java` | Cat 类 | 继承 + 实现接口 |
+| `IAnimal.java` | IAnimal 接口 | 接口定义 |
+| `User.java` | User 类 | 泛型类型（List, Map） |
 
 ### Project Fixtures (project.fixtures.ts)
 
@@ -425,6 +461,67 @@ describe('Analysis API', () => {
 
 - **测试示例**：`src/__tests__/integration/api/analysis.test.ts`
 - **Builder示例**：`src/__tests__/integration/api/file.test.ts`
+
+## 🌐 多語言測試文件
+
+### Python 測試文件
+
+位於 `python/` 目錄，包含：
+
+- **`Animal.py`**: 基礎 Animal 類，用於測試類定義、方法、類型註解
+- **`Dog.py`**: Dog 類繼承 Animal，用於測試繼承關係
+- **`User.py`**: User 類帶類型註解，用於測試泛型類型（List, Dict）
+
+### Java 測試文件
+
+位於 `java/` 目錄，包含：
+
+- **`Animal.java`**: 基礎 Animal 類，用於測試類定義、訪問修飾符
+- **`Dog.java`**: Dog 類繼承 Animal，用於測試繼承關係
+- **`Cat.java`**: Cat 類繼承 Animal 並實現 IAnimal，用於測試繼承+接口實現
+- **`IAnimal.java`**: IAnimal 接口，用於測試接口定義
+- **`User.java`**: User 類帶泛型，用於測試泛型類型（List, Map）
+
+### 使用範例
+
+```typescript
+import { 
+  mockPythonAnimalContent, 
+  mockJavaDogContent 
+} from '../../fixtures/index.js';
+import { UMLAnalyzer } from '@code-review-goose/analysis-core';
+import { NodeFileProvider } from '@code-review-goose/analysis-adapter-node';
+
+describe('Multi-language support', () => {
+  it('should parse Python code', async () => {
+    const fileProvider = new NodeFileProvider('/path/to/project');
+    const analyzer = new UMLAnalyzer(fileProvider);
+    
+    // 使用 Python fixture
+    const result = await analyzer.generateDiagram(
+      mockPythonAnimalContent, 
+      'class',
+      'Animal.py'
+    );
+    
+    expect(result.metadata?.classes).toBeDefined();
+  });
+  
+  it('should parse Java code', async () => {
+    const fileProvider = new NodeFileProvider('/path/to/project');
+    const analyzer = new UMLAnalyzer(fileProvider);
+    
+    // 使用 Java fixture
+    const result = await analyzer.generateDiagram(
+      mockJavaDogContent,
+      'class',
+      'Dog.java'
+    );
+    
+    expect(result.metadata?.classes).toBeDefined();
+  });
+});
+```
 
 ---
 

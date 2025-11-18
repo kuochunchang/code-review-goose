@@ -38,6 +38,16 @@ export {
   mockFirstChunk,
   mockLastChunk,
   mockCompleteFile,
+  // Python fixtures
+  mockPythonAnimalContent,
+  mockPythonDogContent,
+  mockPythonUserContent,
+  // Java fixtures
+  mockJavaAnimalContent,
+  mockJavaDogContent,
+  mockJavaUserContent,
+  mockJavaIAnimalContent,
+  mockJavaCatContent,
 } from './file.fixtures.js';
 
 // ==================== Project Fixtures ====================
