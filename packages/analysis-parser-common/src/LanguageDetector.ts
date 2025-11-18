@@ -61,7 +61,23 @@ export class LanguageDetector {
    * ```
    */
   static detectFromFilePath(filePath: string): SupportedLanguage | null {
-    const ext = this.extractExtension(filePath);
+    // Handle file:// URI format from VS Code
+    let normalizedPath = filePath;
+    if (filePath.startsWith('file://')) {
+      try {
+        const url = new URL(filePath);
+        normalizedPath = url.pathname;
+        // On Windows, remove leading slash from pathname (e.g., /C:/path -> C:/path)
+        if (process.platform === 'win32' && normalizedPath.match(/^\/[A-Z]:/)) {
+          normalizedPath = normalizedPath.substring(1);
+        }
+      } catch {
+        // If URL parsing fails, try simple string replacement
+        normalizedPath = filePath.replace(/^file:\/\//, '');
+      }
+    }
+    
+    const ext = this.extractExtension(normalizedPath);
     return ext ? this.EXTENSION_MAP[ext] || null : null;
   }
 
