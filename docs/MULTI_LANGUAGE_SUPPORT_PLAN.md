@@ -41,22 +41,24 @@ export type SupportedLanguage = 'javascript' | 'typescript' | 'java' | 'python' 
 
 ## 🎯 目標架構設計
 
-### 新架構（Parser 適配器模式）
+### 新架構（Parser 適配器模式 - 統一 tree-sitter）
 
 ```
 UMLAnalyzer (analysis-core)
     ↓
 ILanguageParser (抽象接口)
     ↓
-┌────────────────┬─────────────┬──────────────┐
-│ TypeScriptParser│ JavaParser  │ PythonParser │
-│ (@babel/parser) │ (tree-sitter)│ (tree-sitter)│
-└────────────────┴─────────────┴──────────────┘
+┌──────────────────┬──────────────┬───────────────┐
+│ TypeScriptParser │ JavaParser   │ PythonParser  │
+│ (tree-sitter)    │ (tree-sitter)│ (tree-sitter) │
+└──────────────────┴──────────────┴───────────────┘
     ↓
-生成統一的 UnifiedAST
+生成統一的 UnifiedAST (所有語言使用相同的 tree-sitter 框架)
     ↓
 分析 OO 關係、生成 UML
 ```
+
+**關鍵改進**: 所有語言都使用 tree-sitter，實現完全統一的架構
 
 **優點**:
 - ✅ 關注點分離（解析 vs 分析）
@@ -83,10 +85,11 @@ packages/
 │   ├── package.json
 │   └── tsconfig.json
 │
-├── analysis-parser-typescript/    # 🆕 Phase 2 (重構現有)
+├── analysis-parser-typescript/    # 🆕 Phase 2 (重構為 tree-sitter)
 │   ├── src/
-│   │   ├── TypeScriptParser.ts   # 封裝 @babel/parser
-│   │   ├── ASTConverter.ts       # Babel AST → UnifiedAST
+│   │   ├── TypeScriptParser.ts   # 使用 tree-sitter-typescript
+│   │   ├── JavaScriptParser.ts   # 使用 tree-sitter-javascript
+│   │   ├── ASTConverter.ts       # Tree-sitter AST → UnifiedAST
 │   │   └── index.ts
 │   ├── __tests__/
 │   │   └── typescript-parser.test.ts
@@ -95,8 +98,8 @@ packages/
 │
 ├── analysis-parser-java/          # 🆕 Phase 3
 │   ├── src/
-│   │   ├── JavaParser.ts         # tree-sitter-java 封裝
-│   │   ├── ASTConverter.ts       # Java AST → UnifiedAST
+│   │   ├── JavaParser.ts         # 使用 tree-sitter-java
+│   │   ├── ASTConverter.ts       # Tree-sitter AST → UnifiedAST (復用框架)
 │   │   └── index.ts
 │   ├── __tests__/
 │   │   └── java-parser.test.ts
@@ -105,8 +108,8 @@ packages/
 │
 ├── analysis-parser-python/        # 🆕 Phase 4
 │   ├── src/
-│   │   ├── PythonParser.ts       # tree-sitter-python 封裝
-│   │   ├── ASTConverter.ts       # Python AST → UnifiedAST
+│   │   ├── PythonParser.ts       # 使用 tree-sitter-python
+│   │   ├── ASTConverter.ts       # Tree-sitter AST → UnifiedAST (復用框架)
 │   │   └── index.ts
 │   ├── __tests__/
 │   │   └── python-parser.test.ts
