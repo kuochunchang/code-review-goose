@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as vscode from 'vscode';
 import { AnalysisPanel } from '../views/analysis-panel.js';
 import { AnalysisService } from '../services/analysis-service.js';
-import { CacheService } from '../services/cache-service.js';
 
 // Mock services
 vi.mock('../services/analysis-service.js', () => ({
@@ -166,20 +165,10 @@ describe('AnalysisPanel', () => {
 
   describe('webview message handling', () => {
     let panel: AnalysisPanel;
-    let messageHandler: (message: any) => void;
 
     beforeEach(() => {
       AnalysisPanel.currentPanel = undefined;
       panel = AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
-      
-      // Capture message handler
-      const onDidReceiveMessageCall = (vscode.window.createWebviewPanel as any).mock.calls[0];
-      if (onDidReceiveMessageCall) {
-        const call = (mockPanel.webview.onDidReceiveMessage as any).mock.calls[0];
-        if (call) {
-          messageHandler = call[0];
-        }
-      }
     });
 
     it('should handle runAnalysis message', async () => {
@@ -256,7 +245,7 @@ describe('AnalysisPanel', () => {
       (mockContext.secrets.get as any).mockResolvedValue('secret-key');
       
       AnalysisPanel.currentPanel = undefined;
-      const panel = AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
+      AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
 
       // Wait for initialization
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -279,7 +268,7 @@ describe('AnalysisPanel', () => {
       });
 
       AnalysisPanel.currentPanel = undefined;
-      const panel = AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
+      AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
 
       await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -302,7 +291,7 @@ describe('AnalysisPanel', () => {
       });
 
       AnalysisPanel.currentPanel = undefined;
-      const panel = AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
+      AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
 
       await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -325,7 +314,7 @@ describe('AnalysisPanel', () => {
       });
 
       AnalysisPanel.currentPanel = undefined;
-      const panel = AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
+      AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
 
       await new Promise((resolve) => setTimeout(resolve, 100));
 

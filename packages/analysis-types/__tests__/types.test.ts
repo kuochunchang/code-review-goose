@@ -11,12 +11,10 @@ import type {
   DependencyInfo,
   // Class structure
   PropertyInfo,
-  ParameterInfo,
   MethodInfo,
   ResolvedTypeInfo,
   ClassInfo,
   InterfaceInfo,
-  FunctionInfo,
   // Unified AST
   UnifiedAST,
   ASTCacheEntry,
@@ -537,10 +535,10 @@ describe('analysis-types', () => {
         resolveImport: async (from: string, to: string) => {
           return `${from}/${to}`;
         },
-        listFiles: async (pattern: string) => {
+        listFiles: async (_pattern: string) => {
           return [];
         },
-        exists: async (path: string) => {
+        exists: async (_path: string) => {
           return true;
         },
       };
@@ -552,13 +550,13 @@ describe('analysis-types', () => {
   describe('ICacheProvider interface', () => {
     it('should be implementable', () => {
       const provider: ICacheProvider = {
-        get: async <T>(key: string) => {
+        get: async <T>(_key: string) => {
           return null as T | null;
         },
-        set: async <T>(key: string, value: T, ttl?: number) => {
+        set: async <T>(_key: string, _value: T, _ttl?: number) => {
           // Implementation
         },
-        delete: async (key: string) => {
+        delete: async (_key: string) => {
           // Implementation
         },
         clear: async () => {
