@@ -85,22 +85,12 @@ describe('language-support', () => {
       expect(isDiagramTypeSupported('python', 'sequence')).toBe(false);
     });
 
-    it('should support flowchart for TypeScript/JavaScript', () => {
-      expect(isDiagramTypeSupported('typescript', 'flowchart')).toBe(true);
-      expect(isDiagramTypeSupported('javascript', 'flowchart')).toBe(true);
-      expect(isDiagramTypeSupported('typescriptreact', 'flowchart')).toBe(true);
-      expect(isDiagramTypeSupported('javascriptreact', 'flowchart')).toBe(true);
-    });
 
-    it('should not support flowchart for Java/Python', () => {
-      expect(isDiagramTypeSupported('java', 'flowchart')).toBe(false);
-      expect(isDiagramTypeSupported('python', 'flowchart')).toBe(false);
-    });
 
     it('should return false for unsupported language', () => {
       expect(isDiagramTypeSupported('plaintext', 'class')).toBe(false);
       expect(isDiagramTypeSupported('plaintext', 'sequence')).toBe(false);
-      expect(isDiagramTypeSupported('plaintext', 'flowchart')).toBe(false);
+
     });
   });
 
@@ -112,12 +102,7 @@ describe('language-support', () => {
       expect(message).toContain('TypeScript/JavaScript');
     });
 
-    it('should return message for unsupported flowchart', () => {
-      const message = getUnsupportedDiagramTypeMessage('python', 'flowchart');
-      expect(message).toContain('flowchart');
-      expect(message).toContain('Python');
-      expect(message).toContain('TypeScript/JavaScript');
-    });
+
 
     it('should return message for unsupported class diagram', () => {
       const message = getUnsupportedDiagramTypeMessage('plaintext', 'class');

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as vscode from 'vscode';
 import { GenerateClassDiagramCommand } from '../commands/generate-class-diagram.js';
-import { GenerateFlowchartCommand } from '../commands/generate-flowchart.js';
+
 import { GenerateSequenceDiagramCommand } from '../commands/generate-sequence-diagram.js';
 import { openAnalysisPanel } from '../commands/open-analysis-panel.js';
 
@@ -9,7 +9,7 @@ import { openAnalysisPanel } from '../commands/open-analysis-panel.js';
 vi.mock('../views/diagram-panel.js', () => ({
   DiagramPanel: {
     createOrShow: vi.fn(() => ({
-      generateDiagram: vi.fn(async () => {}),
+      generateDiagram: vi.fn(async () => { }),
     })),
   },
 }));
@@ -26,12 +26,12 @@ vi.mock('../utils/language-support.js', () => ({
   isSupportedLanguage: vi.fn((lang: string) => ['typescript', 'javascript', 'java', 'python'].includes(lang)),
   getSupportedLanguagesList: vi.fn(() => 'TypeScript, JavaScript, Java, Python'),
   isDiagramTypeSupported: vi.fn((lang: string, type: string) => {
-    if (type === 'flowchart' || type === 'sequence') {
+    if (type === 'sequence') {
       return ['typescript', 'javascript'].includes(lang);
     }
     return ['typescript', 'javascript', 'java', 'python'].includes(lang);
   }),
-  getUnsupportedDiagramTypeMessage: vi.fn((lang: string, type: string) => 
+  getUnsupportedDiagramTypeMessage: vi.fn((lang: string, type: string) =>
     `${type} diagram is not supported for ${lang} files`
   ),
 }));
@@ -112,7 +112,7 @@ describe('Commands', () => {
 
       const { DiagramPanel } = await import('../views/diagram-panel.js');
       const mockPanel = {
-        generateDiagram: vi.fn(async () => {}),
+        generateDiagram: vi.fn(async () => { }),
       };
       (DiagramPanel.createOrShow as any).mockReturnValue(mockPanel);
 
@@ -146,75 +146,7 @@ describe('Commands', () => {
     });
   });
 
-  describe('GenerateFlowchartCommand', () => {
-    it('should show error when no active editor', async () => {
-      vscode.window.activeTextEditor = undefined;
-      const command = new GenerateFlowchartCommand(mockContext);
-      await command.execute();
 
-      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith('No active editor found');
-    });
-
-    it('should show warning for unsupported diagram type', async () => {
-      const unsupportedDoc = {
-        ...mockDocument,
-        languageId: 'java',
-      } as vscode.TextDocument;
-      vscode.window.activeTextEditor = {
-        document: unsupportedDoc,
-      } as vscode.TextEditor;
-
-      const command = new GenerateFlowchartCommand(mockContext);
-      await command.execute();
-
-      expect(vscode.window.showWarningMessage).toHaveBeenCalled();
-    });
-
-    it('should show error when file is not in workspace', async () => {
-      vscode.window.activeTextEditor = mockEditor;
-      vi.spyOn(vscode.workspace, 'getWorkspaceFolder').mockReturnValue(undefined);
-
-      const command = new GenerateFlowchartCommand(mockContext);
-      await command.execute();
-
-      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith('File is not in a workspace');
-    });
-
-    it('should generate flowchart for supported language', async () => {
-      vscode.window.activeTextEditor = mockEditor;
-      vi.spyOn(vscode.workspace, 'getWorkspaceFolder').mockReturnValue(mockWorkspaceFolder);
-
-      const { DiagramPanel } = await import('../views/diagram-panel.js');
-      const mockPanel = {
-        generateDiagram: vi.fn(async () => {}),
-      };
-      (DiagramPanel.createOrShow as any).mockReturnValue(mockPanel);
-
-      const command = new GenerateFlowchartCommand(mockContext);
-      await command.execute();
-
-      expect(DiagramPanel.createOrShow).toHaveBeenCalled();
-      expect(mockPanel.generateDiagram).toHaveBeenCalledWith(mockDocument.uri, 'flowchart');
-      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith('Flowchart panel opened');
-    });
-
-    it('should handle errors gracefully', async () => {
-      vscode.window.activeTextEditor = mockEditor;
-      vi.spyOn(vscode.workspace, 'getWorkspaceFolder').mockReturnValue(mockWorkspaceFolder);
-
-      const { DiagramPanel } = await import('../views/diagram-panel.js');
-      (DiagramPanel.createOrShow as any).mockImplementation(() => {
-        throw new Error('Test error');
-      });
-
-      const command = new GenerateFlowchartCommand(mockContext);
-      await command.execute();
-
-      expect(vscode.window.showErrorMessage).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to open UML panel')
-      );
-    });
-  });
 
   describe('GenerateSequenceDiagramCommand', () => {
     it('should show error when no active editor', async () => {
@@ -256,7 +188,7 @@ describe('Commands', () => {
 
       const { DiagramPanel } = await import('../views/diagram-panel.js');
       const mockPanel = {
-        generateDiagram: vi.fn(async () => {}),
+        generateDiagram: vi.fn(async () => { }),
       };
       (DiagramPanel.createOrShow as any).mockReturnValue(mockPanel);
 

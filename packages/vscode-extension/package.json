@@ -50,11 +50,6 @@
         "command": "gooseCodeReview.generateSequenceDiagram",
         "title": "Generate Sequence Diagram",
         "category": "Goose Code Review"
-      },
-      {
-        "command": "gooseCodeReview.generateFlowchart",
-        "title": "Generate Flowchart",
-        "category": "Goose Code Review"
       }
     ],
     "keybindings": [
@@ -104,11 +99,6 @@
           "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
           "command": "gooseCodeReview.generateSequenceDiagram",
           "group": "gooseCodeReview@3"
-        },
-        {
-          "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
-          "command": "gooseCodeReview.generateFlowchart",
-          "group": "gooseCodeReview@4"
         }
       ]
     },

@@ -8,7 +8,7 @@ import { DiagramPanel } from './views/diagram-panel.js';
 import { openAnalysisPanel } from './commands/open-analysis-panel.js';
 import { GenerateClassDiagramCommand } from './commands/generate-class-diagram.js';
 import { GenerateSequenceDiagramCommand } from './commands/generate-sequence-diagram.js';
-import { GenerateFlowchartCommand } from './commands/generate-flowchart.js';
+
 import { isSupportedLanguage, getSupportedLanguagesList } from './utils/language-support.js';
 
 /**
@@ -111,7 +111,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // These commands still work but use the new unified panel
   const generateClassDiagram = new GenerateClassDiagramCommand(context);
   const generateSequenceDiagram = new GenerateSequenceDiagramCommand(context);
-  const generateFlowchart = new GenerateFlowchartCommand(context);
+
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -127,12 +127,7 @@ export function activate(context: vscode.ExtensionContext): void {
     )
   );
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      'gooseCodeReview.generateFlowchart',
-      () => generateFlowchart.execute()
-    )
-  );
+
 
   // Show activation message
   vscode.window.showInformationMessage('Goose Code Review is ready! 🦆');

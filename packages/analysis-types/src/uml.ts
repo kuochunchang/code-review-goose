@@ -8,7 +8,7 @@ import type { ClassInfo, DependencyInfo as ASTDependencyInfo, ImportInfo } from 
 /**
  * UML diagram type (supported diagram types)
  */
-export type DiagramType = 'class' | 'flowchart' | 'sequence';
+export type DiagramType = 'class' | 'sequence';
 
 /**
  * UML generation mode
@@ -16,22 +16,7 @@ export type DiagramType = 'class' | 'flowchart' | 'sequence';
  */
 export type DiagramGenerationMode = 'native';
 
-/**
- * Flowchart node information
- */
-export interface FlowNode {
-  /** Unique node identifier */
-  id: string;
 
-  /** Node type */
-  type: 'start' | 'end' | 'process' | 'decision' | 'loop';
-
-  /** Node label/description */
-  label: string;
-
-  /** IDs of next nodes in the flow */
-  next?: string[];
-}
 
 /**
  * Sequence diagram interaction information
@@ -125,8 +110,7 @@ export interface UMLDiagrams {
   /** Class diagram */
   class?: UMLResult;
 
-  /** Flowchart diagram */
-  flowchart?: UMLResult;
+
 
   /** Sequence diagram */
   sequence?: UMLResult;

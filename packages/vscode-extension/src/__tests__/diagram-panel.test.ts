@@ -271,7 +271,7 @@ describe('DiagramPanel', () => {
 
       expect(mockWebview.html).toContain('class');
       expect(mockWebview.html).toContain('sequence');
-      expect(mockWebview.html).toContain('flowchart');
+
     });
 
     it('should include class diagram options', () => {
