@@ -60,6 +60,13 @@ const Disposable = class {
     });
 };
 
+const TextEditorRevealType = {
+    Default: 0,
+    InCenter: 1,
+    InCenterIfOutsideViewport: 2,
+    AtTop: 3,
+};
+
 const window = {
     createStatusBarItem: vi.fn(() => ({
         show: vi.fn(),
@@ -83,6 +90,10 @@ const window = {
     showErrorMessage: vi.fn(),
     showWarningMessage: vi.fn(),
     showInformationMessage: vi.fn(),
+    showTextDocument: vi.fn(async () => ({
+        selection: {} as any,
+        revealRange: vi.fn(),
+    })),
     activeTextEditor: undefined,
     onDidChangeActiveTextEditor: vi.fn(() => ({ dispose: vi.fn() })),
     fs: {
@@ -133,6 +144,17 @@ const Location = class {
     constructor(public uri: any, public range: any) { }
 };
 
+const env = {
+    clipboard: {
+        writeText: vi.fn(async () => {}),
+        readText: vi.fn(async () => ''),
+    },
+};
+
+const Selection = class {
+    constructor(public anchor: any, public active: any) { }
+};
+
 export {
     Uri,
     FileType,
@@ -145,5 +167,8 @@ export {
     RelativePattern,
     Range,
     Position,
-    Location
+    Location,
+    TextEditorRevealType,
+    env,
+    Selection,
 };
