@@ -18,7 +18,12 @@ import type {
 import { MermaidValidator } from '@code-review-goose/analysis-utils';
 import { LanguageDetector } from '@code-review-goose/analysis-parser-common';
 import { OOAnalyzer } from './OOAnalyzer.js';
-import { SequenceAnalyzer } from './SequenceAnalyzer.js';
+import {
+  SequenceAnalyzer,
+  type SequenceParticipant,
+  type SequenceInteraction,
+} from './SequenceAnalyzer.js';
+import { UnifiedSequenceAnalyzer } from './UnifiedSequenceAnalyzer.js';
 import { CrossFileAnalyzer } from './CrossFileAnalyzer.js';
 import { ParserService } from '../parsers/ParserService.js';
 
@@ -273,38 +278,48 @@ export class UMLAnalyzer {
         const code = await this.fileProvider.readFile(file);
         const ast = await this.parseCode(code, file);
 
-        // Sequence analyzer currently only supports Babel AST (TypeScript/JavaScript)
-        // For other languages, skip sequence analysis for now
-        if (!('language' in ast)) {
+        // Get relative file name for annotation
+        const fileName = file.split('/').pop() || file;
+
+        let analysis: {
+          participants: SequenceParticipant[];
+          interactions: SequenceInteraction[];
+          entryPoints: string[];
+        };
+
+        // Support both Babel AST (TypeScript/JavaScript) and UnifiedAST (Java/Python)
+        if ('language' in ast) {
+          // UnifiedAST - use UnifiedSequenceAnalyzer
+          const unifiedSequenceAnalyzer = new UnifiedSequenceAnalyzer();
+          analysis = unifiedSequenceAnalyzer.analyze(ast as UnifiedAST);
+        } else {
+          // Babel AST - use SequenceAnalyzer
           const sequenceAnalyzer = new SequenceAnalyzer();
-          const analysis = sequenceAnalyzer.analyze(ast as t.File);
+          analysis = sequenceAnalyzer.analyze(ast as t.File);
+        }
 
-          // Get relative file name for annotation
-          const fileName = file.split('/').pop() || file;
-
-          // Add participants with source file annotation
-          for (const participant of analysis.participants) {
-            const key = `${participant.name}_${fileName}`;
-            if (!allParticipants.has(key)) {
-              allParticipants.set(key, {
-                ...participant,
-                sourceFile: fileName,
-              });
-            }
-          }
-
-          // Add interactions with source file annotation
-          for (const interaction of analysis.interactions) {
-            allInteractions.push({
-              ...interaction,
+        // Add participants with source file annotation
+        for (const participant of analysis.participants) {
+          const key = `${participant.name}_${fileName}`;
+          if (!allParticipants.has(key)) {
+            allParticipants.set(key, {
+              ...participant,
               sourceFile: fileName,
             });
           }
+        }
 
-          // Add entry points
-          for (const entryPoint of analysis.entryPoints) {
-            allEntryPoints.add(entryPoint);
-          }
+        // Add interactions with source file annotation
+        for (const interaction of analysis.interactions) {
+          allInteractions.push({
+            ...interaction,
+            sourceFile: fileName,
+          });
+        }
+
+        // Add entry points
+        for (const entryPoint of analysis.entryPoints) {
+          allEntryPoints.add(entryPoint);
         }
       } catch (error) {
         // Skip files that can't be analyzed
@@ -386,9 +401,9 @@ export class UMLAnalyzer {
       }
       return this.generateFlowchart(ast as t.File, code);
     } else if (type === 'sequence') {
-      // Sequence diagrams currently only support Babel AST (TypeScript/JavaScript)
+      // Sequence diagrams support both Babel AST (TypeScript/JavaScript) and UnifiedAST (Java/Python)
       if ('language' in ast) {
-        throw new Error('Sequence diagrams are currently only supported for TypeScript/JavaScript files');
+        return this.generateSequenceDiagramFromUnifiedAST(ast as UnifiedAST, code);
       }
       return this.generateSequenceDiagram(ast as t.File, code);
     }
@@ -1050,11 +1065,37 @@ export class UMLAnalyzer {
   }
 
   /**
-   * Generate sequence diagram using AST analysis
+   * Generate sequence diagram using AST analysis (Babel AST for TypeScript/JavaScript)
    */
   private generateSequenceDiagram(ast: t.File, _code: string): UMLResult {
     const sequenceAnalyzer = new SequenceAnalyzer();
     const analysis = sequenceAnalyzer.analyze(ast);
+
+    // Generate Mermaid sequence diagram syntax
+    const mermaidCode = this.generateMermaidSequenceDiagram(analysis);
+
+    // Extract metadata for backward compatibility
+    const sequences: SequenceInfo[] = this.convertToSequenceInfo(analysis);
+
+    return {
+      type: 'sequence',
+      mermaidCode,
+      generationMode: 'native',
+      metadata: {
+        sequences,
+        participants: analysis.participants,
+        interactions: analysis.interactions,
+        entryPoints: analysis.entryPoints,
+      },
+    };
+  }
+
+  /**
+   * Generate sequence diagram from UnifiedAST (Java/Python)
+   */
+  private generateSequenceDiagramFromUnifiedAST(ast: UnifiedAST, _code: string): UMLResult {
+    const unifiedSequenceAnalyzer = new UnifiedSequenceAnalyzer();
+    const analysis = unifiedSequenceAnalyzer.analyze(ast);
 
     // Generate Mermaid sequence diagram syntax
     const mermaidCode = this.generateMermaidSequenceDiagram(analysis);
