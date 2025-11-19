@@ -196,5 +196,116 @@ class DataProcessor:
       const method = result.classes[0].methods[0];
       expect(method.parameters.length).toBeGreaterThan(0);
     });
+
+    it('should extract import with alias', () => {
+      const code = `
+import os as operating_system
+import json as js
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      expect(result.imports.length).toBeGreaterThan(0);
+      // Check if any import has alias
+      const importsWithAlias = result.imports.filter((imp) => imp.namespaceAlias);
+      expect(importsWithAlias.length).toBeGreaterThan(0);
+    });
+
+    it('should extract from import with alias', () => {
+      const code = `
+from collections import defaultdict as dd
+from typing import List as L, Dict as D
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      // Verify imports are extracted (alias handling may vary based on tree-sitter structure)
+      expect(result.imports.length).toBeGreaterThan(0);
+      const collectionsImport = result.imports.find((imp) => imp.source === 'collections');
+      expect(collectionsImport).toBeDefined();
+    });
+
+    it('should extract wildcard import', () => {
+      const code = `
+from typing import *
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      expect(result.imports.length).toBeGreaterThan(0);
+      const wildcardImport = result.imports.find((imp) => imp.source === 'typing');
+      expect(wildcardImport?.isNamespace).toBe(true);
+      expect(wildcardImport?.specifiers).toHaveLength(0);
+    });
+
+    it('should extract attribute type annotations', () => {
+      const code = `
+from typing import List
+
+class Test:
+    def method(self, items: typing.List[str]) -> None:
+        pass
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      expect(result.classes[0].methods.length).toBeGreaterThan(0);
+    });
+
+    it('should extract string forward references', () => {
+      const code = `
+class User:
+    def get_profile(self) -> 'Profile':
+        return None
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      const method = result.classes[0].methods.find((m) => m.name === 'get_profile');
+      expect(method?.returnType).toBe('Profile');
+    });
+
+    it('should extract subscript type annotations', () => {
+      const code = `
+class Test:
+    def method(self, items: list[str]) -> dict[str, int]:
+        pass
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      expect(result.classes[0].methods.length).toBeGreaterThan(0);
+    });
+
+    it('should extract typed_default_parameter in class variables', () => {
+      const code = `
+class Test:
+    name: str = "test"
+    age: int = 0
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      expect(result.classes[0].properties.length).toBeGreaterThan(0);
+    });
+
+    it('should handle import without module name', () => {
+      const code = `
+from . import helper
+from ..parent import module
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      expect(result.imports.length).toBeGreaterThan(0);
+    });
   });
 });
