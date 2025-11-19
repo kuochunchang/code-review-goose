@@ -485,10 +485,11 @@ export class UMLAnalyzer {
       const unifiedAST = ast as UnifiedAST;
       classes.push(...unifiedAST.classes);
       // Convert interfaces to ClassInfo format (interfaces have extends as string[])
+      // Preserve type: 'interface' to maintain correct UML representation
       for (const iface of unifiedAST.interfaces) {
         classes.push({
           ...iface,
-          type: 'class' as const,
+          // Keep original type: 'interface' instead of overwriting with 'class'
           extends: iface.extends && iface.extends.length > 0 ? iface.extends[0] : undefined,
           implements: iface.extends && iface.extends.length > 1 ? iface.extends.slice(1) : undefined,
         });
