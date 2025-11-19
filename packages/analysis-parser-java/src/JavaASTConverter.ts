@@ -4,6 +4,7 @@
  */
 
 import type { SyntaxNode } from 'tree-sitter';
+import Parser from 'tree-sitter';
 import type {
   UnifiedAST,
   ClassInfo,
@@ -23,7 +24,7 @@ export class JavaASTConverter {
   /**
    * Convert Tree-sitter AST to UnifiedAST
    */
-  convert(rootNode: SyntaxNode, filePath: string): UnifiedAST {
+  convert(rootNode: SyntaxNode, filePath: string, originalTree?: Parser.Tree): UnifiedAST {
     const classes: ClassInfo[] = [];
     const interfaces: InterfaceInfo[] = [];
     const functions: FunctionInfo[] = [];
@@ -79,6 +80,7 @@ export class JavaASTConverter {
       imports,
       exports,
       dependencies: [], // Will be populated by OOAnalyzer
+      originalAST: originalTree, // Preserve original tree-sitter AST for sequence analysis
     };
   }
 

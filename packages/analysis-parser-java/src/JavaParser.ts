@@ -31,7 +31,7 @@ export class JavaParser implements ILanguageParser {
   async parse(code: string, filePath: string): Promise<UnifiedAST> {
     try {
       const tree = this.parser.parse(code);
-      return this.converter.convert(tree.rootNode, filePath);
+      return this.converter.convert(tree.rootNode, filePath, tree);
     } catch (error) {
       throw new Error(
         `Failed to parse Java code in ${filePath}: ${(error as Error).message}`

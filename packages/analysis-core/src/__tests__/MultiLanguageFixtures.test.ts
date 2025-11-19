@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import * as path from 'path';
 import { UMLAnalyzer } from '../analyzers/UMLAnalyzer.js';
 import { ParserService } from '../parsers/ParserService.js';
 import type { IFileProvider } from '@code-review-goose/analysis-types';
@@ -41,8 +42,8 @@ class MockFileProvider implements IFileProvider {
   async resolveImport(fromPath: string, importPath: string): Promise<string | null> {
     // Simple mock resolution
     if (importPath.startsWith('./') || importPath.startsWith('../')) {
-      const basePath = fromPath.substring(0, fromPath.lastIndexOf('/'));
-      return `${basePath}/${importPath.replace(/^\.\//, '')}`;
+      const basePath = path.dirname(fromPath);
+      return path.join(basePath, importPath.replace(/^\.\//, ''));
     }
     return null;
   }
