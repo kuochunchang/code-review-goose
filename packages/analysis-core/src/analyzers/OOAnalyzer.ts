@@ -375,7 +375,17 @@ export class OOAnalyzer {
   /**
    * Extract composition relationships (strong ownership, solid diamond ◆)
    * A owns B, B's lifecycle is controlled by A
-   * Example: class Car { private engine: Engine }
+   * 
+   * Composition is detected when:
+   * - Property is private (Java/C# style: strong encapsulation)
+   * - OR property is an instance variable (non-static, typically initialized in constructor)
+   * - AND property type is a class (not primitive or built-in)
+   * - AND property is not an array (arrays are typically aggregation)
+   * 
+   * Examples:
+   * - Java: class Car { private Engine engine; } -> composition
+   * - Python: class Car { def __init__(self): self.engine = Engine() } -> composition
+   * - TypeScript: class Car { private engine: Engine; } -> composition
    */
   extractComposition(classes: ClassInfo[], imports: ImportInfo[]): DependencyInfo[] {
     const compositions: DependencyInfo[] = [];
@@ -388,13 +398,15 @@ export class OOAnalyzer {
           resolvedType &&
           resolvedType.isClassType &&
           !resolvedType.isPrimitive &&
-          prop.visibility === 'private'
+          !resolvedType.isArray && // Arrays are typically aggregation, not composition
+          // Composition if: private (strong encapsulation) OR instance variable (non-static)
+          (prop.visibility === 'private' || !prop.isStatic)
         ) {
           compositions.push({
             from: cls.name,
             to: resolvedType.typeName,
             type: 'composition',
-            cardinality: resolvedType.isArray ? '1..*' : '1',
+            cardinality: '1',
             lineNumber: prop.lineNumber ?? 0,
             context: prop.name,
             isExternal: resolvedType.isExternal,
@@ -410,7 +422,16 @@ export class OOAnalyzer {
   /**
    * Extract aggregation relationships (weak ownership, hollow diamond ◇)
    * A uses B, but B can exist independently
-   * Example: class Team { members: Person[] }
+   * 
+   * Aggregation is detected when:
+   * - Property type is an array/collection of a class type
+   * - Arrays/collections typically represent "has many" relationships (aggregation)
+   * - Visibility can be any (private arrays are still aggregation, not composition)
+   * 
+   * Examples:
+   * - Java: private List<Wheel> wheels; -> aggregation
+   * - TypeScript: private wheels: Wheel[]; -> aggregation
+   * - Python: self.wheels = [Wheel() for _ in range(4)] -> aggregation
    */
   extractAggregation(classes: ClassInfo[], imports: ImportInfo[]): DependencyInfo[] {
     const aggregations: DependencyInfo[] = [];
@@ -423,8 +444,7 @@ export class OOAnalyzer {
           resolvedType &&
           resolvedType.isClassType &&
           !resolvedType.isPrimitive &&
-          prop.visibility !== 'private' &&
-          resolvedType.isArray
+          resolvedType.isArray // Arrays/collections are aggregation
         ) {
           aggregations.push({
             from: cls.name,

@@ -320,20 +320,30 @@ export class JavaASTConverter {
     const modifiers = this.extractModifiers(node);
     const visibility = this.getVisibility(modifiers);
 
-    // Extract type - look for type_identifier, primitive_type, etc. (after modifiers)
+    // Extract type - first try the 'type' field, then search children
     let type: string | undefined;
-    for (const child of node.children) {
-      if (
-        child.type === 'type_identifier' ||
-        child.type === 'primitive_type' ||
-        child.type === 'integral_type' ||
-        child.type === 'floating_point_type' ||
-        child.type === 'scoped_type_identifier' ||
-        child.type === 'generic_type' ||
-        child.type === 'array_type'
-      ) {
-        type = this.extractTypeName(child);
-        break;
+    
+    // Try field name 'type' first (tree-sitter may have a dedicated type field)
+    const typeNode = node.childForFieldName('type');
+    if (typeNode) {
+      type = this.extractTypeName(typeNode);
+    }
+    
+    // If not found, search children for type nodes
+    if (!type) {
+      for (const child of node.children) {
+        if (
+          child.type === 'type_identifier' ||
+          child.type === 'primitive_type' ||
+          child.type === 'integral_type' ||
+          child.type === 'floating_point_type' ||
+          child.type === 'scoped_type_identifier' ||
+          child.type === 'generic_type' ||
+          child.type === 'array_type'
+        ) {
+          type = this.extractTypeName(child);
+          break;
+        }
       }
     }
 
@@ -342,11 +352,15 @@ export class JavaASTConverter {
       if (child.type === 'variable_declarator') {
         const nameNode = child.childForFieldName('name');
         if (nameNode) {
+          // Check if type is an array
+          const isArray = type ? (type.endsWith('[]') || type.startsWith('Array<') || type === 'Array') : false;
+          
           properties.push({
             name: nameNode.text,
             type,
             visibility,
             lineNumber: this.getLineNumber(child),
+            isArray,
           });
         }
       }
@@ -495,13 +509,84 @@ export class JavaASTConverter {
     } else if (node.type === 'primitive_type' || node.type === 'integral_type' || node.type === 'floating_point_type') {
       return node.text; // int, boolean, void, float, double, etc.
     } else if (node.type === 'generic_type') {
-      const typeIdentifier = node.childForFieldName('name');
+      // generic_type structure: type_identifier (name) + type_arguments
+      // Find the type identifier (could be type_identifier or scoped_type_identifier)
+      let typeIdentifier: SyntaxNode | null = node.childForFieldName('name');
+      
+      // If no 'name' field, search children for type_identifier or scoped_type_identifier
+      if (!typeIdentifier) {
+        for (const child of node.children) {
+          if (child.type === 'type_identifier' || child.type === 'scoped_type_identifier') {
+            typeIdentifier = child;
+            break;
+          }
+        }
+      }
+      
       if (typeIdentifier) {
-        const baseType = typeIdentifier.text;
-        // For generics, we can add type parameters if needed
+        // Handle scoped type identifier (e.g., java.util.List)
+        let baseType: string;
+        if (typeIdentifier.type === 'scoped_type_identifier' || typeIdentifier.type === 'scoped_identifier') {
+          baseType = this.extractScopedIdentifier(typeIdentifier);
+        } else {
+          baseType = typeIdentifier.text;
+        }
+        
+        // Extract type arguments (e.g., List<Wheel> -> Wheel)
+        let typeArguments: SyntaxNode | null = node.childForFieldName('type_arguments');
+        
+        // If no 'type_arguments' field, search children
+        if (!typeArguments) {
+          for (const child of node.children) {
+            if (child.type === 'type_arguments') {
+              typeArguments = child;
+              break;
+            }
+          }
+        }
+        
+        if (typeArguments) {
+          // Find the first type argument
+          for (const child of typeArguments.children) {
+            if (
+              child.type === 'type_identifier' ||
+              child.type === 'scoped_type_identifier' ||
+              child.type === 'generic_type'
+            ) {
+              const elementType = this.extractTypeName(child);
+              if (elementType) {
+                // For collection types (List, Set, etc.), convert to array notation
+                // Check both simple name and scoped name (java.util.List -> List)
+                const baseTypeName = baseType.split('.').pop() || baseType;
+                const collectionTypes = ['List', 'ArrayList', 'LinkedList', 'Set', 'HashSet', 'LinkedHashSet'];
+                if (collectionTypes.includes(baseTypeName)) {
+                  return `${elementType}[]`; // List<Wheel> -> Wheel[]
+                } else {
+                  // For other generics, return baseType<elementType>
+                  return `${baseType}<${elementType}>`;
+                }
+              }
+            }
+          }
+        }
+        
+        // No type arguments, just return base type
         return baseType;
       }
     } else if (node.type === 'scoped_type_identifier' || node.type === 'scoped_identifier') {
+      // Check if it's a scoped generic type (e.g., java.util.List<Wheel>)
+      // In tree-sitter, this might be structured as scoped_type_identifier with generic_type children
+      // OR as generic_type with scoped_type_identifier as name
+      for (const child of node.children) {
+        if (child.type === 'generic_type') {
+          // This is a scoped generic, extract it
+          return this.extractTypeName(child);
+        }
+      }
+      
+      // Check if parent is generic_type (scoped name is the base type)
+      // This handles: generic_type -> name: scoped_type_identifier, type_arguments: ...
+      // Regular scoped identifier (e.g., java.util.List without generics)
       return this.extractScopedIdentifier(node);
     } else if (node.type === 'array_type') {
       const elementType = node.childForFieldName('element');

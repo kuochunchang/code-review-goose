@@ -646,7 +646,14 @@ export class UMLAnalyzer {
   private extractProperty(node: t.ClassProperty): PropertyInfo | null {
     if (!t.isIdentifier(node.key)) return null;
 
-    const typeStr = this.getTypeAnnotation(node.typeAnnotation);
+    // First, try to get type from type annotation
+    let typeStr = this.getTypeAnnotation(node.typeAnnotation);
+    
+    // If no type annotation, try to infer from initialization expression
+    if (!typeStr && node.value) {
+      typeStr = this.inferTypeFromExpression(node.value);
+    }
+    
     const isArray = typeStr
       ? typeStr.endsWith('[]') || typeStr.startsWith('Array<') || typeStr === 'Array'
       : false;
@@ -660,6 +667,52 @@ export class UMLAnalyzer {
       isArray,
       isClassType,
     };
+  }
+
+  /**
+   * Infer type from initialization expression
+   * Example: new Engine() -> Engine
+   * Example: [new Wheel(), ...] -> Wheel[]
+   */
+  private inferTypeFromExpression(expr: t.Expression): string | undefined {
+    // new ClassName() -> ClassName
+    if (t.isNewExpression(expr) && t.isIdentifier(expr.callee)) {
+      return expr.callee.name;
+    }
+    
+    // [item1, item2, ...] -> infer from first element
+    if (t.isArrayExpression(expr) && expr.elements.length > 0) {
+      const firstElement = expr.elements[0];
+      if (firstElement && !t.isSpreadElement(firstElement)) {
+        const elementType = this.inferTypeFromExpression(firstElement);
+        if (elementType) {
+          return `${elementType}[]`;
+        }
+      }
+      return 'Array';
+    }
+    
+    // Identifier reference
+    if (t.isIdentifier(expr)) {
+      return expr.name;
+    }
+    
+    // String literal
+    if (t.isStringLiteral(expr)) {
+      return 'string';
+    }
+    
+    // Number literal
+    if (t.isNumericLiteral(expr)) {
+      return 'number';
+    }
+    
+    // Boolean literal
+    if (t.isBooleanLiteral(expr)) {
+      return 'boolean';
+    }
+    
+    return undefined;
   }
 
   /**

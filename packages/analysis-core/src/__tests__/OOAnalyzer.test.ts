@@ -260,7 +260,7 @@ describe('OOAnalyzer', () => {
       expect(compositions[0].cardinality).toBe('1');
     });
 
-    it('should handle array composition', () => {
+    it('should not extract composition for array properties (arrays are aggregation)', () => {
       const classes: ClassInfo[] = [
         {
           name: 'Car',
@@ -270,6 +270,7 @@ describe('OOAnalyzer', () => {
               name: 'wheels',
               type: 'Wheel[]',
               visibility: 'private',
+              isArray: true,
             },
           ],
           methods: [],
@@ -279,8 +280,8 @@ describe('OOAnalyzer', () => {
 
       const compositions = analyzer.extractComposition(classes, imports);
 
-      expect(compositions).toHaveLength(1);
-      expect(compositions[0].cardinality).toBe('1..*');
+      // Arrays should not be composition, they should be aggregation
+      expect(compositions).toHaveLength(0);
     });
   });
 
@@ -311,7 +312,7 @@ describe('OOAnalyzer', () => {
       expect(aggregations[0].cardinality).toBe('*');
     });
 
-    it('should not extract aggregation for private properties', () => {
+    it('should extract aggregation for private array properties (arrays are always aggregation)', () => {
       const classes: ClassInfo[] = [
         {
           name: 'Team',
@@ -321,6 +322,7 @@ describe('OOAnalyzer', () => {
               name: 'members',
               type: 'Person[]',
               visibility: 'private',
+              isArray: true,
             },
           ],
           methods: [],
@@ -330,7 +332,11 @@ describe('OOAnalyzer', () => {
 
       const aggregations = analyzer.extractAggregation(classes, imports);
 
-      expect(aggregations).toHaveLength(0);
+      // Arrays should be aggregation regardless of visibility
+      expect(aggregations).toHaveLength(1);
+      expect(aggregations[0].from).toBe('Team');
+      expect(aggregations[0].to).toBe('Person');
+      expect(aggregations[0].type).toBe('aggregation');
     });
   });
 

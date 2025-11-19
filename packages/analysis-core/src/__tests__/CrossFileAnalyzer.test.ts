@@ -11,6 +11,7 @@ describe('CrossFileAnalyzer', () => {
       readFile: vi.fn(),
       exists: vi.fn(),
       resolveImport: vi.fn(),
+      listFiles: vi.fn(),
       getProjectRoot: vi.fn(),
     };
 
@@ -80,11 +81,19 @@ describe('CrossFileAnalyzer', () => {
         }
       `;
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(path === 'bar.ts' || path === 'foo.ts');
+      });
       (mockFileProvider.readFile as any)
         .mockResolvedValueOnce(barCode)
         .mockResolvedValueOnce(fooCode);
       (mockFileProvider.resolveImport as any).mockResolvedValue('foo.ts');
+      (mockFileProvider.listFiles as any).mockImplementation((pattern: string) => {
+        if (pattern.includes('Foo.ts')) {
+          return Promise.resolve(['foo.ts']);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await analyzer.analyzeForward('bar.ts', 2);
 
@@ -114,13 +123,24 @@ describe('CrossFileAnalyzer', () => {
         }
       `;
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(path === 'a.ts' || path === 'b.ts');
+      });
       (mockFileProvider.readFile as any)
         .mockResolvedValueOnce(aCode)
         .mockResolvedValueOnce(bCode);
       (mockFileProvider.resolveImport as any)
         .mockResolvedValueOnce('b.ts')
         .mockResolvedValueOnce('a.ts');
+      (mockFileProvider.listFiles as any).mockImplementation((pattern: string) => {
+        if (pattern.includes('B.ts')) {
+          return Promise.resolve(['b.ts']);
+        }
+        if (pattern.includes('A.ts')) {
+          return Promise.resolve(['a.ts']);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await analyzer.analyzeForward('a.ts', 3);
 
@@ -152,7 +172,9 @@ describe('CrossFileAnalyzer', () => {
         }
       `;
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(['level0.ts', 'level1.ts', 'level2.ts'].includes(path));
+      });
       (mockFileProvider.readFile as any)
         .mockResolvedValueOnce(level0Code)
         .mockResolvedValueOnce(level1Code)
@@ -161,6 +183,15 @@ describe('CrossFileAnalyzer', () => {
         .mockResolvedValueOnce('level1.ts')
         .mockResolvedValueOnce('level2.ts')
         .mockResolvedValueOnce('level3.ts');
+      (mockFileProvider.listFiles as any).mockImplementation((pattern: string) => {
+        if (pattern.includes('Level1.ts')) {
+          return Promise.resolve(['level1.ts']);
+        }
+        if (pattern.includes('Level2.ts')) {
+          return Promise.resolve(['level2.ts']);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await analyzer.analyzeForward('level0.ts', 2);
 
@@ -227,9 +258,12 @@ describe('CrossFileAnalyzer', () => {
         }
       `;
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(path === 'bar.ts');
+      });
       (mockFileProvider.readFile as any).mockResolvedValue(testCode);
       (mockFileProvider.resolveImport as any).mockResolvedValue(null);
+      (mockFileProvider.listFiles as any).mockResolvedValue([]);
 
       const result = await analyzer.analyzeBidirectional('bar.ts', 1);
 
@@ -250,9 +284,12 @@ describe('CrossFileAnalyzer', () => {
         }
       `;
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(path === 'test.ts');
+      });
       (mockFileProvider.readFile as any).mockResolvedValue(testCode);
       (mockFileProvider.resolveImport as any).mockResolvedValue(null);
+      (mockFileProvider.listFiles as any).mockResolvedValue([]);
 
       const result = await analyzer.analyzeBidirectional('test.ts', 1);
 
