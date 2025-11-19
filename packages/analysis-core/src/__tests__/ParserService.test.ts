@@ -219,6 +219,79 @@ describe('ParserService', () => {
     });
   });
 
+  describe('getParser', () => {
+    it('should get parser for TypeScript', async () => {
+      const parser = await parserService.getParser('typescript');
+      expect(parser).toBeDefined();
+      expect(parser?.getSupportedLanguage()).toBe('typescript');
+    });
+
+    it('should get parser for JavaScript', async () => {
+      const parser = await parserService.getParser('javascript');
+      expect(parser).toBeDefined();
+      expect(parser?.getSupportedLanguage()).toBe('javascript');
+    });
+
+    it('should get parser for Java', async () => {
+      const parser = await parserService.getParser('java');
+      expect(parser).toBeDefined();
+      expect(parser?.getSupportedLanguage()).toBe('java');
+    });
+
+    it('should get parser for Python', async () => {
+      const parser = await parserService.getParser('python');
+      expect(parser).toBeDefined();
+      expect(parser?.getSupportedLanguage()).toBe('python');
+    });
+
+    it('should return undefined for unsupported language', async () => {
+      const parser = await parserService.getParser('go' as any);
+      expect(parser).toBeUndefined();
+    });
+  });
+
+  describe('getParserForFile', () => {
+    it('should get parser for TypeScript file', async () => {
+      const parser = await parserService.getParserForFile('test.ts');
+      expect(parser).toBeDefined();
+      expect(parser?.getSupportedLanguage()).toBe('typescript');
+    });
+
+    it('should get parser for JavaScript file', async () => {
+      const parser = await parserService.getParserForFile('test.js');
+      expect(parser).toBeDefined();
+      expect(parser?.getSupportedLanguage()).toBe('javascript');
+    });
+
+    it('should get parser for Java file', async () => {
+      const parser = await parserService.getParserForFile('User.java');
+      expect(parser).toBeDefined();
+      expect(parser?.getSupportedLanguage()).toBe('java');
+    });
+
+    it('should get parser for Python file', async () => {
+      const parser = await parserService.getParserForFile('user.py');
+      expect(parser).toBeDefined();
+      expect(parser?.getSupportedLanguage()).toBe('python');
+    });
+
+    it('should return undefined for unsupported file', async () => {
+      const parser = await parserService.getParserForFile('test.txt');
+      expect(parser).toBeUndefined();
+    });
+  });
+
+  describe('getSupportedLanguages', () => {
+    it('should return list of supported languages', () => {
+      const languages = parserService.getSupportedLanguages();
+      expect(languages).toContain('typescript');
+      expect(languages).toContain('javascript');
+      expect(languages).toContain('java');
+      expect(languages).toContain('python');
+      expect(languages.length).toBeGreaterThanOrEqual(4);
+    });
+  });
+
   describe('error handling', () => {
     it('should throw error for unsupported file type', async () => {
       await expect(parserService.parse('code', 'test.txt')).rejects.toThrow();

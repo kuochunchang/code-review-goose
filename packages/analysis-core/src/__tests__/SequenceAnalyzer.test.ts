@@ -417,4 +417,100 @@ describe('SequenceAnalyzer', () => {
       expect(serviceParticipant?.type).toBe('class');
     });
   });
+
+  describe('analyze - literal and expression handling', () => {
+    it('should handle boolean literals', () => {
+      const code = `
+        class Test {
+          check() {
+            return true;
+          }
+        }
+      `;
+      const ast = parse(code, { sourceType: 'module', plugins: ['typescript'] });
+      const result = analyzer.analyze(ast);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle null literals', () => {
+      const code = `
+        class Test {
+          getValue() {
+            return null;
+          }
+        }
+      `;
+      const ast = parse(code, { sourceType: 'module', plugins: ['typescript'] });
+      const result = analyzer.analyze(ast);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle array expressions', () => {
+      const code = `
+        class Test {
+          getItems() {
+            return [1, 2, 3];
+          }
+        }
+      `;
+      const ast = parse(code, { sourceType: 'module', plugins: ['typescript'] });
+      const result = analyzer.analyze(ast);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle object expressions', () => {
+      const code = `
+        class Test {
+          getConfig() {
+            return { key: 'value' };
+          }
+        }
+      `;
+      const ast = parse(code, { sourceType: 'module', plugins: ['typescript'] });
+      const result = analyzer.analyze(ast);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle arrow function expressions', () => {
+      const code = `
+        class Test {
+          process() {
+            const fn = () => {};
+            fn();
+          }
+        }
+      `;
+      const ast = parse(code, { sourceType: 'module', plugins: ['typescript'] });
+      const result = analyzer.analyze(ast);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle call expressions', () => {
+      const code = `
+        class Test {
+          process() {
+            this.helper();
+          }
+          helper() {}
+        }
+      `;
+      const ast = parse(code, { sourceType: 'module', plugins: ['typescript'] });
+      const result = analyzer.analyze(ast);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle member expressions', () => {
+      const code = `
+        class Test {
+          process() {
+            const obj = { prop: 'value' };
+            return obj.prop;
+          }
+        }
+      `;
+      const ast = parse(code, { sourceType: 'module', plugins: ['typescript'] });
+      const result = analyzer.analyze(ast);
+      expect(result).toBeDefined();
+    });
+  });
 });
