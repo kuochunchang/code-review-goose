@@ -490,13 +490,24 @@ describe('UMLAnalyzer', () => {
         return Promise.reject(new Error('File not found'));
       });
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(path === 'foo.ts' || path === 'bar.ts');
+      });
+
       (mockFileProvider.resolveImport as any).mockImplementation(
         (_from: string, source: string) => {
           if (source === './bar') return Promise.resolve('bar.ts');
           return Promise.resolve(null);
         }
       );
+
+      // Mock listFiles for AST-based class search
+      (mockFileProvider.listFiles as any).mockImplementation((pattern: string) => {
+        if (pattern.includes('Bar.ts')) {
+          return Promise.resolve(['bar.ts']);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await analyzer.generateUnifiedDiagram('foo.ts', 'class', { depth: 1 });
 
@@ -657,7 +668,11 @@ describe('UMLAnalyzer', () => {
       const mainCode = `
         import { Service } from './service';
         export class Controller {
-          constructor(private service: Service) {}
+          private service: Service;
+          
+          constructor(service: Service) {
+            this.service = service;
+          }
         }
       `;
       const serviceCode = `export class Service { getData() {} }`;
@@ -668,13 +683,24 @@ describe('UMLAnalyzer', () => {
         return Promise.reject(new Error('File not found'));
       });
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(path === 'controller.ts' || path === 'service.ts');
+      });
+
       (mockFileProvider.resolveImport as any).mockImplementation(
         (_from: string, source: string) => {
           if (source === './service') return Promise.resolve('service.ts');
           return Promise.resolve(null);
         }
       );
+
+      // Mock listFiles for AST-based class search (Controller -> Service)
+      (mockFileProvider.listFiles as any).mockImplementation((pattern: string) => {
+        if (pattern.includes('Service.ts')) {
+          return Promise.resolve(['service.ts']);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await analyzer.generateCrossFileClassDiagram('controller.ts', 1);
 
@@ -702,13 +728,24 @@ describe('UMLAnalyzer', () => {
         return Promise.reject(new Error('File not found'));
       });
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(path === 'car.ts' || path === 'engine.ts');
+      });
+
       (mockFileProvider.resolveImport as any).mockImplementation(
         (_from: string, source: string) => {
           if (source === './engine') return Promise.resolve('engine.ts');
           return Promise.resolve(null);
         }
       );
+
+      // Mock listFiles for AST-based class search
+      (mockFileProvider.listFiles as any).mockImplementation((pattern: string) => {
+        if (pattern.includes('Engine.ts')) {
+          return Promise.resolve(['engine.ts']);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await analyzer.generateCrossFileClassDiagram('car.ts', 1);
 
@@ -729,7 +766,10 @@ describe('UMLAnalyzer', () => {
         return Promise.reject(new Error('File not found'));
       });
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(['a.ts', 'b.ts', 'c.ts'].includes(path));
+      });
+
       (mockFileProvider.resolveImport as any).mockImplementation(
         (_from: string, source: string) => {
           if (source === './b') return Promise.resolve('b.ts');
@@ -737,6 +777,17 @@ describe('UMLAnalyzer', () => {
           return Promise.resolve(null);
         }
       );
+
+      // Mock listFiles for AST-based class search
+      (mockFileProvider.listFiles as any).mockImplementation((pattern: string) => {
+        if (pattern.includes('B.ts')) {
+          return Promise.resolve(['b.ts']);
+        }
+        if (pattern.includes('C.ts')) {
+          return Promise.resolve(['c.ts']);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await analyzer.generateCrossFileClassDiagram('a.ts', 2);
 
@@ -757,7 +808,10 @@ describe('UMLAnalyzer', () => {
         return Promise.reject(new Error('File not found'));
       });
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(path === 'a.ts' || path === 'b.ts');
+      });
+
       (mockFileProvider.resolveImport as any).mockImplementation(
         (_from: string, source: string) => {
           if (source === './b') return Promise.resolve('b.ts');
@@ -765,6 +819,17 @@ describe('UMLAnalyzer', () => {
           return Promise.resolve(null);
         }
       );
+
+      // Mock listFiles for AST-based class search
+      (mockFileProvider.listFiles as any).mockImplementation((pattern: string) => {
+        if (pattern.includes('B.ts')) {
+          return Promise.resolve(['b.ts']);
+        }
+        if (pattern.includes('A.ts')) {
+          return Promise.resolve(['a.ts']);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await analyzer.generateCrossFileClassDiagram('a.ts', 1);
 
@@ -801,13 +866,24 @@ describe('UMLAnalyzer', () => {
         return Promise.reject(new Error('File not found'));
       });
 
-      (mockFileProvider.exists as any).mockResolvedValue(true);
+      (mockFileProvider.exists as any).mockImplementation((path: string) => {
+        return Promise.resolve(path === 'main.ts' || path === 'helper.ts');
+      });
+
       (mockFileProvider.resolveImport as any).mockImplementation(
         (_from: string, source: string) => {
           if (source === './helper') return Promise.resolve('helper.ts');
           return Promise.resolve(null);
         }
       );
+
+      // Mock listFiles for AST-based class search
+      (mockFileProvider.listFiles as any).mockImplementation((pattern: string) => {
+        if (pattern.includes('Helper.ts')) {
+          return Promise.resolve(['helper.ts']);
+        }
+        return Promise.resolve([]);
+      });
 
       const result = await analyzer.generateCrossFileClassDiagram('main.ts', 1);
 

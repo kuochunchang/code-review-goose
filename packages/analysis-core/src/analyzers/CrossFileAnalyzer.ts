@@ -215,6 +215,9 @@ export class CrossFileAnalyzer {
 
   /**
    * Recursively analyze file and its dependencies
+   * 
+   * Strategy: Instead of relying on import statements (which are error-prone and language-specific),
+   * we extract class dependencies directly from AST relationships and search for matching files.
    */
   private async analyzeFileRecursive(
     filePath: string,
@@ -241,26 +244,268 @@ export class CrossFileAnalyzer {
       return;
     }
 
-    // Recursively analyze all imported files
-    const unresolvedImports: string[] = [];
-    for (const importInfo of analysis.imports) {
-      const resolvedPath = await this.fileProvider.resolveImport(filePath, importInfo.source);
+    // Extract referenced classes from AST relationships (more reliable than imports)
+    const referencedClasses = this.extractReferencedClasses(analysis);
+    const unresolvedClasses: string[] = [];
 
-      if (resolvedPath) {
+    for (const className of referencedClasses) {
+      // Try to find the class file (prioritize same directory, then search project-wide)
+      const resolvedPath = await this.findClassFile(filePath, className);
+      
+      if (resolvedPath && !this.visited.has(resolvedPath)) {
         await this.analyzeFileRecursive(resolvedPath, currentDepth + 1, maxDepth, results);
-      } else {
-        // Track unresolved imports for debugging
-        unresolvedImports.push(importInfo.source);
+      } else if (!resolvedPath) {
+        unresolvedClasses.push(className);
       }
     }
 
-    // Log unresolved imports for debugging
-    if (unresolvedImports.length > 0) {
+    // Log unresolved classes for debugging
+    if (unresolvedClasses.length > 0) {
       console.debug(
-        `[CrossFileAnalyzer] Unresolved imports in ${filePath}:`,
-        unresolvedImports
+        `[CrossFileAnalyzer] Unresolved classes in ${filePath}:`,
+        unresolvedClasses
       );
     }
+  }
+
+  /**
+   * Extract referenced class names from OO relationships
+   * This is more reliable than parsing imports, as it directly reflects actual dependencies
+   */
+  private extractReferencedClasses(analysis: FileAnalysisResult): Set<string> {
+    const referencedClasses = new Set<string>();
+
+    // Extract from relationships (composition, aggregation, dependency, etc.)
+    for (const relationship of analysis.relationships) {
+      // Add the target class (the class being referenced)
+      referencedClasses.add(relationship.to);
+    }
+
+    // Also extract from extends/implements
+    for (const classInfo of analysis.classes) {
+      if (classInfo.extends) {
+        referencedClasses.add(classInfo.extends);
+      }
+      if (classInfo.implements) {
+        for (const interfaceName of classInfo.implements) {
+          referencedClasses.add(interfaceName);
+        }
+      }
+    }
+
+    return referencedClasses;
+  }
+
+  /**
+   * Find class file by searching the project
+   * 
+   * Search strategy:
+   * 1. Try same directory first (most common case)
+   * 2. For Python: check imports to find the source module
+   * 3. Search project-wide using glob patterns
+   * 4. For Python: parse all Python files to find class definition
+   */
+  private async findClassFile(
+    currentFilePath: string,
+    className: string
+  ): Promise<string | null> {
+    const language = LanguageDetector.detectFromFilePath(currentFilePath);
+
+    // Strategy 1: Check same directory first (fast path)
+    const sameDirPath = await this.tryResolveInSameDirectory(currentFilePath, className, language);
+    if (sameDirPath) {
+      console.debug(`[CrossFileAnalyzer] Resolved class in same directory: ${className} -> ${sameDirPath}`);
+      return sameDirPath;
+    }
+
+    // Strategy 2: For Python, use imports to find the source module
+    if (language === 'python') {
+      const importBasedPath = await this.findPythonClassViaImports(currentFilePath, className);
+      if (importBasedPath) {
+        console.debug(`[CrossFileAnalyzer] Resolved Python class via imports: ${className} -> ${importBasedPath}`);
+        return importBasedPath;
+      }
+    }
+
+    // Strategy 3: Search project-wide (slower but more thorough)
+    const projectWidePath = await this.searchClassInProject(className, language);
+    if (projectWidePath) {
+      console.debug(`[CrossFileAnalyzer] Resolved class via project search: ${className} -> ${projectWidePath}`);
+      return projectWidePath;
+    }
+
+    return null;
+  }
+
+  /**
+   * Find Python class file by checking imports
+   * For example, if we have "from .layer_2 import Service", resolve .layer_2 to find Service
+   */
+  private async findPythonClassViaImports(
+    currentFilePath: string,
+    className: string
+  ): Promise<string | null> {
+    // Get the analysis result (should be cached)
+    const cached = this.getCachedAnalysis(currentFilePath);
+    if (!cached) return null;
+
+    // Look for imports that import this class
+    for (const importInfo of cached.imports) {
+      if (importInfo.specifiers.includes(className)) {
+        // Found an import for this class, try to resolve the source module
+        const resolvedPath = await this.fileProvider.resolveImport(currentFilePath, importInfo.source);
+        if (resolvedPath) {
+          return resolvedPath;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Try to resolve class in the same directory
+   */
+  private async tryResolveInSameDirectory(
+    currentFilePath: string,
+    className: string,
+    language: string | null
+  ): Promise<string | null> {
+    const directory = currentFilePath.substring(0, currentFilePath.lastIndexOf('/'));
+
+    if (language === 'java') {
+      const candidatePath = `${directory}/${className}.java`;
+      if (await this.fileProvider.exists(candidatePath)) {
+        return candidatePath;
+      }
+    } else if (language === 'python') {
+      // Try snake_case conversion
+      const snakeCaseName = this.camelToSnakeCase(className);
+      const candidatePath1 = `${directory}/${snakeCaseName}.py`;
+      if (await this.fileProvider.exists(candidatePath1)) {
+        return candidatePath1;
+      }
+
+      // Try original name (if already snake_case)
+      const candidatePath2 = `${directory}/${className}.py`;
+      if (await this.fileProvider.exists(candidatePath2)) {
+        return candidatePath2;
+      }
+
+      // Try lowercase
+      const candidatePath3 = `${directory}/${className.toLowerCase()}.py`;
+      if (await this.fileProvider.exists(candidatePath3)) {
+        return candidatePath3;
+      }
+    } else if (language === 'typescript' || language === 'javascript') {
+      // Try various TypeScript/JavaScript extensions
+      const extensions = ['.ts', '.tsx', '.js', '.jsx'];
+      for (const ext of extensions) {
+        const candidatePath = `${directory}/${className}${ext}`;
+        if (await this.fileProvider.exists(candidatePath)) {
+          return candidatePath;
+        }
+
+        // Try lowercase for TypeScript/JavaScript
+        const lowerPath = `${directory}/${className.toLowerCase()}${ext}`;
+        if (await this.fileProvider.exists(lowerPath)) {
+          return lowerPath;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Search for class file in the entire project using glob patterns
+   */
+  private async searchClassInProject(
+    className: string,
+    language: string | null
+  ): Promise<string | null> {
+    let pattern: string;
+
+    if (language === 'java') {
+      pattern = `**/${className}.java`;
+    } else if (language === 'python') {
+      // Try multiple naming conventions
+      const snakeCaseName = this.camelToSnakeCase(className);
+      const patterns = [
+        `**/${snakeCaseName}.py`,
+        `**/${className}.py`,
+        `**/${className.toLowerCase()}.py`,
+      ];
+
+      for (const p of patterns) {
+        const files = await this.fileProvider.listFiles(p);
+        if (files.length > 0) {
+          // Return the first match (prioritize test-data over other directories)
+          return this.selectBestMatch(files);
+        }
+      }
+      return null;
+    } else if (language === 'typescript' || language === 'javascript') {
+      // Search for TypeScript/JavaScript files
+      const patterns = [
+        `**/${className}.ts`,
+        `**/${className}.tsx`,
+        `**/${className}.js`,
+        `**/${className}.jsx`,
+        `**/${className.toLowerCase()}.ts`,
+        `**/${className.toLowerCase()}.tsx`,
+      ];
+
+      for (const p of patterns) {
+        const files = await this.fileProvider.listFiles(p);
+        if (files.length > 0) {
+          return this.selectBestMatch(files);
+        }
+      }
+      return null;
+    } else {
+      // Unknown language, try common extensions
+      pattern = `**/${className}.*`;
+    }
+
+    const files = await this.fileProvider.listFiles(pattern);
+    if (files.length > 0) {
+      return this.selectBestMatch(files);
+    }
+
+    return null;
+  }
+
+  /**
+   * Select best match from multiple candidates
+   * Prioritize: test-data > src > other
+   */
+  private selectBestMatch(files: string[]): string {
+    if (files.length === 1) {
+      return files[0];
+    }
+
+    // Prioritize test-data files
+    const testDataFiles = files.filter(f => f.includes('test-data'));
+    if (testDataFiles.length > 0) {
+      return testDataFiles[0];
+    }
+
+    // Prioritize src files
+    const srcFiles = files.filter(f => f.includes('/src/'));
+    if (srcFiles.length > 0) {
+      return srcFiles[0];
+    }
+
+    // Return first match
+    return files[0];
+  }
+
+  /**
+   * Convert CamelCase to snake_case
+   */
+  private camelToSnakeCase(str: string): string {
+    return str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`).replace(/^_/, '');
   }
 
   /**

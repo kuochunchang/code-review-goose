@@ -125,7 +125,9 @@ export class PythonASTConverter {
             methods.push(method);
             // Check if it's __init__ (constructor)
             if (method.name === '__init__') {
-              // Store constructor params for dependency analysis
+              // Extract instance variables from __init__ (self.xxx = ...)
+              const initProperties = this.extractInstanceVariablesFromInit(member);
+              properties.push(...initProperties);
             }
           }
         } else if (member.type === 'expression_statement') {
@@ -360,10 +362,61 @@ export class PythonASTConverter {
     } else if (node.type === 'import_from_statement') {
       // from module import name1, name2
       // from module import name as alias
-      const moduleNameNode = node.childForFieldName('module_name');
-      const importList = node.childForFieldName('import_list');
+      // from .relative import name (relative import)
+      
+      // Check for relative imports (leading dots)
+      let relativeDots = '';
+      let moduleNameNode: SyntaxNode | null = null;
+      
+      // Parse children to find relative_import or module_name
+      for (const child of node.children) {
+        if (child.type === 'relative_import') {
+          // relative_import contains both dots and module name
+          // Example: ".layer_2" -> text = ".layer_2"
+          const text = child.text;
+          const dotsMatch = text.match(/^\.+/);
+          if (dotsMatch) {
+            relativeDots = dotsMatch[0];
+            // Get the module name after dots
+            const moduleName = text.substring(dotsMatch[0].length);
+            if (moduleName) {
+              // Create a synthetic node-like object for module name
+              moduleNameNode = child;
+            }
+          }
+          break;
+        }
+      }
+      
+      // If no relative_import found, check for direct module_name
+      if (!moduleNameNode) {
+        moduleNameNode = node.childForFieldName('module_name');
+      }
+      
+      const importList = node.childForFieldName('name');
 
-      const modulePath = moduleNameNode ? this.extractDottedName(moduleNameNode) : '';
+      // Extract module path
+      let modulePath = '';
+      if (relativeDots) {
+        // For relative imports, extract the module name from relative_import node
+        for (const child of node.children) {
+          if (child.type === 'relative_import') {
+            const text = child.text;
+            const dotsMatch = text.match(/^\.+/);
+            if (dotsMatch) {
+              modulePath = text.substring(dotsMatch[0].length);
+              if (modulePath) {
+                modulePath = relativeDots + modulePath;
+              } else {
+                modulePath = relativeDots;
+              }
+            }
+            break;
+          }
+        }
+      } else if (moduleNameNode) {
+        modulePath = this.extractDottedName(moduleNameNode);
+      }
 
       if (importList) {
         for (const importItem of importList.children) {
@@ -555,5 +608,138 @@ export class PythonASTConverter {
    */
   private getLineNumber(node: SyntaxNode): number | undefined {
     return node.startPosition.row + 1; // tree-sitter uses 0-based, we use 1-based
+  }
+
+  /**
+   * Extract instance variables from __init__ method
+   * Looks for patterns like: self.property = value or self.property: Type = value
+   */
+  private extractInstanceVariablesFromInit(initNode: SyntaxNode): PropertyInfo[] {
+    const properties: PropertyInfo[] = [];
+    const processedProperties = new Set<string>(); // Avoid duplicates
+    
+    // Get the function body
+    const bodyNode = initNode.childForFieldName('body');
+    if (!bodyNode) return properties;
+
+    // Traverse the body to find assignments
+    // Only process direct assignment nodes, not nested ones
+    for (const statement of bodyNode.children) {
+      if (statement.type === 'expression_statement') {
+        // expression_statement contains assignment
+        const assignment = statement.children.find((c) => c.type === 'assignment');
+        if (assignment) {
+          const prop = this.extractPropertyFromAssignment(assignment);
+          if (prop && !processedProperties.has(prop.name)) {
+            properties.push(prop);
+            processedProperties.add(prop.name);
+          }
+        }
+      } else if (statement.type === 'assignment') {
+        // Direct assignment (less common)
+        const prop = this.extractPropertyFromAssignment(statement);
+        if (prop && !processedProperties.has(prop.name)) {
+          properties.push(prop);
+          processedProperties.add(prop.name);
+        }
+      }
+    }
+
+    return properties;
+  }
+
+  /**
+   * Extract property information from an assignment node
+   */
+  private extractPropertyFromAssignment(assignmentNode: SyntaxNode): PropertyInfo | null {
+    const leftNode = assignmentNode.childForFieldName('left');
+    const rightNode = assignmentNode.childForFieldName('right');
+    
+    if (!leftNode || leftNode.type !== 'attribute') {
+      return null;
+    }
+
+    const objectNode = leftNode.childForFieldName('object');
+    const attributeNode = leftNode.childForFieldName('attribute');
+    
+    // Check if it's self.xxx
+    if (!objectNode || objectNode.text !== 'self' || !attributeNode) {
+      return null;
+    }
+
+    const propertyName = attributeNode.text;
+    
+    // Try to infer type from the right side
+    let propertyType: string | undefined;
+    if (rightNode) {
+      propertyType = this.inferTypeFromValue(rightNode);
+    }
+    
+    return {
+      name: propertyName,
+      type: propertyType,
+      visibility: 'public',
+      lineNumber: this.getLineNumber(assignmentNode),
+    };
+  }
+
+  /**
+   * Infer type from value node
+   */
+  private inferTypeFromValue(node: SyntaxNode): string | undefined {
+    if (node.type === 'call') {
+      // Constructor call: ClassName(args) -> type is ClassName
+      const functionNode = node.childForFieldName('function');
+      if (functionNode) {
+        if (functionNode.type === 'identifier') {
+          return functionNode.text;
+        } else if (functionNode.type === 'attribute') {
+          return this.extractIdentifierOrAttribute(functionNode);
+        }
+      }
+    } else if (node.type === 'list_comprehension') {
+      // List comprehension: [Wheel() for _ in range(4)] -> Wheel[]
+      // Extract the expression inside the comprehension
+      // The structure is: list_comprehension -> expression (the value being generated)
+      for (const child of node.children) {
+        if (child.type === 'call' || child.type === 'identifier' || child.type === 'attribute') {
+          // This is the expression being generated
+          const elementType = this.inferTypeFromValue(child);
+          if (elementType && elementType !== 'list' && elementType !== 'dict') {
+            return `${elementType}[]`; // Mark as array type
+          }
+        } else if (child.type === 'expression') {
+          // Some parsers wrap the expression in an 'expression' node
+          const elementType = this.inferTypeFromValue(child);
+          if (elementType && elementType !== 'list' && elementType !== 'dict') {
+            return `${elementType}[]`;
+          }
+        }
+      }
+      return 'list';
+    } else if (node.type === 'list') {
+      // Regular list literal: [item1, item2, ...]
+      // Try to infer type from first element
+      const firstElement = node.children.find(
+        (c) => c.type !== '[' && c.type !== ']' && c.type !== ','
+      );
+      if (firstElement) {
+        const elementType = this.inferTypeFromValue(firstElement);
+        if (elementType && elementType !== 'list' && elementType !== 'dict') {
+          return `${elementType}[]`; // Mark as array type
+        }
+      }
+      return 'list';
+    } else if (node.type === 'identifier') {
+      return node.text;
+    } else if (node.type === 'string') {
+      return 'str';
+    } else if (node.type === 'integer' || node.type === 'float') {
+      return 'int';
+    } else if (node.type === 'dictionary') {
+      return 'dict';
+    }
+    
+    return undefined;
   }
 }
