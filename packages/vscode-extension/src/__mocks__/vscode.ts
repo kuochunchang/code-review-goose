@@ -109,6 +109,12 @@ const workspace = {
         get: vi.fn(() => undefined),
         update: vi.fn(async () => { }),
     })),
+    openTextDocument: vi.fn(async (uri: any) => ({
+        uri,
+        languageId: 'typescript',
+        fileName: uri.fsPath.split('/').pop() || 'test.ts',
+        getText: vi.fn(() => ''),
+    })),
 };
 
 class RelativePattern {
