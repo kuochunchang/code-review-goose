@@ -8,28 +8,7 @@ import { DiagramPanel } from '../views/diagram-panel.js';
 import type { DiagramType, DiagramOptions } from '../views/diagram-panel.js';
 
 // Mock VS Code API
-vi.mock('vscode', () => ({
-  window: {
-    createWebviewPanel: vi.fn(),
-    showErrorMessage: vi.fn(),
-    showWarningMessage: vi.fn(),
-    showInformationMessage: vi.fn(),
-    activeTextEditor: undefined,
-  },
-  workspace: {
-    getWorkspaceFolder: vi.fn(),
-    asRelativePath: vi.fn((uri: any) => uri.fsPath),
-  },
-  Uri: {
-    file: vi.fn((path: string) => ({ fsPath: path, scheme: 'file', path })),
-  },
-  ViewColumn: {
-    Two: 2,
-  },
-  Disposable: class {
-    dispose() {}
-  },
-}));
+
 
 // Mock analysis packages
 vi.mock('@code-review-goose/analysis-core', () => ({

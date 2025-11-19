@@ -185,7 +185,7 @@ describe('UMLAnalyzer', () => {
       const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('UserController ..> UserService');
-      expect(result.mermaidCode).toContain('<<inject>>');
+      expect(result.mermaidCode).toContain('inject constructor');
     });
 
     it('should handle empty file', async () => {

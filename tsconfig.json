@@ -1,14 +1,20 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/analysis-types" },
-    { "path": "./packages/analysis-utils" },
-    { "path": "./packages/analysis-core" },
-    { "path": "./packages/analysis-adapter-node" },
-    { "path": "./packages/analysis-adapter-vscode" },
-    { "path": "./packages/vscode-extension" },
-    { "path": "./packages/server" },
-    { "path": "./packages/web" },
-    { "path": "./packages/cli" }
+    {
+      "path": "./packages/analysis-types"
+    },
+    {
+      "path": "./packages/analysis-utils"
+    },
+    {
+      "path": "./packages/analysis-core"
+    },
+    {
+      "path": "./packages/analysis-adapter-vscode"
+    },
+    {
+      "path": "./packages/vscode-extension"
+    }
   ]
 }

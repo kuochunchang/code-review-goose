@@ -178,7 +178,9 @@ describe('OOAnalyzer', () => {
       const imports: ImportInfo[] = [];
       const result = analyzer.resolveTypeInfo('string', imports);
 
-      expect(result).toBeUndefined();
+      expect(result).toBeDefined();
+      expect(result?.typeName).toBe('string');
+      expect(result?.isPrimitive).toBe(true);
     });
 
     it('should identify built-in types', () => {

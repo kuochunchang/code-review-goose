@@ -70,7 +70,7 @@ export class UMLAnalyzer {
    * @returns UML diagram with consistent metadata structure
    */
   async generateUnifiedDiagram(
-    _filePath: string,
+    filePath: string,
     type: DiagramType,
     options?: {
       depth?: number;
@@ -128,7 +128,7 @@ export class UMLAnalyzer {
   /**
    * Generate single-file class diagram from file path
    */
-  private async generateSingleFileClassDiagram(_filePath: string): Promise<UMLResult> {
+  private async generateSingleFileClassDiagram(filePath: string): Promise<UMLResult> {
     // Read file content using fileProvider
     const code = await this.fileProvider.readFile(filePath);
 
@@ -151,7 +151,7 @@ export class UMLAnalyzer {
    * Generate single-file diagram (flowchart, sequence, dependency) from file path
    */
   private async generateSingleFileDiagram(
-    _filePath: string,
+    filePath: string,
     type: DiagramType
   ): Promise<UMLResult> {
     // Read file content using fileProvider
@@ -181,7 +181,7 @@ export class UMLAnalyzer {
    * @returns UML class diagram with cross-file relationships
    */
   async generateCrossFileClassDiagram(
-    _filePath: string,
+    filePath: string,
     depth: 1 | 2 | 3 = 1,
     mode: 'forward' | 'reverse' | 'bidirectional' = 'bidirectional'
   ): Promise<UMLResult> {
@@ -228,7 +228,7 @@ export class UMLAnalyzer {
    * Analyzes method call flows across multiple files based on dependencies
    */
   async generateCrossFileSequenceDiagram(
-    _filePath: string,
+    filePath: string,
     depth: 1 | 2 | 3 = 1,
     mode: 'forward' | 'reverse' | 'bidirectional' = 'bidirectional'
   ): Promise<UMLResult> {
@@ -272,7 +272,7 @@ export class UMLAnalyzer {
       try {
         const code = await this.fileProvider.readFile(file);
         const ast = await this.parseCode(code, file);
-        
+
         // Sequence analyzer currently only supports Babel AST (TypeScript/JavaScript)
         // For other languages, skip sequence analysis for now
         if (!('language' in ast)) {
@@ -373,7 +373,7 @@ export class UMLAnalyzer {
   /**
    * Generate diagram using native AST parsing
    */
-  private async generateWithNative(code: string, type: DiagramType, _filePath: string): Promise<UMLResult> {
+  private async generateWithNative(code: string, type: DiagramType, filePath: string): Promise<UMLResult> {
     // Parse code to AST (supports multiple languages)
     const ast = await this.parseCode(code, filePath);
 
@@ -401,7 +401,7 @@ export class UMLAnalyzer {
    * For TypeScript/JavaScript, uses Babel parser (backward compatible)
    * For Java/Python, uses unified parser system
    */
-  private async parseCode(code: string, _filePath: string): Promise<UnifiedAST | t.File> {
+  private async parseCode(code: string, filePath: string): Promise<UnifiedAST | t.File> {
     // Normalize file path (handle file:// URIs from VS Code)
     let normalizedPath = filePath;
     if (filePath.startsWith('file://')) {
@@ -417,16 +417,16 @@ export class UMLAnalyzer {
         normalizedPath = filePath.replace(/^file:\/\//, '');
       }
     }
-    
+
     const language = LanguageDetector.detectFromFilePath(normalizedPath);
-    
+
     // Debug logging (can be removed in production)
     if (!language) {
       console.warn(`[UMLAnalyzer] Could not detect language for file: ${filePath} (normalized: ${normalizedPath})`);
     } else {
       console.debug(`[UMLAnalyzer] Detected language: ${language} for file: ${filePath}`);
     }
-    
+
     // For TypeScript/JavaScript, use Babel parser (backward compatible)
     if (language === 'typescript' || language === 'javascript') {
       try {
@@ -445,7 +445,7 @@ export class UMLAnalyzer {
         throw new Error(`Code parsing failed: ${(error as Error).message}`);
       }
     }
-    
+
     // For other languages (Java, Python), use unified parser
     if (language) {
       if (!this.parserService.canParse(normalizedPath)) {
@@ -454,7 +454,7 @@ export class UMLAnalyzer {
           `Supported languages: ${this.parserService.getSupportedLanguages().join(', ')}`
         );
       }
-      
+
       try {
         return await this.parserService.parse(code, normalizedPath);
       } catch (error) {
@@ -463,7 +463,7 @@ export class UMLAnalyzer {
         );
       }
     }
-    
+
     throw new Error(
       `Unsupported file type: ${normalizedPath}. ` +
       `Could not detect language from file path. ` +
@@ -686,6 +686,15 @@ export class UMLAnalyzer {
           name: param.name,
           type: this.getTypeAnnotation(param.typeAnnotation),
         };
+      }
+      if (t.isTSParameterProperty(param)) {
+        const parameter = param.parameter;
+        if (t.isIdentifier(parameter)) {
+          return {
+            name: parameter.name,
+            type: this.getTypeAnnotation(parameter.typeAnnotation),
+          };
+        }
       }
       return { name: 'unknown' };
     });
