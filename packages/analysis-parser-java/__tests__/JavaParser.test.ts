@@ -237,5 +237,76 @@ describe('JavaParser', () => {
       expect(ast.classes[0].lineNumber).toBeDefined();
       expect(ast.classes[0].lineNumber).toBeGreaterThan(0);
     });
+
+    it('should handle parse errors gracefully', async () => {
+      // Mock parser to throw an error
+      const originalParser = parser['parser'];
+      const mockParser = {
+        parse: () => {
+          throw new Error('Parse error');
+        },
+      };
+      parser['parser'] = mockParser as any;
+
+      await expect(parser.parse('invalid code', 'test.java')).rejects.toThrow(
+        'Failed to parse Java code in test.java: Parse error'
+      );
+
+      // Restore original parser
+      parser['parser'] = originalParser;
+    });
+
+    it('should handle import with wildcard', async () => {
+      const code = `
+        import java.util.*;
+        
+        public class Test {
+          List<String> items;
+        }
+      `;
+
+      const ast = await parser.parse(code, 'Test.java');
+      expect(ast.imports.length).toBeGreaterThan(0);
+      const wildcardImport = ast.imports.find((imp) => imp.isNamespace);
+      expect(wildcardImport).toBeDefined();
+    });
+
+    it('should handle scoped type identifiers', async () => {
+      const code = `
+        import java.util.List;
+        
+        public class Test {
+          private java.util.Map<String, Integer> map;
+        }
+      `;
+
+      const ast = await parser.parse(code, 'Test.java');
+      expect(ast.classes).toHaveLength(1);
+    });
+
+    it('should handle array types', async () => {
+      const code = `
+        public class Test {
+          private int[] numbers;
+          private String[] names;
+        }
+      `;
+
+      const ast = await parser.parse(code, 'Test.java');
+      expect(ast.classes[0].properties.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should handle generic types with multiple parameters', async () => {
+      const code = `
+        import java.util.Map;
+        
+        public class Test {
+          private Map<String, Integer> data;
+        }
+      `;
+
+      const ast = await parser.parse(code, 'Test.java');
+      expect(ast.classes).toHaveLength(1);
+    });
   });
 });

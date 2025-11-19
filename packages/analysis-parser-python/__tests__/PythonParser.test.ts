@@ -222,5 +222,23 @@ class BankAccount:
       expect(result.classes[0].name).toBe('BankAccount');
       expect(result.classes[0].methods.length).toBeGreaterThanOrEqual(4);
     });
+
+    it('should handle parse errors gracefully', async () => {
+      // Mock parser to throw an error
+      const originalParser = parser['parser'];
+      const mockParser = {
+        parse: () => {
+          throw new Error('Parse error');
+        },
+      };
+      parser['parser'] = mockParser as any;
+
+      await expect(parser.parse('invalid code', 'test.py')).rejects.toThrow(
+        'Failed to parse Python code in test.py: Parse error'
+      );
+
+      // Restore original parser
+      parser['parser'] = originalParser;
+    });
   });
 });

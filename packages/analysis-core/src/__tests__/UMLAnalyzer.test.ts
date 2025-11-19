@@ -418,6 +418,46 @@ describe('UMLAnalyzer', () => {
       expect(result.mermaidCode).toContain('flowchart');
       expect(result.mermaidCode).toContain('Start');
     });
+
+    it('should handle return statements', async () => {
+      const code = `
+        function test() {
+          return 42;
+        }
+      `;
+
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
+      expect(result.type).toBe('flowchart');
+      expect(result.mermaidCode).toContain('Return');
+    });
+
+    it('should handle expression statements', async () => {
+      const code = `
+        function test() {
+          console.log('test');
+          x = 5;
+        }
+      `;
+
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
+      expect(result.type).toBe('flowchart');
+    });
+
+    it('should handle try-catch statements', async () => {
+      const code = `
+        function test() {
+          try {
+            riskyOperation();
+          } catch (error) {
+            handleError(error);
+          }
+        }
+      `;
+
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
+      expect(result.type).toBe('flowchart');
+      expect(result.mermaidCode).toContain('Try-catch');
+    });
   });
 
   describe('generateUnifiedDiagram', () => {

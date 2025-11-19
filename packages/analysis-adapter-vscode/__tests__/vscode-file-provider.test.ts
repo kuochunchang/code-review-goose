@@ -316,4 +316,85 @@ describe('VSCodeFileProvider', () => {
       expect(result).toBe(true);
     });
   });
+
+  describe('resolveImport - error handling', () => {
+    it('should handle errors during import resolution', async () => {
+      const fromFile = '/workspace/src/app.ts';
+      const toImport = './utils.ts';
+
+      // Mock to throw error during resolution (after checking source file exists)
+      // Need to mock all possible paths that resolveImport tries
+      vi.mocked(vscode.workspace.fs.stat)
+        .mockResolvedValueOnce({
+          type: vscode.FileType.File,
+          ctime: Date.now(),
+          mtime: Date.now(),
+          size: 100,
+        })
+        .mockRejectedValueOnce(new Error('Network error')) // Error when checking exact path
+        .mockRejectedValueOnce(new Error('Network error')) // Error when checking .ts
+        .mockRejectedValueOnce(new Error('Network error')) // Error when checking .tsx
+        .mockRejectedValueOnce(new Error('Network error')) // Error when checking .js
+        .mockRejectedValueOnce(new Error('Network error')); // Error when checking .jsx
+
+      const result = await provider.resolveImport(fromFile, toImport);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('isWithinWorkspace - edge cases', () => {
+    it('should handle workspace path with trailing slash', () => {
+      const providerWithSlash = new VSCodeFileProvider(vscode.Uri.file('/workspace/'));
+      const uri = vscode.Uri.file('/workspace/src/file.ts');
+      
+      // Access private method through any cast
+      const isWithin = (providerWithSlash as any).isWithinWorkspace(uri);
+      expect(isWithin).toBe(true);
+    });
+
+    it('should handle file path with trailing slash', () => {
+      const uri = vscode.Uri.file('/workspace/src/file.ts/');
+      
+      // Access private method through any cast
+      const isWithin = (provider as any).isWithinWorkspace(uri);
+      expect(isWithin).toBe(true);
+    });
+
+    it('should handle errors in isWithinWorkspace', () => {
+      const invalidUri = { fsPath: null } as any;
+      
+      // Access private method through any cast
+      const isWithin = (provider as any).isWithinWorkspace(invalidUri);
+      expect(isWithin).toBe(false);
+    });
+  });
+
+  describe('resolveFile - edge cases', () => {
+    it('should handle directory without index file', async () => {
+      const fromFile = '/workspace/src/app.ts';
+      const toImport = './empty-dir';
+
+      vi.mocked(vscode.workspace.fs.stat)
+        .mockResolvedValueOnce({
+          type: vscode.FileType.File,
+          ctime: Date.now(),
+          mtime: Date.now(),
+          size: 100,
+        })
+        .mockRejectedValueOnce(new Error('Not found')) // .ts
+        .mockRejectedValueOnce(new Error('Not found')) // .tsx
+        .mockRejectedValueOnce(new Error('Not found')) // .js
+        .mockRejectedValueOnce(new Error('Not found')) // .jsx
+        .mockResolvedValueOnce({
+          type: vscode.FileType.Directory,
+          ctime: Date.now(),
+          mtime: Date.now(),
+          size: 0,
+        })
+        .mockRejectedValue(new Error('No index file')); // All index files not found
+
+      const result = await provider.resolveImport(fromFile, toImport);
+      expect(result).toBeNull();
+    });
+  });
 });
