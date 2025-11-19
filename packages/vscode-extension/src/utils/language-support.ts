@@ -54,15 +54,15 @@ export function getSupportedLanguagesList(): string {
  */
 export function isDiagramTypeSupported(
   languageId: string,
-  diagramType: 'class' | 'sequence' | 'flowchart'
+  diagramType: 'class' | 'sequence'
 ): boolean {
   // Class diagrams are supported for all languages
   if (diagramType === 'class') {
     return isSupportedLanguage(languageId);
   }
 
-  // Sequence and flowchart diagrams are currently only supported for TS/JS
-  if (diagramType === 'sequence' || diagramType === 'flowchart') {
+  // Sequence diagrams are currently only supported for TS/JS
+  if (diagramType === 'sequence') {
     return ['typescript', 'javascript', 'typescriptreact', 'javascriptreact'].includes(languageId);
   }
 
@@ -74,10 +74,10 @@ export function isDiagramTypeSupported(
  */
 export function getUnsupportedDiagramTypeMessage(
   languageId: string,
-  diagramType: 'class' | 'sequence' | 'flowchart'
+  diagramType: 'class' | 'sequence'
 ): string {
   const languageName = getLanguageName(languageId);
-  if (diagramType === 'sequence' || diagramType === 'flowchart') {
+  if (diagramType === 'sequence') {
     return `${diagramType} diagrams are currently only supported for TypeScript/JavaScript files. ${languageName} support is planned for future releases.`;
   }
   return `${diagramType} diagrams are not supported for ${languageName} files.`;

@@ -114,12 +114,7 @@ export class UMLAnalyzer {
         }
       }
 
-      // For other diagram types (flowchart), currently only support single-file (depth = 0)
-      if (depth > 0) {
-        throw new Error(
-          `Cross-file analysis (depth > 0) is only supported for class and sequence diagrams. Type '${type}' only supports depth=0`
-        );
-      }
+
 
       // Single-file analysis for flowchart, dependency
       return await this.generateSingleFileDiagram(filePath, type);
@@ -394,12 +389,7 @@ export class UMLAnalyzer {
 
     if (type === 'class') {
       return this.generateClassDiagram(ast, code, filePath);
-    } else if (type === 'flowchart') {
-      // Flowchart currently only supports Babel AST (TypeScript/JavaScript)
-      if ('language' in ast) {
-        throw new Error('Flowchart diagrams are currently only supported for TypeScript/JavaScript files');
-      }
-      return this.generateFlowchart(ast as t.File, code);
+
     } else if (type === 'sequence') {
       // Sequence diagrams support both Babel AST (TypeScript/JavaScript) and UnifiedAST (Java/Python)
       if ('language' in ast) {
@@ -663,12 +653,12 @@ export class UMLAnalyzer {
 
     // First, try to get type from type annotation
     let typeStr = this.getTypeAnnotation(node.typeAnnotation);
-    
+
     // If no type annotation, try to infer from initialization expression
     if (!typeStr && node.value) {
       typeStr = this.inferTypeFromExpression(node.value);
     }
-    
+
     const isArray = typeStr
       ? typeStr.endsWith('[]') || typeStr.startsWith('Array<') || typeStr === 'Array'
       : false;
@@ -694,7 +684,7 @@ export class UMLAnalyzer {
     if (t.isNewExpression(expr) && t.isIdentifier(expr.callee)) {
       return expr.callee.name;
     }
-    
+
     // [item1, item2, ...] -> infer from first element
     if (t.isArrayExpression(expr) && expr.elements.length > 0) {
       const firstElement = expr.elements[0];
@@ -706,27 +696,27 @@ export class UMLAnalyzer {
       }
       return 'Array';
     }
-    
+
     // Identifier reference
     if (t.isIdentifier(expr)) {
       return expr.name;
     }
-    
+
     // String literal
     if (t.isStringLiteral(expr)) {
       return 'string';
     }
-    
+
     // Number literal
     if (t.isNumericLiteral(expr)) {
       return 'number';
     }
-    
+
     // Boolean literal
     if (t.isBooleanLiteral(expr)) {
       return 'boolean';
     }
-    
+
     return undefined;
   }
 
@@ -1212,187 +1202,6 @@ export class UMLAnalyzer {
 
     return Array.from(participantMap.values());
   }
-
-  /**
-   * Generate flowchart
-   */
-  private generateFlowchart(ast: t.File, _code: string): UMLResult {
-    const functions: string[] = [];
-    let mainFlowchart = '';
-
-    // Find main functions
-    traverse(ast, {
-      FunctionDeclaration: (path: any) => {
-        const node = path.node;
-        if (node.id) {
-          const funcName = node.id.name;
-          functions.push(funcName);
-
-          // Generate flowchart for the first function found
-          if (!mainFlowchart) {
-            mainFlowchart = this.generateFunctionFlowchart(node, funcName);
-          }
-        }
-      },
-      ArrowFunctionExpression: (path: any) => {
-        const parent = path.parent;
-        if (t.isVariableDeclarator(parent) && t.isIdentifier(parent.id)) {
-          const funcName = parent.id.name;
-          functions.push(funcName);
-
-          if (!mainFlowchart) {
-            mainFlowchart = this.generateArrowFunctionFlowchart(path.node, funcName);
-          }
-        }
-      },
-      ClassMethod: (path: any) => {
-        const node = path.node;
-        if (t.isIdentifier(node.key)) {
-          const methodName = node.key.name;
-          functions.push(methodName);
-
-          if (!mainFlowchart) {
-            mainFlowchart = this.generateFunctionFlowchart(node, methodName);
-          }
-        }
-      },
-    });
-
-    // If no function found, generate a simple flowchart
-    if (!mainFlowchart) {
-      mainFlowchart = this.generateSimpleFlowchart();
-    }
-
-    return {
-      type: 'flowchart',
-      mermaidCode: mainFlowchart,
-      generationMode: 'native',
-      metadata: { functions },
-    };
-  }
-
-  /**
-   * Generate function flowchart
-   */
-  private generateFunctionFlowchart(
-    node: t.FunctionDeclaration | t.ClassMethod,
-    name: string
-  ): string {
-    let flowchart = 'flowchart TD\n';
-    let nodeId = 0;
-
-    const getNextId = () => `node${nodeId++}`;
-
-    const startId = getNextId();
-    flowchart += `  ${startId}([Start: ${name}])\n`;
-
-    let currentId = startId;
-    let endId = '';
-
-    // Process function body
-    if (node.body && t.isBlockStatement(node.body)) {
-      const bodyStatements = node.body.body;
-
-      bodyStatements.forEach((statement) => {
-        const nextId = getNextId();
-
-        if (t.isIfStatement(statement)) {
-          // Conditional branch
-          flowchart += `  ${nextId}{${this.getStatementLabel(statement)}}\n`;
-          flowchart += `  ${currentId} --> ${nextId}\n`;
-
-          const trueId = getNextId();
-          const falseId = getNextId();
-
-          flowchart += `  ${trueId}[True branch]\n`;
-          flowchart += `  ${falseId}[False branch]\n`;
-          flowchart += `  ${nextId} -->|Yes| ${trueId}\n`;
-          flowchart += `  ${nextId} -->|No| ${falseId}\n`;
-
-          currentId = nextId;
-        } else if (t.isWhileStatement(statement) || t.isForStatement(statement)) {
-          // Loop
-          flowchart += `  ${nextId}{${this.getStatementLabel(statement)}}\n`;
-          flowchart += `  ${currentId} --> ${nextId}\n`;
-
-          const loopBodyId = getNextId();
-          flowchart += `  ${loopBodyId}[Loop body]\n`;
-          flowchart += `  ${nextId} -->|Continue| ${loopBodyId}\n`;
-          flowchart += `  ${loopBodyId} --> ${nextId}\n`;
-
-          currentId = nextId;
-        } else if (t.isReturnStatement(statement)) {
-          // Return statement
-          flowchart += `  ${nextId}[Return]\n`;
-          flowchart += `  ${currentId} --> ${nextId}\n`;
-          currentId = nextId;
-        } else {
-          // General statement
-          const label = this.getStatementLabel(statement);
-          if (label) {
-            flowchart += `  ${nextId}[${label}]\n`;
-            flowchart += `  ${currentId} --> ${nextId}\n`;
-            currentId = nextId;
-          }
-        }
-      });
-    }
-
-    // End node
-    endId = getNextId();
-    flowchart += `  ${endId}([End])\n`;
-    flowchart += `  ${currentId} --> ${endId}\n`;
-
-    return flowchart;
-  }
-
-  /**
-   * Generate arrow function flowchart
-   */
-  private generateArrowFunctionFlowchart(_node: t.ArrowFunctionExpression, name: string): string {
-    let flowchart = 'flowchart TD\n';
-    flowchart += `  start([Start: ${name}])\n`;
-    flowchart += `  process[Function body]\n`;
-    flowchart += `  end([End])\n`;
-    flowchart += `  start --> process\n`;
-    flowchart += `  process --> end\n`;
-
-    return flowchart;
-  }
-
-  /**
-   * Generate simple flowchart
-   */
-  private generateSimpleFlowchart(): string {
-    return `flowchart TD
-  start([Start])
-  process[Code execution]
-  end([End])
-  start --> process
-  process --> end
-`;
-  }
-
-  /**
-   * Get statement label
-   */
-  private getStatementLabel(statement: t.Statement): string {
-    if (t.isIfStatement(statement)) {
-      return 'Condition';
-    } else if (t.isWhileStatement(statement)) {
-      return 'While loop';
-    } else if (t.isForStatement(statement)) {
-      return 'For loop';
-    } else if (t.isReturnStatement(statement)) {
-      return 'Return';
-    } else if (t.isVariableDeclaration(statement)) {
-      return 'Variable declaration';
-    } else if (t.isExpressionStatement(statement)) {
-      return 'Expression';
-    } else if (t.isTryStatement(statement)) {
-      return 'Try-catch';
-    }
-
-    return 'Process';
-  }
 }
+
+

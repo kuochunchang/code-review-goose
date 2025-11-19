@@ -7,272 +7,273 @@ import * as vscode from 'vscode';
 import { UMLAnalyzer } from '@code-review-goose/analysis-core';
 import { VSCodeFileProvider } from '@code-review-goose/analysis-adapter-vscode';
 
-export type DiagramType = 'class' | 'sequence' | 'flowchart';
+export type DiagramType = 'class' | 'sequence';
 export type AnalysisMode = 'forward' | 'reverse' | 'bidirectional';
 
 export interface DiagramOptions {
-  depth: 0 | 1 | 2 | 3;
-  mode: AnalysisMode;
+    depth: 0 | 1 | 2 | 3;
+    mode: AnalysisMode;
 }
 
 export class DiagramPanel {
-  public static currentPanel: DiagramPanel | undefined;
-  private readonly _panel: vscode.WebviewPanel;
-  private readonly _extensionUri: vscode.Uri;
-  private _disposables: vscode.Disposable[] = [];
+    public static currentPanel: DiagramPanel | undefined;
+    private readonly _panel: vscode.WebviewPanel;
+    private readonly _extensionUri: vscode.Uri;
+    private _disposables: vscode.Disposable[] = [];
 
-  // Current state
-  private _currentFile: vscode.Uri | undefined;
-  private _currentType: DiagramType = 'class';
-  private _currentOptions: DiagramOptions = { depth: 0, mode: 'bidirectional' };
-  private _mermaidCode: string = '';
+    // Current state
+    private _currentFile: vscode.Uri | undefined;
+    private _currentType: DiagramType = 'class';
+    private _currentOptions: DiagramOptions = { depth: 0, mode: 'bidirectional' };
+    private _mermaidCode: string = '';
 
-  private constructor(
-    panel: vscode.WebviewPanel,
-    extensionUri: vscode.Uri
-  ) {
-    this._panel = panel;
-    this._extensionUri = extensionUri;
+    private constructor(
+        panel: vscode.WebviewPanel,
+        extensionUri: vscode.Uri
+    ) {
+        this._panel = panel;
+        this._extensionUri = extensionUri;
 
-    // Set initial HTML content (only once)
-    this._panel.webview.html = this._getWebviewContent();
+        // Set initial HTML content (only once)
+        this._panel.webview.html = this._getWebviewContent();
 
-    // Handle messages from webview
-    this._panel.webview.onDidReceiveMessage(
-      async (message) => {
-        switch (message.command) {
-          case 'regenerate':
-            await this._handleRegenerate(message.type, message.options);
-            break;
-          case 'error':
-            vscode.window.showErrorMessage(message.text);
-            break;
-          case 'info':
-            vscode.window.showInformationMessage(message.text);
-            break;
-        }
-      },
-      null,
-      this._disposables
-    );
+        // Handle messages from webview
+        this._panel.webview.onDidReceiveMessage(
+            async (message) => {
+                switch (message.command) {
+                    case 'regenerate':
+                        await this._handleRegenerate(message.type, message.options);
+                        break;
+                    case 'error':
+                        vscode.window.showErrorMessage(message.text);
+                        break;
+                    case 'info':
+                        vscode.window.showInformationMessage(message.text);
+                        break;
+                }
+            },
+            null,
+            this._disposables
+        );
 
-    // Clean up when panel is disposed
-    this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-  }
-
-  /**
-   * Create or show the diagram panel
-   */
-  public static createOrShow(
-    extensionUri: vscode.Uri,
-    file?: vscode.Uri
-  ): DiagramPanel {
-    // Open panel beside the active editor (side-by-side)
-    const column = vscode.ViewColumn.Beside;
-
-    // If we already have a panel, show it
-    if (DiagramPanel.currentPanel) {
-      DiagramPanel.currentPanel._panel.reveal(column);
-      if (file) {
-        DiagramPanel.currentPanel._currentFile = file;
-        DiagramPanel.currentPanel._generateDiagram();
-      }
-      return DiagramPanel.currentPanel;
+        // Clean up when panel is disposed
+        this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
     }
 
-    // Otherwise, create a new panel beside the active editor
-    const panel = vscode.window.createWebviewPanel(
-      'gooseCodeReviewUML',
-      '🦆 UML Diagram',
-      column,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-        localResourceRoots: [extensionUri],
-      }
-    );
+    /**
+     * Create or show the diagram panel
+     */
+    public static createOrShow(
+        extensionUri: vscode.Uri,
+        file?: vscode.Uri
+    ): DiagramPanel {
+        // Open panel beside the active editor (side-by-side)
+        const column = vscode.ViewColumn.Beside;
 
-    DiagramPanel.currentPanel = new DiagramPanel(panel, extensionUri);
-
-    if (file) {
-      DiagramPanel.currentPanel._currentFile = file;
-      DiagramPanel.currentPanel._generateDiagram();
-    }
-
-    return DiagramPanel.currentPanel;
-  }
-
-  /**
-   * Generate diagram for current file with current settings
-   */
-  public async generateDiagram(
-    file: vscode.Uri,
-    type?: DiagramType,
-    options?: Partial<DiagramOptions>
-  ): Promise<void> {
-    this._currentFile = file;
-
-    if (type) {
-      this._currentType = type;
-    }
-
-    if (options) {
-      this._currentOptions = { ...this._currentOptions, ...options };
-    }
-
-    await this._generateDiagram();
-  }
-
-  /**
-   * Handle regenerate request from webview
-   */
-  private async _handleRegenerate(type: DiagramType, options: DiagramOptions): Promise<void> {
-    this._currentType = type;
-    this._currentOptions = options;
-    await this._generateDiagram();
-  }
-
-  /**
-   * Generate diagram with current settings
-   */
-  private async _generateDiagram(): Promise<void> {
-    if (!this._currentFile) {
-      return;
-    }
-
-    try {
-      // Show loading state
-      this._panel.webview.postMessage({
-        command: 'loading',
-        isLoading: true,
-      });
-
-      // Get workspace folder
-      const workspaceFolder = vscode.workspace.getWorkspaceFolder(this._currentFile);
-      if (!workspaceFolder) {
-        throw new Error('File is not in a workspace');
-      }
-
-      // Create file provider and analyzer
-      const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
-      const analyzer = new UMLAnalyzer(fileProvider);
-
-      // Determine options based on diagram type
-      const generateOptions =
-        this._currentType === 'class' || this._currentType === 'sequence'
-          ? {
-              depth: this._currentOptions.depth,
-              mode: this._currentOptions.mode,
+        // If we already have a panel, show it
+        if (DiagramPanel.currentPanel) {
+            DiagramPanel.currentPanel._panel.reveal(column);
+            if (file) {
+                DiagramPanel.currentPanel._currentFile = file;
+                DiagramPanel.currentPanel._generateDiagram();
             }
-          : {
-              depth: 0, // Flowchart only supports single-file (depth 0)
-            };
-
-      let result;
-      let fallbackUsed = false;
-
-      try {
-        // Generate diagram
-        result = await analyzer.generateUnifiedDiagram(
-          this._currentFile.fsPath,
-          this._currentType,
-          generateOptions
-        );
-      } catch (crossFileError) {
-        // If cross-file analysis fails and depth > 0, fallback to single-file analysis
-        if (this._currentOptions.depth > 0) {
-          console.warn(
-            `Cross-file analysis failed (depth=${this._currentOptions.depth}), falling back to single-file analysis:`,
-            crossFileError
-          );
-
-          vscode.window.showWarningMessage(
-            `Cross-file analysis failed. Showing single-file diagram instead. Error: ${
-              crossFileError instanceof Error ? crossFileError.message : String(crossFileError)
-            }`
-          );
-
-          // Retry with depth=0
-          result = await analyzer.generateUnifiedDiagram(this._currentFile.fsPath, this._currentType, {
-            depth: 0,
-            mode: this._currentOptions.mode,
-          });
-
-          fallbackUsed = true;
-        } else {
-          // Single-file analysis failed, re-throw
-          throw crossFileError;
+            return DiagramPanel.currentPanel;
         }
-      }
 
-      this._mermaidCode = result.mermaidCode;
-
-      // Update webview HTML with new diagram
-      this._updateWebview();
-
-      // Show warning if fallback was used
-      if (fallbackUsed) {
-        vscode.window.showWarningMessage(
-          'Cross-file analysis failed. Showing single-file diagram only.'
+        // Otherwise, create a new panel beside the active editor
+        const panel = vscode.window.createWebviewPanel(
+            'gooseCodeReviewUML',
+            '🦆 UML Diagram',
+            column,
+            {
+                enableScripts: true,
+                retainContextWhenHidden: true,
+                localResourceRoots: [extensionUri],
+            }
         );
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // Provide more detailed error messages
-      let userFriendlyMessage = errorMessage;
-      if (errorMessage.includes('File not found')) {
-        userFriendlyMessage = `File not found. Please ensure the file exists and is within the workspace.`;
-      } else if (errorMessage.includes('Cannot resolve import')) {
-        userFriendlyMessage = `Import resolution failed. Try using single-file mode (depth=0) or check import paths.`;
-      } else if (errorMessage.includes('outside workspace boundary')) {
-        userFriendlyMessage = `File is outside workspace boundary. Please open the file from within your workspace.`;
-      }
+        DiagramPanel.currentPanel = new DiagramPanel(panel, extensionUri);
 
-      // Notify webview about error
-      this._panel.webview.postMessage({
-        command: 'error',
-        text: userFriendlyMessage,
-      });
+        if (file) {
+            DiagramPanel.currentPanel._currentFile = file;
+            DiagramPanel.currentPanel._generateDiagram();
+        }
 
-      vscode.window.showErrorMessage(`Failed to generate diagram: ${userFriendlyMessage}`);
-      console.error('Diagram generation error:', error);
+        return DiagramPanel.currentPanel;
     }
-  }
 
-  /**
-   * Update the webview content
-   */
-  private _updateWebview(): void {
-    this._panel.webview.html = this._getWebviewContent();
-  }
+    /**
+     * Generate diagram for current file with current settings
+     */
+    public async generateDiagram(
+        file: vscode.Uri,
+        type?: DiagramType,
+        options?: Partial<DiagramOptions>
+    ): Promise<void> {
+        this._currentFile = file;
 
-  /**
-   * Dispose of the panel
-   */
-  public dispose(): void {
-    DiagramPanel.currentPanel = undefined;
+        if (type) {
+            this._currentType = type;
+        }
 
-    this._panel.dispose();
+        if (options) {
+            this._currentOptions = { ...this._currentOptions, ...options };
+        }
 
-    while (this._disposables.length) {
-      const disposable = this._disposables.pop();
-      if (disposable) {
-        disposable.dispose();
-      }
+        await this._generateDiagram();
     }
-  }
 
-  /**
-   * Get webview HTML content with interactive controls
-   */
-  private _getWebviewContent(): string {
-    const nonce = this._getNonce();
-    const fileName = this._currentFile
-      ? vscode.workspace.asRelativePath(this._currentFile)
-      : '';
+    /**
+     * Handle regenerate request from webview
+     */
+    private async _handleRegenerate(type: DiagramType, options: DiagramOptions): Promise<void> {
+        this._currentType = type;
+        this._currentOptions = options;
+        await this._generateDiagram();
+    }
 
-    return `<!DOCTYPE html>
+    /**
+     * Generate diagram with current settings
+     */
+    private async _generateDiagram(): Promise<void> {
+        if (!this._currentFile) {
+            return;
+        }
+
+        try {
+            // Show loading state
+            this._panel.webview.postMessage({
+                command: 'loading',
+                isLoading: true,
+            });
+
+            // Get workspace folder
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(this._currentFile);
+            if (!workspaceFolder) {
+                throw new Error('File is not in a workspace');
+            }
+
+            // Create file provider and analyzer
+            const fileProvider = new VSCodeFileProvider(workspaceFolder.uri);
+            const analyzer = new UMLAnalyzer(fileProvider);
+
+            // Determine options based on diagram type
+            const generateOptions =
+                this._currentType === 'class' || this._currentType === 'sequence'
+                    ? {
+                        depth: this._currentOptions.depth,
+                        mode: this._currentOptions.mode,
+                    }
+                    : {
+                        depth: 0, // Default depth for other types if needed, or handle specific types
+                        mode: this._currentOptions.mode,
+                    };
+
+
+            let result;
+            let fallbackUsed = false;
+
+            try {
+                // Generate diagram
+                result = await analyzer.generateUnifiedDiagram(
+                    this._currentFile.fsPath,
+                    this._currentType,
+                    generateOptions
+                );
+            } catch (crossFileError) {
+                // If cross-file analysis fails and depth > 0, fallback to single-file analysis
+                if (this._currentOptions.depth > 0) {
+                    console.warn(
+                        `Cross-file analysis failed (depth=${this._currentOptions.depth}), falling back to single-file analysis:`,
+                        crossFileError
+                    );
+
+                    vscode.window.showWarningMessage(
+                        `Cross-file analysis failed. Showing single-file diagram instead. Error: ${crossFileError instanceof Error ? crossFileError.message : String(crossFileError)
+                        }`
+                    );
+
+                    // Retry with depth=0
+                    result = await analyzer.generateUnifiedDiagram(this._currentFile.fsPath, this._currentType, {
+                        depth: 0,
+                        mode: this._currentOptions.mode,
+                    });
+
+                    fallbackUsed = true;
+                } else {
+                    // Single-file analysis failed, re-throw
+                    throw crossFileError;
+                }
+            }
+
+            this._mermaidCode = result.mermaidCode;
+
+            // Update webview HTML with new diagram
+            this._updateWebview();
+
+            // Show warning if fallback was used
+            if (fallbackUsed) {
+                vscode.window.showWarningMessage(
+                    'Cross-file analysis failed. Showing single-file diagram only.'
+                );
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+
+            // Provide more detailed error messages
+            let userFriendlyMessage = errorMessage;
+            if (errorMessage.includes('File not found')) {
+                userFriendlyMessage = `File not found. Please ensure the file exists and is within the workspace.`;
+            } else if (errorMessage.includes('Cannot resolve import')) {
+                userFriendlyMessage = `Import resolution failed. Try using single-file mode (depth=0) or check import paths.`;
+            } else if (errorMessage.includes('outside workspace boundary')) {
+                userFriendlyMessage = `File is outside workspace boundary. Please open the file from within your workspace.`;
+            }
+
+            // Notify webview about error
+            this._panel.webview.postMessage({
+                command: 'error',
+                text: userFriendlyMessage,
+            });
+
+            vscode.window.showErrorMessage(`Failed to generate diagram: ${userFriendlyMessage}`);
+            console.error('Diagram generation error:', error);
+        }
+    }
+
+    /**
+     * Update the webview content
+     */
+    private _updateWebview(): void {
+        this._panel.webview.html = this._getWebviewContent();
+    }
+
+    /**
+     * Dispose of the panel
+     */
+    public dispose(): void {
+        DiagramPanel.currentPanel = undefined;
+
+        this._panel.dispose();
+
+        while (this._disposables.length) {
+            const disposable = this._disposables.pop();
+            if (disposable) {
+                disposable.dispose();
+            }
+        }
+    }
+
+    /**
+     * Get webview HTML content with interactive controls
+     */
+    private _getWebviewContent(): string {
+        const nonce = this._getNonce();
+        const fileName = this._currentFile
+            ? vscode.workspace.asRelativePath(this._currentFile)
+            : '';
+
+        return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -496,9 +497,7 @@ export class DiagramPanel {
                 <button class="btn ${this._currentType === 'sequence' ? 'active' : ''}" data-type="sequence">
                     Sequence
                 </button>
-                <button class="btn ${this._currentType === 'flowchart' ? 'active' : ''}" data-type="flowchart">
-                    Flowchart
-                </button>
+
             </div>
 
             <div class="separator"></div>
@@ -577,16 +576,15 @@ export class DiagramPanel {
 
     <!-- Diagram Display -->
     <div class="diagram-container" id="diagramContainer">
-        ${
-          this._mermaidCode
-            ? `<div class="mermaid">${this._mermaidCode}</div>`
-            : `
+        ${this._mermaidCode
+                ? `<div class="mermaid">${this._mermaidCode}</div>`
+                : `
         <div class="empty-state">
             <div class="empty-state-icon">📊</div>
             <p>Select a supported file (TypeScript, JavaScript, Java, or Python) and click Refresh to generate a UML diagram</p>
         </div>
         `
-        }
+            }
     </div>
 
     <script type="module" nonce="${nonce}">
@@ -907,17 +905,17 @@ export class DiagramPanel {
     </script>
 </body>
 </html>`;
-  }
-
-  /**
-   * Generate nonce for CSP
-   */
-  private _getNonce(): string {
-    let text = '';
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < 32; i++) {
-      text += possible.charAt(Math.floor(Math.random() * possible.length));
     }
-    return text;
-  }
+
+    /**
+     * Generate nonce for CSP
+     */
+    private _getNonce(): string {
+        let text = '';
+        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        for (let i = 0; i < 32; i++) {
+            text += possible.charAt(Math.floor(Math.random() * possible.length));
+        }
+        return text;
+    }
 }

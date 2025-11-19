@@ -316,149 +316,7 @@ describe('UMLAnalyzer', () => {
     });
   });
 
-  describe('generateDiagram - flowchart', () => {
-    it('should generate flowchart for function', async () => {
-      const code = `
-        function processData() {
-          const x = 1;
-          return x * 2;
-        }
-      `;
 
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-
-      expect(result.type).toBe('flowchart');
-      expect(result.mermaidCode).toContain('flowchart');
-      expect(result.mermaidCode).toContain('Start');
-      expect(result.mermaidCode).toContain('End');
-    });
-
-    it('should show conditional branches', async () => {
-      const code = `
-        function check(value) {
-          if (value > 0) {
-            return 'positive';
-          } else {
-            return 'negative';
-          }
-        }
-      `;
-
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-
-      expect(result.mermaidCode).toContain('Condition');
-      expect(result.mermaidCode).toContain('Yes');
-      expect(result.mermaidCode).toContain('No');
-    });
-
-    it('should show loops', async () => {
-      const code = `
-        function iterate() {
-          while (true) {
-            process();
-          }
-        }
-
-        function process() {}
-      `;
-
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-
-      expect(result.mermaidCode).toContain('While loop');
-    });
-
-    it('should handle for loops', async () => {
-      const code = `
-        function iterate() {
-          for (let i = 0; i < 10; i++) {
-            process();
-          }
-        }
-
-        function process() {}
-      `;
-
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-
-      expect(result.mermaidCode).toContain('For loop');
-    });
-
-    it('should handle class methods', async () => {
-      const code = `
-        class Service {
-          process() {
-            return true;
-          }
-        }
-      `;
-
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-
-      expect(result.mermaidCode).toContain('Start');
-      expect(result.mermaidCode).toContain('End');
-    });
-
-    it('should handle arrow functions', async () => {
-      const code = `
-        const process = () => {
-          return true;
-        };
-      `;
-
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-
-      expect(result.mermaidCode).toContain('flowchart');
-    });
-
-    it('should generate simple flowchart for empty file', async () => {
-      const code = ``;
-
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-
-      expect(result.mermaidCode).toContain('flowchart');
-      expect(result.mermaidCode).toContain('Start');
-    });
-
-    it('should handle return statements', async () => {
-      const code = `
-        function test() {
-          return 42;
-        }
-      `;
-
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-      expect(result.type).toBe('flowchart');
-      expect(result.mermaidCode).toContain('Return');
-    });
-
-    it('should handle expression statements', async () => {
-      const code = `
-        function test() {
-          console.log('test');
-          x = 5;
-        }
-      `;
-
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-      expect(result.type).toBe('flowchart');
-    });
-
-    it('should handle try-catch statements', async () => {
-      const code = `
-        function test() {
-          try {
-            riskyOperation();
-          } catch (error) {
-            handleError(error);
-          }
-        }
-      `;
-
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-      expect(result.type).toBe('flowchart');
-      expect(result.mermaidCode).toContain('Try-catch');
-    });
-  });
 
   describe('generateUnifiedDiagram', () => {
     it('should generate single-file class diagram with depth 0', async () => {
@@ -559,17 +417,7 @@ describe('UMLAnalyzer', () => {
       expect(result.metadata?.singleFile).toBe(false);
     });
 
-    it('should generate single-file flowchart with depth 0', async () => {
-      const code = `function foo() {}`;
 
-      (mockFileProvider.readFile as any).mockResolvedValue(code);
-      (mockFileProvider.exists as any).mockResolvedValue(true);
-
-      const result = await analyzer.generateUnifiedDiagram('foo.ts', 'flowchart', { depth: 0 });
-
-      expect(result.type).toBe('flowchart');
-      expect(result.metadata?.depth).toBe(0);
-    });
   });
 
   describe('error handling', () => {
@@ -650,17 +498,7 @@ describe('UMLAnalyzer', () => {
       expect(result.metadata?.interactions).toBeDefined();
     });
 
-    it('should include functions in flowchart metadata', async () => {
-      const code = `
-        function foo() {}
-        function bar() {}
-      `;
 
-      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
-
-      expect(result.metadata?.functions).toBeDefined();
-      expect(result.metadata?.functions?.length).toBeGreaterThan(0);
-    });
   });
 
   describe('generateCrossFileClassDiagram', () => {

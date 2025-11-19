@@ -55,8 +55,7 @@ export type {
   // Diagram types
   DiagramType,
   DiagramGenerationMode,
-  // Flowchart
-  FlowNode,
+
   // Sequence diagram
   InteractionInfo,
   SequenceInfo,

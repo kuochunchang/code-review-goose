@@ -33,10 +33,7 @@ describe('Extension', () => {
         'gooseCodeReview.generateSequenceDiagram',
         expect.any(Function)
       );
-      expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
-        'gooseCodeReview.generateFlowchart',
-        expect.any(Function)
-      );
+
     });
 
     it('should show activation message', async () => {
@@ -78,7 +75,7 @@ describe('Extension', () => {
       const openUMLPanelCall = registerCommandCalls.find(
         (call: any[]) => call[0] === 'gooseCodeReview.openUMLPanel'
       );
-      
+
       if (openUMLPanelCall && openUMLPanelCall[1]) {
         await openUMLPanelCall[1]();
         expect(vscode.window.showErrorMessage).toHaveBeenCalledWith('No active editor found');
@@ -105,7 +102,7 @@ describe('Extension', () => {
       const openUMLPanelCall = registerCommandCalls.find(
         (call: any[]) => call[0] === 'gooseCodeReview.openUMLPanel'
       );
-      
+
       if (openUMLPanelCall && openUMLPanelCall[1]) {
         await openUMLPanelCall[1]();
         expect(vscode.window.showWarningMessage).toHaveBeenCalled();
@@ -138,7 +135,7 @@ describe('Extension', () => {
       const openUMLPanelCall = registerCommandCalls.find(
         (call: any[]) => call[0] === 'gooseCodeReview.openUMLPanel'
       );
-      
+
       if (openUMLPanelCall && openUMLPanelCall[1]) {
         await openUMLPanelCall[1]();
         // Panel should be created (may show error if diagram generation fails, but that's expected)
