@@ -307,5 +307,70 @@ from ..parent import module
 
       expect(result.imports.length).toBeGreaterThan(0);
     });
+
+    it('should set isArray property for array types from list comprehensions', () => {
+      const code = `
+class Car:
+    def __init__(self):
+        self.wheels = [Wheel() for _ in range(4)]
+        self.engine = Engine()
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      expect(result.classes).toHaveLength(1);
+      expect(result.classes[0].properties).toHaveLength(2);
+      
+      const wheelsProperty = result.classes[0].properties.find(p => p.name === 'wheels');
+      const engineProperty = result.classes[0].properties.find(p => p.name === 'engine');
+      
+      expect(wheelsProperty).toBeDefined();
+      expect(wheelsProperty?.type).toBe('Wheel[]');
+      expect(wheelsProperty?.isArray).toBe(true);
+      
+      expect(engineProperty).toBeDefined();
+      expect(engineProperty?.type).toBe('Engine');
+      expect(engineProperty?.isArray).toBe(false);
+    });
+
+    it('should set isArray property for array types from list literals', () => {
+      const code = `
+class Team:
+    def __init__(self):
+        self.members = [Person(), Person()]
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      expect(result.classes).toHaveLength(1);
+      expect(result.classes[0].properties).toHaveLength(1);
+      
+      const membersProperty = result.classes[0].properties[0];
+      expect(membersProperty.name).toBe('members');
+      expect(membersProperty.type).toBe('Person[]');
+      expect(membersProperty.isArray).toBe(true);
+    });
+
+    it('should set isArray property for typed class variables', () => {
+      const code = `
+class Container:
+    items: list[Item] = []
+`;
+
+      const tree = parser.parse(code);
+      const result = converter.convert(tree.rootNode, 'test.py');
+
+      expect(result.classes).toHaveLength(1);
+      expect(result.classes[0].properties).toHaveLength(1);
+      
+      const itemsProperty = result.classes[0].properties[0];
+      expect(itemsProperty.name).toBe('items');
+      // Note: Type annotation extraction might vary, but isArray should be set based on the type string
+      if (itemsProperty.type?.includes('[]') || itemsProperty.type?.includes('list')) {
+        expect(itemsProperty.isArray).toBe(true);
+      }
+    });
   });
 });

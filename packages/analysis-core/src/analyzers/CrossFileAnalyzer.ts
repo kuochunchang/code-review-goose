@@ -1,6 +1,7 @@
 import { parse } from '@babel/parser';
 import traverseDefault from '@babel/traverse';
 import * as t from '@babel/types';
+import * as path from 'path';
 import type {
   BidirectionalAnalysisResult,
   ClassInfo,
@@ -371,29 +372,30 @@ export class CrossFileAnalyzer {
     className: string,
     language: string | null
   ): Promise<string | null> {
-    const directory = currentFilePath.substring(0, currentFilePath.lastIndexOf('/'));
+    // Use path.dirname to handle both forward slashes (Unix) and backslashes (Windows)
+    const directory = path.dirname(currentFilePath);
 
     if (language === 'java') {
-      const candidatePath = `${directory}/${className}.java`;
+      const candidatePath = path.join(directory, `${className}.java`);
       if (await this.fileProvider.exists(candidatePath)) {
         return candidatePath;
       }
     } else if (language === 'python') {
       // Try snake_case conversion
       const snakeCaseName = this.camelToSnakeCase(className);
-      const candidatePath1 = `${directory}/${snakeCaseName}.py`;
+      const candidatePath1 = path.join(directory, `${snakeCaseName}.py`);
       if (await this.fileProvider.exists(candidatePath1)) {
         return candidatePath1;
       }
 
       // Try original name (if already snake_case)
-      const candidatePath2 = `${directory}/${className}.py`;
+      const candidatePath2 = path.join(directory, `${className}.py`);
       if (await this.fileProvider.exists(candidatePath2)) {
         return candidatePath2;
       }
 
       // Try lowercase
-      const candidatePath3 = `${directory}/${className.toLowerCase()}.py`;
+      const candidatePath3 = path.join(directory, `${className.toLowerCase()}.py`);
       if (await this.fileProvider.exists(candidatePath3)) {
         return candidatePath3;
       }
@@ -401,13 +403,13 @@ export class CrossFileAnalyzer {
       // Try various TypeScript/JavaScript extensions
       const extensions = ['.ts', '.tsx', '.js', '.jsx'];
       for (const ext of extensions) {
-        const candidatePath = `${directory}/${className}${ext}`;
+        const candidatePath = path.join(directory, `${className}${ext}`);
         if (await this.fileProvider.exists(candidatePath)) {
           return candidatePath;
         }
 
         // Try lowercase for TypeScript/JavaScript
-        const lowerPath = `${directory}/${className.toLowerCase()}${ext}`;
+        const lowerPath = path.join(directory, `${className.toLowerCase()}${ext}`);
         if (await this.fileProvider.exists(lowerPath)) {
           return lowerPath;
         }

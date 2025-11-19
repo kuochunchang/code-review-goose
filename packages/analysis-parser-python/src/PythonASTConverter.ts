@@ -314,11 +314,15 @@ export class PythonASTConverter {
 
     if (!varName) return properties;
 
+    // Check if type is an array
+    const isArray = varType ? (varType.endsWith('[]') || varType.startsWith('Array<') || varType === 'Array') : false;
+
     properties.push({
       name: varName,
       type: varType,
       visibility: 'public', // Python doesn't have private/protected
       lineNumber: this.getLineNumber(parentNode),
+      isArray,
     });
 
     return properties;
@@ -677,11 +681,15 @@ export class PythonASTConverter {
       propertyType = this.inferTypeFromValue(rightNode);
     }
     
+    // Check if type is an array
+    const isArray = propertyType ? (propertyType.endsWith('[]') || propertyType.startsWith('Array<') || propertyType === 'Array') : false;
+    
     return {
       name: propertyName,
       type: propertyType,
       visibility: 'public',
       lineNumber: this.getLineNumber(assignmentNode),
+      isArray,
     };
   }
 
