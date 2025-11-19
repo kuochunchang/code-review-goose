@@ -656,7 +656,7 @@ export class UnifiedSequenceAnalyzer {
   /**
    * Check if a method call is on a built-in type
    */
-  private isBuiltInMethod(targetClass: string, methodName: string): boolean {
+  private isBuiltInMethod(targetClass: string, _methodName: string): boolean {
     // Don't filter out known user-defined classes
     if (this.classes.has(targetClass) || this.importedClasses.has(targetClass) || 
         this.topLevelFunctions.has(targetClass)) {

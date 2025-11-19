@@ -323,7 +323,11 @@ describe('VSCodeFileProvider', () => {
       const toImport = './utils.ts';
 
       // Mock to throw error during resolution (after checking source file exists)
-      // Need to mock all possible paths that resolveImport tries
+      // Need to mock all possible paths that resolveImport tries:
+      // 1. Check source file exists
+      // 2. Check exact path (has .ts extension)
+      // 3. Check if it's a directory
+      // 4. Try index files in directory
       vi.mocked(vscode.workspace.fs.stat)
         .mockResolvedValueOnce({
           type: vscode.FileType.File,
@@ -331,11 +335,9 @@ describe('VSCodeFileProvider', () => {
           mtime: Date.now(),
           size: 100,
         })
-        .mockRejectedValueOnce(new Error('Network error')) // Error when checking exact path
-        .mockRejectedValueOnce(new Error('Network error')) // Error when checking .ts
-        .mockRejectedValueOnce(new Error('Network error')) // Error when checking .tsx
-        .mockRejectedValueOnce(new Error('Network error')) // Error when checking .js
-        .mockRejectedValueOnce(new Error('Network error')); // Error when checking .jsx
+        .mockRejectedValueOnce(new Error('Network error')) // Error when checking exact path with .ts
+        .mockRejectedValueOnce(new Error('Network error')) // Error when checking if directory
+        .mockRejectedValue(new Error('Network error')); // Error for any subsequent checks
 
       const result = await provider.resolveImport(fromFile, toImport);
       expect(result).toBeNull();
