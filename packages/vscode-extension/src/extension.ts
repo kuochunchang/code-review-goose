@@ -9,6 +9,7 @@ import { openAnalysisPanel } from './commands/open-analysis-panel.js';
 import { GenerateClassDiagramCommand } from './commands/generate-class-diagram.js';
 import { GenerateSequenceDiagramCommand } from './commands/generate-sequence-diagram.js';
 import { GenerateFlowchartCommand } from './commands/generate-flowchart.js';
+import { isSupportedLanguage, getSupportedLanguagesList } from './utils/language-support.js';
 
 /**
  * Extension activation
@@ -51,11 +52,10 @@ export function activate(context: vscode.ExtensionContext): void {
 
       // Validate file type
       const document = editor.document;
-      const validLanguages = ['typescript', 'javascript', 'typescriptreact', 'javascriptreact'];
 
-      if (!validLanguages.includes(document.languageId)) {
+      if (!isSupportedLanguage(document.languageId)) {
         vscode.window.showWarningMessage(
-          'UML diagram generation is only supported for TypeScript/JavaScript files'
+          `UML diagram generation is only supported for ${getSupportedLanguagesList()} files`
         );
         return;
       }
@@ -80,12 +80,11 @@ export function activate(context: vscode.ExtensionContext): void {
   statusBarItem.command = 'gooseCodeReview.openUMLPanel';
   statusBarItem.tooltip = 'Open UML Diagram Panel (Ctrl+Shift+U)';
 
-  // Show status bar only for TypeScript/JavaScript files
+  // Show status bar only for supported languages
   function updateStatusBar(): void {
     const editor = vscode.window.activeTextEditor;
     if (editor) {
-      const validLanguages = ['typescript', 'javascript', 'typescriptreact', 'javascriptreact'];
-      if (validLanguages.includes(editor.document.languageId)) {
+      if (isSupportedLanguage(editor.document.languageId)) {
         statusBarItem.show();
       } else {
         statusBarItem.hide();

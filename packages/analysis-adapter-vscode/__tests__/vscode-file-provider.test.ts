@@ -191,7 +191,6 @@ describe('VSCodeFileProvider', () => {
           mtime: Date.now(),
           size: 100,
         })
-        .mockRejectedValueOnce(new Error('Not found')) // exact path
         .mockRejectedValueOnce(new Error('Not found')) // .ts
         .mockRejectedValueOnce(new Error('Not found')) // .tsx
         .mockRejectedValueOnce(new Error('Not found')) // .js

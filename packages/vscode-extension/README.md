@@ -6,17 +6,25 @@ AI-assisted code review with UML diagram generation directly in Visual Studio Co
 
 ### 🎨 UML Diagram Generation
 
-Generate professional UML diagrams from your TypeScript/JavaScript code:
+Generate professional UML diagrams from your code:
 
 - **Class Diagrams**: Visualize class structures, inheritance, and relationships
-- **Sequence Diagrams**: Understand function call flows and interactions
-- **Flowcharts**: Analyze control flow and logic paths
+- **Sequence Diagrams**: Understand function call flows and interactions (TypeScript/JavaScript only)
+- **Flowcharts**: Analyze control flow and logic paths (TypeScript/JavaScript only)
+
+### 🌐 Multi-Language Support
+
+Supports multiple programming languages:
+
+- **TypeScript/JavaScript**: Full support (class, sequence, flowchart diagrams)
+- **Java**: Class diagrams with inheritance, interfaces, and generics
+- **Python**: Class diagrams with inheritance and type hints
 
 ### 🚀 Quick Access
 
-- **Editor Title Bar**: Click the UML icon (graph) in the top-right corner of any TypeScript/JavaScript file
+- **Editor Title Bar**: Click the UML icon (graph) in the top-right corner of any supported file
 - **Command Palette**: Access all features via `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac)
-- **Context Menu**: Right-click in any TypeScript/JavaScript file to generate diagrams
+- **Context Menu**: Right-click in any supported file to generate diagrams
 - **Keyboard Shortcuts**: Press `Ctrl+Shift+U` (Windows/Linux) or `Cmd+Shift+U` (Mac) to open UML panel
 
 ### ⚙️ Customizable Settings
@@ -51,7 +59,7 @@ Fine-tune analysis behavior:
 
 The fastest way to generate UML diagrams:
 
-1. Open a TypeScript or JavaScript file
+1. Open a supported file (TypeScript, JavaScript, Java, or Python)
 2. **Click the UML icon (📊) in the editor title bar** (top-right corner)
 3. Choose diagram type (Class/Sequence/Flowchart) in the interactive panel
 4. Adjust analysis options (depth, mode) as needed
@@ -63,14 +71,14 @@ The fastest way to generate UML diagrams:
 
 ### Generate Class Diagram
 
-1. Open a TypeScript or JavaScript file
+1. Open a supported file (TypeScript, JavaScript, Java, or Python)
 2. Use any quick access method above to open the UML panel
 3. Click **"Class Diagram"** button
 4. View the diagram with interactive controls (zoom, pan, copy, download)
 
 ### Generate Sequence Diagram
 
-1. Open a TypeScript or JavaScript file
+1. Open a TypeScript or JavaScript file (sequence diagrams currently only support TS/JS)
 2. Right-click in the editor
 3. Select **"Generate Sequence Diagram"**
 4. Enter the function name to analyze
@@ -78,7 +86,7 @@ The fastest way to generate UML diagrams:
 
 ### Generate Flowchart
 
-1. Open a TypeScript or JavaScript file
+1. Open a TypeScript or JavaScript file (flowcharts currently only support TS/JS)
 2. Right-click in the editor
 3. Select **"Generate Flowchart"**
 4. Enter the function name to analyze
@@ -110,8 +118,30 @@ Access settings via `File > Preferences > Settings` (Windows/Linux) or `Code > P
 
 ## Supported Languages
 
-- TypeScript (`.ts`, `.tsx`)
-- JavaScript (`.js`, `.jsx`)
+### Full Support (All Diagram Types)
+
+- **TypeScript** (`.ts`, `.tsx`, `.mts`, `.cts`) - Class, sequence, and flowchart diagrams
+- **JavaScript** (`.js`, `.jsx`, `.mjs`, `.cjs`) - Class, sequence, and flowchart diagrams
+
+### Class Diagrams Only
+
+- **Java** (`.java`) - Class diagrams with inheritance, interfaces, and generics
+- **Python** (`.py`, `.pyi`, `.pyw`) - Class diagrams with inheritance and type hints
+
+### Language Features
+
+| Feature | TypeScript | JavaScript | Java | Python |
+|---------|-----------|------------|------|--------|
+| Class Diagrams | ✅ | ✅ | ✅ | ✅ |
+| Sequence Diagrams | ✅ | ✅ | ⏳ | ⏳ |
+| Flowcharts | ✅ | ✅ | ⏳ | ⏳ |
+| Inheritance | ✅ | ✅ | ✅ | ✅ |
+| Interfaces | ✅ | ✅ | ✅ | ⏳ |
+| Type Hints | ✅ | ⏳ | ✅ | ✅ |
+| Generics | ✅ | ⏳ | ✅ | ✅ |
+| Cross-file Analysis | ✅ | ✅ | ✅ | ✅ |
+
+⏳ = Planned for future releases
 
 ## Requirements
 
@@ -122,11 +152,14 @@ Access settings via `File > Preferences > Settings` (Windows/Linux) or `Code > P
 
 The extension uses the Goose Code Review analysis engine to:
 
-1. Parse your TypeScript/JavaScript files using Babel AST
-2. Extract class definitions, methods, and relationships
-3. Analyze dependencies and call flows
-4. Generate Mermaid diagram syntax
-5. Render diagrams using Mermaid.js in a webview panel
+1. **Detect language** from file extension
+2. **Parse code** using appropriate parser:
+   - TypeScript/JavaScript: Babel parser
+   - Java/Python: Tree-sitter parser
+3. **Extract structures**: Classes, methods, relationships, imports
+4. **Analyze dependencies** and call flows
+5. **Generate Mermaid diagram syntax**
+6. **Render diagrams** using Mermaid.js in a webview panel
 
 All analysis happens locally on your machine - **no code is sent to external servers**.
 
@@ -167,8 +200,9 @@ Example:
 
 ### Diagram Not Rendering
 
-- Verify the file is TypeScript or JavaScript
+- Verify the file is a supported language (TypeScript, JavaScript, Java, or Python)
 - Check for syntax errors in your code
+- For sequence/flowchart diagrams, ensure the file is TypeScript or JavaScript
 - Try reducing the analysis depth
 - Check the browser console in the webview (Developer: Toggle Developer Tools)
 

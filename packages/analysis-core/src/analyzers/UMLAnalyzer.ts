@@ -12,11 +12,15 @@ import type {
   PropertyInfo,
   MethodInfo,
   ParameterInfo,
+  UnifiedAST,
+  ImportInfo,
 } from '@code-review-goose/analysis-types';
 import { MermaidValidator } from '@code-review-goose/analysis-utils';
+import { LanguageDetector } from '@code-review-goose/analysis-parser-common';
 import { OOAnalyzer } from './OOAnalyzer.js';
 import { SequenceAnalyzer } from './SequenceAnalyzer.js';
 import { CrossFileAnalyzer } from './CrossFileAnalyzer.js';
+import { ParserService } from '../parsers/ParserService.js';
 
 // Correct way to import @babel/traverse
 const traverse = (traverseModule as any).default || traverseModule;
@@ -31,18 +35,24 @@ export interface DependencyInfo {
 export class UMLAnalyzer {
   private validator: MermaidValidator;
   private fileProvider: IFileProvider;
+  private parserService: ParserService;
 
   constructor(fileProvider: IFileProvider) {
     this.fileProvider = fileProvider;
     this.validator = new MermaidValidator();
+    this.parserService = new ParserService();
   }
 
   /**
    * Generate UML diagram (native mode only)
+   * 
+   * @param code - Source code to analyze
+   * @param type - Diagram type
+   * @param filePath - Optional file path for language detection (required for multi-language support)
    */
-  async generateDiagram(code: string, type: DiagramType): Promise<UMLResult> {
+  async generateDiagram(code: string, type: DiagramType, filePath?: string): Promise<UMLResult> {
     try {
-      return await this.generateWithNative(code, type);
+      return await this.generateWithNative(code, type, filePath || 'unknown.ts');
     } catch (error) {
       throw new Error(`Failed to generate ${type} diagram: ${(error as Error).message}`);
     }
@@ -122,8 +132,8 @@ export class UMLAnalyzer {
     // Read file content using fileProvider
     const code = await this.fileProvider.readFile(filePath);
 
-    // Use existing generateDiagram for single-file class diagram
-    const result = await this.generateDiagram(code, 'class');
+    // Use existing generateDiagram for single-file class diagram (with filePath for language detection)
+    const result = await this.generateDiagram(code, 'class', filePath);
 
     // Add depth metadata
     return {
@@ -147,8 +157,8 @@ export class UMLAnalyzer {
     // Read file content using fileProvider
     const code = await this.fileProvider.readFile(filePath);
 
-    // Use existing generateDiagram for single-file analysis
-    const result = await this.generateDiagram(code, type);
+    // Use existing generateDiagram for single-file analysis (with filePath for language detection)
+    const result = await this.generateDiagram(code, type, filePath);
 
     // Add depth metadata
     return {
@@ -261,35 +271,40 @@ export class UMLAnalyzer {
     for (const file of filesToAnalyze) {
       try {
         const code = await this.fileProvider.readFile(file);
-        const ast = this.parseCode(code);
-        const sequenceAnalyzer = new SequenceAnalyzer();
-        const analysis = sequenceAnalyzer.analyze(ast);
+        const ast = await this.parseCode(code, file);
 
-        // Get relative file name for annotation
-        const fileName = file.split('/').pop() || file;
+        // Sequence analyzer currently only supports Babel AST (TypeScript/JavaScript)
+        // For other languages, skip sequence analysis for now
+        if (!('language' in ast)) {
+          const sequenceAnalyzer = new SequenceAnalyzer();
+          const analysis = sequenceAnalyzer.analyze(ast as t.File);
 
-        // Add participants with source file annotation
-        for (const participant of analysis.participants) {
-          const key = `${participant.name}_${fileName}`;
-          if (!allParticipants.has(key)) {
-            allParticipants.set(key, {
-              ...participant,
+          // Get relative file name for annotation
+          const fileName = file.split('/').pop() || file;
+
+          // Add participants with source file annotation
+          for (const participant of analysis.participants) {
+            const key = `${participant.name}_${fileName}`;
+            if (!allParticipants.has(key)) {
+              allParticipants.set(key, {
+                ...participant,
+                sourceFile: fileName,
+              });
+            }
+          }
+
+          // Add interactions with source file annotation
+          for (const interaction of analysis.interactions) {
+            allInteractions.push({
+              ...interaction,
               sourceFile: fileName,
             });
           }
-        }
 
-        // Add interactions with source file annotation
-        for (const interaction of analysis.interactions) {
-          allInteractions.push({
-            ...interaction,
-            sourceFile: fileName,
-          });
-        }
-
-        // Add entry points
-        for (const entryPoint of analysis.entryPoints) {
-          allEntryPoints.add(entryPoint);
+          // Add entry points
+          for (const entryPoint of analysis.entryPoints) {
+            allEntryPoints.add(entryPoint);
+          }
         }
       } catch (error) {
         // Skip files that can't be analyzed
@@ -358,69 +373,151 @@ export class UMLAnalyzer {
   /**
    * Generate diagram using native AST parsing
    */
-  private async generateWithNative(code: string, type: DiagramType): Promise<UMLResult> {
-    // Parse code to AST
-    const ast = this.parseCode(code);
+  private async generateWithNative(code: string, type: DiagramType, filePath: string): Promise<UMLResult> {
+    // Parse code to AST (supports multiple languages)
+    const ast = await this.parseCode(code, filePath);
 
     if (type === 'class') {
-      return this.generateClassDiagram(ast, code);
+      return this.generateClassDiagram(ast, code, filePath);
     } else if (type === 'flowchart') {
-      return this.generateFlowchart(ast, code);
+      // Flowchart currently only supports Babel AST (TypeScript/JavaScript)
+      if ('language' in ast) {
+        throw new Error('Flowchart diagrams are currently only supported for TypeScript/JavaScript files');
+      }
+      return this.generateFlowchart(ast as t.File, code);
     } else if (type === 'sequence') {
-      return this.generateSequenceDiagram(ast, code);
+      // Sequence diagrams currently only support Babel AST (TypeScript/JavaScript)
+      if ('language' in ast) {
+        throw new Error('Sequence diagrams are currently only supported for TypeScript/JavaScript files');
+      }
+      return this.generateSequenceDiagram(ast as t.File, code);
     }
 
     throw new Error(`Unsupported diagram type: ${type}`);
   }
 
   /**
-   * Parse code to AST
+   * Parse code to AST (supports multiple languages)
+   * For TypeScript/JavaScript, uses Babel parser (backward compatible)
+   * For Java/Python, uses unified parser system
    */
-  private parseCode(code: string): t.File {
-    try {
-      return parse(code, {
-        sourceType: 'module',
-        plugins: [
-          'typescript',
-          'jsx',
-          'decorators-legacy',
-          'classProperties',
-          'classPrivateProperties',
-          'classPrivateMethods',
-        ],
-      });
-    } catch (error) {
-      throw new Error(`Code parsing failed: ${(error as Error).message}`);
+  private async parseCode(code: string, filePath: string): Promise<UnifiedAST | t.File> {
+    // Normalize file path (handle file:// URIs from VS Code)
+    let normalizedPath = filePath;
+    if (filePath.startsWith('file://')) {
+      try {
+        const url = new URL(filePath);
+        normalizedPath = url.pathname;
+        // On Windows, remove leading slash from pathname (e.g., /C:/path -> C:/path)
+        if (process.platform === 'win32' && normalizedPath.match(/^\/[A-Z]:/)) {
+          normalizedPath = normalizedPath.substring(1);
+        }
+      } catch {
+        // If URL parsing fails, try simple string replacement
+        normalizedPath = filePath.replace(/^file:\/\//, '');
+      }
     }
+
+    const language = LanguageDetector.detectFromFilePath(normalizedPath);
+
+    // Debug logging (can be removed in production)
+    if (!language) {
+      console.warn(`[UMLAnalyzer] Could not detect language for file: ${filePath} (normalized: ${normalizedPath})`);
+    } else {
+      console.debug(`[UMLAnalyzer] Detected language: ${language} for file: ${filePath}`);
+    }
+
+    // For TypeScript/JavaScript, use Babel parser (backward compatible)
+    if (language === 'typescript' || language === 'javascript') {
+      try {
+        return parse(code, {
+          sourceType: 'module',
+          plugins: [
+            'typescript',
+            'jsx',
+            'decorators-legacy',
+            'classProperties',
+            'classPrivateProperties',
+            'classPrivateMethods',
+          ],
+        });
+      } catch (error) {
+        throw new Error(`Code parsing failed: ${(error as Error).message}`);
+      }
+    }
+
+    // For other languages (Java, Python), use unified parser
+    if (language) {
+      if (!this.parserService.canParse(normalizedPath)) {
+        throw new Error(
+          `No parser available for language '${language}' (file: ${normalizedPath}). ` +
+          `Supported languages: ${this.parserService.getSupportedLanguages().join(', ')}`
+        );
+      }
+
+      try {
+        return await this.parserService.parse(code, normalizedPath);
+      } catch (error) {
+        throw new Error(
+          `Failed to parse ${language} code: ${(error as Error).message}`
+        );
+      }
+    }
+
+    throw new Error(
+      `Unsupported file type: ${normalizedPath}. ` +
+      `Could not detect language from file path. ` +
+      `Supported extensions: .ts, .tsx, .js, .jsx, .java, .py, .pyi, .pyw`
+    );
   }
 
   /**
-   * Generate class diagram
+   * Generate class diagram (supports both Babel AST and UnifiedAST)
    */
-  private generateClassDiagram(ast: t.File, _code: string): UMLResult {
+  private generateClassDiagram(ast: UnifiedAST | t.File, _code: string, _filePath: string): UMLResult {
     const classes: ClassInfo[] = [];
     const ooAnalyzer = new OOAnalyzer();
+    let imports: ImportInfo[] = [];
 
-    // Extract imports for dependency analysis
-    const imports = ooAnalyzer.extractImports(ast);
+    // Check if it's UnifiedAST (from Java/Python parser) or Babel AST (from TS/JS parser)
+    if ('language' in ast && 'classes' in ast) {
+      // UnifiedAST from Java/Python parser
+      const unifiedAST = ast as UnifiedAST;
+      classes.push(...unifiedAST.classes);
+      // Convert interfaces to ClassInfo format (interfaces have extends as string[])
+      // Preserve type: 'interface' to maintain correct UML representation
+      for (const iface of unifiedAST.interfaces) {
+        classes.push({
+          ...iface,
+          // Keep original type: 'interface' instead of overwriting with 'class'
+          extends: iface.extends && iface.extends.length > 0 ? iface.extends[0] : undefined,
+          implements: iface.extends && iface.extends.length > 1 ? iface.extends.slice(1) : undefined,
+        });
+      }
+      imports = unifiedAST.imports;
+    } else {
+      // Babel AST from TypeScript/JavaScript parser
+      const babelAST = ast as t.File;
+      imports = ooAnalyzer.extractImports(babelAST);
 
-    // Traverse AST to extract class information
-    traverse(ast, {
-      ClassDeclaration: (path: any) => {
-        const node = path.node;
-        const classInfo = this.extractClassInfo(node);
-        if (classInfo) {
-          classes.push(classInfo);
-        }
-      },
-      TSInterfaceDeclaration: (path: any) => {
-        const node = path.node;
-        const interfaceInfo = this.extractInterfaceInfo(node);
-        if (interfaceInfo) {
-          classes.push(interfaceInfo);
-        }
-      },
-    });
+      // Traverse AST to extract class information
+      traverse(babelAST, {
+        ClassDeclaration: (path: any) => {
+          const node = path.node;
+          const classInfo = this.extractClassInfo(node);
+          if (classInfo) {
+            classes.push(classInfo);
+          }
+        },
+        TSInterfaceDeclaration: (path: any) => {
+          const node = path.node;
+          const interfaceInfo = this.extractInterfaceInfo(node);
+          if (interfaceInfo) {
+            classes.push(interfaceInfo);
+          }
+        },
+      });
+    }
 
     // Analyze OO relationships (composition, aggregation, dependency, etc.)
     const ooAnalysis = ooAnalyzer.analyze(classes, imports);
@@ -590,6 +687,15 @@ export class UMLAnalyzer {
           name: param.name,
           type: this.getTypeAnnotation(param.typeAnnotation),
         };
+      }
+      if (t.isTSParameterProperty(param)) {
+        const parameter = param.parameter;
+        if (t.isIdentifier(parameter)) {
+          return {
+            name: parameter.name,
+            type: this.getTypeAnnotation(parameter.typeAnnotation),
+          };
+        }
       }
       return { name: 'unknown' };
     });

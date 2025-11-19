@@ -1,0 +1,48 @@
+{
+  "name": "@code-review-goose/analysis-parser-common",
+  "version": "0.1.0",
+  "description": "Common parser interfaces and utilities for multi-language support",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "parser",
+    "multi-language",
+    "typescript",
+    "java",
+    "python",
+    "ast"
+  ],
+  "author": "KCC",
+  "license": "MIT",
+  "dependencies": {
+    "@code-review-goose/analysis-types": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@vitest/coverage-v8": "^1.2.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

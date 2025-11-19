@@ -21,6 +21,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'vscode': path.resolve(__dirname, './src/__mocks__/vscode.ts'),
+      '@code-review-goose/analysis-adapter-vscode': path.resolve(__dirname, '../analysis-adapter-vscode/src/index.ts'),
     },
   },
 });

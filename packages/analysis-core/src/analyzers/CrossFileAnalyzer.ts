@@ -10,7 +10,12 @@ import type {
   MethodInfo,
   ParameterInfo,
   PropertyInfo,
+  UnifiedAST,
+  ImportInfo,
+  ExportInfo,
 } from '@code-review-goose/analysis-types';
+import { LanguageDetector } from '@code-review-goose/analysis-parser-common';
+import { ParserService } from '../parsers/ParserService.js';
 import { OOAnalyzer } from './OOAnalyzer.js';
 
 // Handle CommonJS/ESM compatibility for @babel/traverse
@@ -37,6 +42,7 @@ const traverse =
  */
 export class CrossFileAnalyzer {
   private readonly ooAnalyzer: OOAnalyzer;
+  private readonly parserService: ParserService;
 
   // AST cache: filePath → { ast, analysis }
   // Note: mtime validation removed - adapter layer can handle cache invalidation
@@ -53,6 +59,7 @@ export class CrossFileAnalyzer {
 
   constructor(private readonly fileProvider: IFileProvider) {
     this.ooAnalyzer = new OOAnalyzer();
+    this.parserService = new ParserService();
     this.astCache = new Map();
     this.visited = new Set();
   }
@@ -269,36 +276,62 @@ export class CrossFileAnalyzer {
     // Read file content
     const code = await this.fileProvider.readFile(filePath);
 
-    // Parse AST
-    const ast = parse(code, {
-      sourceType: 'module',
-      plugins: ['typescript', 'jsx', 'decorators-legacy', 'classProperties'],
-    });
+    // Parse AST (supports multiple languages)
+    const language = LanguageDetector.detectFromFilePath(filePath);
+    let ast: UnifiedAST | t.File;
+    let imports: ImportInfo[] = [];
+    let exports: ExportInfo[] = [];
+    let classes: ClassInfo[] = [];
 
-    // Extract imports
-    const imports = this.ooAnalyzer.extractImports(ast);
+    if (language === 'typescript' || language === 'javascript') {
+      // Use Babel parser for TypeScript/JavaScript (backward compatible)
+      ast = parse(code, {
+        sourceType: 'module',
+        plugins: ['typescript', 'jsx', 'decorators-legacy', 'classProperties'],
+      });
 
-    // Extract exports
-    const exports = this.ooAnalyzer.extractExports(ast);
+      // Extract imports
+      imports = this.ooAnalyzer.extractImports(ast);
 
-    // Extract classes (using traverse)
-    const classes: ClassInfo[] = [];
-    traverse(ast, {
-      ClassDeclaration: (path: any) => {
-        const node = path.node;
-        const classInfo = this.extractClassInfo(node);
-        if (classInfo) {
-          classes.push(classInfo);
-        }
-      },
-      TSInterfaceDeclaration: (path: any) => {
-        const node = path.node;
-        const interfaceInfo = this.extractInterfaceInfo(node);
-        if (interfaceInfo) {
-          classes.push(interfaceInfo);
-        }
-      },
-    });
+      // Extract exports
+      exports = this.ooAnalyzer.extractExports(ast);
+
+      // Extract classes (using traverse)
+      traverse(ast, {
+        ClassDeclaration: (path: any) => {
+          const node = path.node;
+          const classInfo = this.extractClassInfo(node);
+          if (classInfo) {
+            classes.push(classInfo);
+          }
+        },
+        TSInterfaceDeclaration: (path: any) => {
+          const node = path.node;
+          const interfaceInfo = this.extractInterfaceInfo(node);
+          if (interfaceInfo) {
+            classes.push(interfaceInfo);
+          }
+        },
+      });
+    } else if (language && this.parserService.canParse(filePath)) {
+      // Use unified parser for other languages (Java, Python)
+      ast = await this.parserService.parse(code, filePath);
+      const unifiedAST = ast as UnifiedAST;
+      classes = [...unifiedAST.classes];
+      // Convert interfaces to ClassInfo format
+      for (const iface of unifiedAST.interfaces) {
+        classes.push({
+          ...iface,
+          type: 'class' as const,
+          extends: iface.extends && iface.extends.length > 0 ? iface.extends[0] : undefined,
+          implements: iface.extends && iface.extends.length > 1 ? iface.extends.slice(1) : undefined,
+        });
+      }
+      imports = unifiedAST.imports;
+      exports = unifiedAST.exports;
+    } else {
+      throw new Error(`Unsupported file type: ${filePath}`);
+    }
 
     // Analyze OO relationships
     const ooAnalysis = this.ooAnalyzer.analyze(classes, imports);

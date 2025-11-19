@@ -5,6 +5,7 @@
 
 import * as vscode from 'vscode';
 import { DiagramPanel } from '../views/diagram-panel.js';
+import { isSupportedLanguage, getSupportedLanguagesList } from '../utils/language-support.js';
 
 export class GenerateClassDiagramCommand {
   constructor(private readonly context: vscode.ExtensionContext) {}
@@ -20,9 +21,9 @@ export class GenerateClassDiagramCommand {
 
       // Validate file type
       const document = editor.document;
-      if (!this.isValidFileType(document.languageId)) {
+      if (!isSupportedLanguage(document.languageId)) {
         vscode.window.showWarningMessage(
-          'Class diagram generation is only supported for TypeScript/JavaScript files'
+          `Class diagram generation is only supported for ${getSupportedLanguagesList()} files`
         );
         return;
       }
@@ -51,7 +52,4 @@ export class GenerateClassDiagramCommand {
     }
   }
 
-  private isValidFileType(languageId: string): boolean {
-    return ['typescript', 'javascript', 'typescriptreact', 'javascriptreact'].includes(languageId);
-  }
 }

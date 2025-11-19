@@ -2,20 +2,11 @@
  * Extension unit tests using Vitest
  */
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import * as vscode from 'vscode';
 
 // Mock VS Code API
-vi.mock('vscode', () => ({
-  commands: {
-    registerCommand: vi.fn(),
-  },
-  window: {
-    showInformationMessage: vi.fn(),
-    showErrorMessage: vi.fn(),
-  },
-  ExtensionContext: class {},
-}));
+
 
 describe('Extension', () => {
   describe('activate', () => {
@@ -26,7 +17,7 @@ describe('Extension', () => {
 
       // Import after mocking
       const { activate } = await import('../extension.js');
-      
+
       activate(context);
 
       // Verify commands are registered
@@ -50,11 +41,11 @@ describe('Extension', () => {
       } as unknown as vscode.ExtensionContext;
 
       const { activate } = await import('../extension.js');
-      
+
       activate(context);
 
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
-        'Goose Code Review is ready!'
+        'Goose Code Review is ready! 🦆'
       );
     });
   });
@@ -62,7 +53,7 @@ describe('Extension', () => {
   describe('deactivate', () => {
     it('should deactivate without errors', async () => {
       const { deactivate } = await import('../extension.js');
-      
+
       expect(() => deactivate()).not.toThrow();
     });
   });

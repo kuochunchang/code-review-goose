@@ -9,6 +9,7 @@ A local AI-assisted code review tool with a web-based interface.
 - **Read-only**: View and analyze code without editing capabilities
 - **AI analysis**: Automated code quality, security, and performance analysis
 - **UML visualization**: Generate class diagrams and flowcharts from code
+- **Multi-language support**: Supports TypeScript, JavaScript, Java, and Python
 
 ## Installation
 
@@ -74,6 +75,30 @@ The tool will automatically:
 3. Display the code review interface
 
 All data is stored locally in `.code-review/` directory within your project.
+
+## Supported Languages
+
+Goose Code Review supports multiple programming languages:
+
+- **TypeScript** (`.ts`, `.tsx`, `.mts`, `.cts`) - Full support with class diagrams, sequence diagrams, and flowcharts
+- **JavaScript** (`.js`, `.jsx`, `.mjs`, `.cjs`) - Full support with class diagrams, sequence diagrams, and flowcharts
+- **Java** (`.java`) - Class diagrams with inheritance, interfaces, and generics
+- **Python** (`.py`, `.pyi`, `.pyw`) - Class diagrams with inheritance and type hints
+
+### Language Features
+
+| Feature | TypeScript | JavaScript | Java | Python |
+|---------|-----------|------------|------|--------|
+| Class Diagrams | ✅ | ✅ | ✅ | ✅ |
+| Sequence Diagrams | ✅ | ✅ | ⏳ | ⏳ |
+| Flowcharts | ✅ | ✅ | ⏳ | ⏳ |
+| Inheritance | ✅ | ✅ | ✅ | ✅ |
+| Interfaces | ✅ | ✅ | ✅ | ⏳ |
+| Type Hints | ✅ | ⏳ | ✅ | ✅ |
+| Generics | ✅ | ⏳ | ✅ | ✅ |
+| Cross-file Analysis | ✅ | ✅ | ✅ | ✅ |
+
+⏳ = Planned for future releases
 
 ## Configuration
 

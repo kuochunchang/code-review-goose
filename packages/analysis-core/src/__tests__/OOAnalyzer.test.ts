@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '@babel/parser';
 import { OOAnalyzer } from '../analyzers/OOAnalyzer.js';
 import type { ImportInfo, ClassInfo } from '@code-review-goose/analysis-types';
@@ -178,7 +178,9 @@ describe('OOAnalyzer', () => {
       const imports: ImportInfo[] = [];
       const result = analyzer.resolveTypeInfo('string', imports);
 
-      expect(result).toBeUndefined();
+      expect(result).toBeDefined();
+      expect(result?.typeName).toBe('string');
+      expect(result?.isPrimitive).toBe(true);
     });
 
     it('should identify built-in types', () => {

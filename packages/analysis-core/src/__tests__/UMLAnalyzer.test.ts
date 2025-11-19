@@ -31,7 +31,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.type).toBe('class');
       expect(result.generationMode).toBe('native');
@@ -53,7 +53,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('class Person');
       expect(result.mermaidCode).toContain('class Address');
@@ -73,7 +73,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('-secret');
       expect(result.mermaidCode).toContain('#config');
@@ -94,7 +94,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('Animal <|-- Dog');
     });
@@ -111,7 +111,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('IShape <|.. Circle');
       const hasInterfaceMarker =
@@ -131,7 +131,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('Car *--');
       expect(result.mermaidCode).toContain('Engine');
@@ -148,7 +148,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('Team o--');
       expect(result.mermaidCode).toContain('Person');
@@ -165,7 +165,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('Processor ..>');
       expect(result.mermaidCode).toContain('Data');
@@ -182,16 +182,16 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('UserController ..> UserService');
-      expect(result.mermaidCode).toContain('<<inject>>');
+      expect(result.mermaidCode).toContain('inject constructor');
     });
 
     it('should handle empty file', async () => {
       const code = ``;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('NoClassesFound');
     });
@@ -202,7 +202,7 @@ describe('UMLAnalyzer', () => {
         function foo() {}
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.mermaidCode).toContain('NoClassesFound');
     });
@@ -222,7 +222,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'sequence');
+      const result = await analyzer.generateDiagram(code, 'sequence', 'test.ts');
 
       expect(result.type).toBe('sequence');
       expect(result.mermaidCode).toContain('sequenceDiagram');
@@ -241,7 +241,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'sequence');
+      const result = await analyzer.generateDiagram(code, 'sequence', 'test.ts');
 
       expect(result.mermaidCode).toContain('Controller');
       expect(result.mermaidCode).toContain('UserService');
@@ -261,7 +261,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'sequence');
+      const result = await analyzer.generateDiagram(code, 'sequence', 'test.ts');
 
       expect(result.mermaidCode).toContain('Service');
       // Async calls should use different arrow
@@ -282,7 +282,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'sequence');
+      const result = await analyzer.generateDiagram(code, 'sequence', 'test.ts');
 
       expect(result.mermaidCode).toContain('Calculator');
       expect(result.mermaidCode).toContain('return');
@@ -299,7 +299,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'sequence');
+      const result = await analyzer.generateDiagram(code, 'sequence', 'test.ts');
 
       expect(result.mermaidCode).toContain('participant');
       expect(result.metadata?.participants).toBeDefined();
@@ -310,7 +310,7 @@ describe('UMLAnalyzer', () => {
         const x = 1;
       `;
 
-      const result = await analyzer.generateDiagram(code, 'sequence');
+      const result = await analyzer.generateDiagram(code, 'sequence', 'test.ts');
 
       expect(result.mermaidCode).toContain('No function calls detected');
     });
@@ -325,7 +325,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'flowchart');
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
 
       expect(result.type).toBe('flowchart');
       expect(result.mermaidCode).toContain('flowchart');
@@ -344,7 +344,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'flowchart');
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
 
       expect(result.mermaidCode).toContain('Condition');
       expect(result.mermaidCode).toContain('Yes');
@@ -362,7 +362,7 @@ describe('UMLAnalyzer', () => {
         function process() {}
       `;
 
-      const result = await analyzer.generateDiagram(code, 'flowchart');
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
 
       expect(result.mermaidCode).toContain('While loop');
     });
@@ -378,7 +378,7 @@ describe('UMLAnalyzer', () => {
         function process() {}
       `;
 
-      const result = await analyzer.generateDiagram(code, 'flowchart');
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
 
       expect(result.mermaidCode).toContain('For loop');
     });
@@ -392,7 +392,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'flowchart');
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
 
       expect(result.mermaidCode).toContain('Start');
       expect(result.mermaidCode).toContain('End');
@@ -405,7 +405,7 @@ describe('UMLAnalyzer', () => {
         };
       `;
 
-      const result = await analyzer.generateDiagram(code, 'flowchart');
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
 
       expect(result.mermaidCode).toContain('flowchart');
     });
@@ -413,7 +413,7 @@ describe('UMLAnalyzer', () => {
     it('should generate simple flowchart for empty file', async () => {
       const code = ``;
 
-      const result = await analyzer.generateDiagram(code, 'flowchart');
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
 
       expect(result.mermaidCode).toContain('flowchart');
       expect(result.mermaidCode).toContain('Start');
@@ -525,13 +525,13 @@ describe('UMLAnalyzer', () => {
     it('should throw error for invalid code', async () => {
       const invalidCode = `class {`;
 
-      await expect(analyzer.generateDiagram(invalidCode, 'class')).rejects.toThrow();
+      await expect(analyzer.generateDiagram(invalidCode, 'class', 'test.ts')).rejects.toThrow();
     });
 
     it('should throw error for unsupported diagram type', async () => {
       const code = `export class Foo {}`;
 
-      await expect(analyzer.generateDiagram(code, 'invalid' as any)).rejects.toThrow(
+      await expect(analyzer.generateDiagram(code, 'invalid' as any, 'test.ts')).rejects.toThrow(
         'Unsupported diagram type'
       );
     });
@@ -545,7 +545,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.metadata?.classes).toBeDefined();
       expect(result.metadata?.classes?.length).toBe(1);
@@ -561,7 +561,7 @@ describe('UMLAnalyzer', () => {
         export class Engine {}
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.metadata?.dependencies).toBeDefined();
       expect(result.metadata?.dependencies?.length).toBeGreaterThan(0);
@@ -576,7 +576,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'class');
+      const result = await analyzer.generateDiagram(code, 'class', 'test.ts');
 
       expect(result.metadata?.imports).toBeDefined();
       expect(result.metadata?.imports?.length).toBeGreaterThan(0);
@@ -592,7 +592,7 @@ describe('UMLAnalyzer', () => {
         }
       `;
 
-      const result = await analyzer.generateDiagram(code, 'sequence');
+      const result = await analyzer.generateDiagram(code, 'sequence', 'test.ts');
 
       expect(result.metadata?.sequences).toBeDefined();
       expect(result.metadata?.participants).toBeDefined();
@@ -605,7 +605,7 @@ describe('UMLAnalyzer', () => {
         function bar() {}
       `;
 
-      const result = await analyzer.generateDiagram(code, 'flowchart');
+      const result = await analyzer.generateDiagram(code, 'flowchart', 'test.ts');
 
       expect(result.metadata?.functions).toBeDefined();
       expect(result.metadata?.functions?.length).toBeGreaterThan(0);
