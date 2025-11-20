@@ -105,6 +105,20 @@
     "configuration": {
       "title": "Goose Code Review",
       "properties": {
+        "gooseCodeReview.aiProvider": {
+          "type": "string",
+          "default": "openai",
+          "enum": [
+            "openai",
+            "gemini"
+          ],
+          "enumDescriptions": [
+            "Use OpenAI or OpenAI-compatible APIs (default)",
+            "Use Google Gemini models via the Generative Language API"
+          ],
+          "description": "Select which AI provider powers code analysis",
+          "scope": "application"
+        },
         "gooseCodeReview.openaiApiKey": {
           "type": "string",
           "default": "",
@@ -159,6 +173,34 @@
           "description": "Custom model name to use when custom API is enabled (e.g., gpt-4o, claude-3-5-sonnet, etc.)",
           "scope": "application"
         },
+        "gooseCodeReview.geminiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Gemini API Key for code analysis (prefer using Secret Storage for security)",
+          "scope": "application"
+        },
+        "gooseCodeReview.geminiModel": {
+          "type": "string",
+          "default": "gemini-2.5-flash",
+          "enum": [
+            "gemini-3-pro-preview",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite"
+          ],
+          "enumDescriptions": [
+            "Gemini 3 Pro - Most powerful multimodal model (preview)",
+            "Gemini 2.5 Pro - Advanced thinking mode for complex problems",
+            "Gemini 2.5 Flash - Best price-performance ratio (recommended)",
+            "Gemini 2.5 Flash-Lite - Fastest, most cost-efficient",
+            "Gemini 2.0 Flash - Stable workhorse model",
+            "Gemini 2.0 Flash-Lite - Cost-efficient alternative"
+          ],
+          "description": "Gemini model to use for code analysis",
+          "scope": "application"
+        },
         "gooseCodeReview.analysisDepth": {
           "type": "number",
           "default": 2,
@@ -201,19 +243,20 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@code-review-goose/analysis-core": "*",
     "@code-review-goose/analysis-adapter-vscode": "*",
+    "@code-review-goose/analysis-core": "*",
     "@code-review-goose/analysis-types": "*",
+    "@google/generative-ai": "^0.24.1",
     "openai": "^4.20.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
+    "@vitest/coverage-v8": "^1.0.0",
     "@vscode/test-electron": "^2.3.8",
     "@vscode/vsce": "^2.22.0",
     "typescript": "^5.3.2",
-    "vitest": "^1.0.0",
-    "@vitest/coverage-v8": "^1.0.0"
+    "vitest": "^1.0.0"
   },
   "repository": {
     "type": "git",

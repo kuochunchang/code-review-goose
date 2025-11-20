@@ -96,7 +96,47 @@ The fastest way to generate UML diagrams:
 
 Access settings via `File > Preferences > Settings` (Windows/Linux) or `Code > Preferences > Settings` (Mac), then search for "Goose Code Review".
 
-### Available Settings
+### AI Provider Settings
+
+Choose your preferred AI provider for code analysis:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `gooseCodeReview.aiProvider` | string | "openai" | AI provider: "openai" or "gemini" |
+
+#### OpenAI Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `gooseCodeReview.openaiApiKey` | string | "" | OpenAI API key (prefer using Secret Storage) |
+| `gooseCodeReview.analysisModel` | string | "gpt-4o" | OpenAI model to use |
+| `gooseCodeReview.useCustomApi` | boolean | false | Use custom OpenAI-compatible API |
+| `gooseCodeReview.customApiUrl` | string | "" | Custom API base URL |
+| `gooseCodeReview.customModelName` | string | "" | Custom model name |
+
+**Available OpenAI Models:**
+- `gpt-4o` - Latest multimodal model (recommended)
+- `gpt-4o-mini` - Faster and cheaper
+- `gpt-4-turbo` - Previous generation
+- `o1`, `o1-mini` - Advanced reasoning models
+- And more...
+
+#### Gemini Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `gooseCodeReview.geminiApiKey` | string | "" | Gemini API key (prefer using Secret Storage) |
+| `gooseCodeReview.geminiModel` | string | "gemini-2.5-flash" | Gemini model to use |
+
+**Available Gemini Models:**
+- `gemini-3-pro-preview` - Most powerful multimodal model (preview)
+- `gemini-2.5-pro` - Advanced thinking mode for complex problems
+- `gemini-2.5-flash` - Best price-performance ratio (recommended)
+- `gemini-2.5-flash-lite` - Fastest, most cost-efficient
+- `gemini-2.0-flash` - Stable workhorse model
+- `gemini-2.0-flash-lite` - Cost-efficient alternative
+
+### UML Analysis Settings
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
@@ -107,14 +147,48 @@ Access settings via `File > Preferences > Settings` (Windows/Linux) or `Code > P
 
 ### Example Configuration
 
+**Using OpenAI:**
 ```json
 {
+  "gooseCodeReview.aiProvider": "openai",
+  "gooseCodeReview.analysisModel": "gpt-4o",
   "gooseCodeReview.analysisDepth": 3,
-  "gooseCodeReview.analysisMode": "comprehensive",
-  "gooseCodeReview.showPrivateMembers": true,
-  "gooseCodeReview.autoRefresh": true
+  "gooseCodeReview.analysisMode": "comprehensive"
 }
 ```
+
+**Using Gemini:**
+```json
+{
+  "gooseCodeReview.aiProvider": "gemini",
+  "gooseCodeReview.geminiModel": "gemini-2.5-flash",
+  "gooseCodeReview.analysisDepth": 3,
+  "gooseCodeReview.analysisMode": "comprehensive"
+}
+```
+
+### Getting API Keys
+
+**OpenAI API Key:**
+1. Visit [OpenAI Platform](https://platform.openai.com/)
+2. Sign up or log in
+3. Go to API Keys section
+4. Create a new API key
+5. Store in VS Code Secret Storage or settings
+
+**Gemini API Key:**
+1. Visit [Google AI Studio](https://aistudio.google.com/)
+2. Sign in with Google account
+3. Click "Get API key"
+4. Create or select a project
+5. Copy the API key
+6. Store in VS Code Secret Storage or settings
+
+**Storing API Keys Securely (Recommended):**
+1. Open Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+2. Type "Preferences: Open User Settings (JSON)"
+3. Add your provider settings (without API keys in JSON)
+4. API keys will be prompted securely when needed and stored in VS Code Secret Storage
 
 ## Supported Languages
 
