@@ -14,6 +14,10 @@ export { AnalysisCacheService } from './services/AnalysisCacheService.js';
 export type { CacheStats } from './services/AnalysisCacheService.js';
 export { ChangeAnalyzer } from './services/ChangeAnalyzer.js';
 export type { ChangeAnalyzerConfig, IAIProvider, AnalysisType } from './services/ChangeAnalyzer.js';
+export { MergeService } from './services/MergeService.js';
+export type { MergeConfig, DeduplicationStrategy } from './services/MergeService.js';
+export { ReportExporter } from './services/ReportExporter.js';
+export type { ExportFormat, ExportOptions } from './services/ReportExporter.js';
 
 // Export utilities
 export { ConfigLoader } from './utils/ConfigLoader.js';

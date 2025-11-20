@@ -13,7 +13,7 @@ import type {
 } from '../types/analysis.types.js';
 import { GitService } from './GitService.js';
 import { DiffParser, type ParsedFileChange } from '../utils/DiffParser.js';
-import { TokenCounter, type ContentBatch } from '../utils/TokenCounter.js';
+import { TokenCounter } from '../utils/TokenCounter.js';
 import {
   buildQualityAnalysisPrompt,
   buildSecurityAnalysisPrompt,
