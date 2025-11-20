@@ -5,6 +5,8 @@
 
 import * as vscode from 'vscode';
 import { AnalysisService } from '../services/analysis-service.js';
+import { AIProviderFactory } from '../services/providers/provider-factory.js';
+import type { AIProviderType } from '../services/providers/ai-provider.interface.js';
 import { CacheService } from '../services/cache-service.js';
 import { computeSHA256 } from '../utils/hash.js';
 import type { AnalysisResult, ExplainResult } from '../types/analysis.js';
@@ -81,64 +83,131 @@ export class AnalysisPanel {
   }
 
   /**
+   * Get current provider and model info from configuration (real-time)
+   */
+  private _getCurrentProviderInfo(): { provider: string; model: string } {
+    try {
+      const config = vscode.workspace.getConfiguration('gooseCodeReview');
+      const providerType = config.get<AIProviderType>('aiProvider', 'openai');
+
+      if (providerType === 'gemini') {
+        const model = config.get<string>('geminiModel', 'gemini-2.5-flash');
+        return { provider: 'Gemini', model };
+      } else {
+        const useCustomApi = config.get<boolean>('useCustomApi', false);
+        const model = config.get<string>('analysisModel', 'gpt-4');
+        const customModelName = config.get<string>('customModelName', '');
+
+        if (useCustomApi) {
+          const modelToUse = customModelName || model;
+          return { provider: 'Custom OpenAI-compatible API', model: modelToUse };
+        } else {
+          return { provider: 'OpenAI', model };
+        }
+      }
+    } catch (error) {
+      return { provider: '', model: '' };
+    }
+  }
+
+  /**
    * Initialize analysis service with API key from configuration
    */
   private async _initializeAnalysisService(): Promise<void> {
     try {
       const config = vscode.workspace.getConfiguration('gooseCodeReview');
-      const apiKey = await this._context.secrets.get('openai-api-key') ||
-                     config.get<string>('openaiApiKey', '');
-      const model = config.get<string>('analysisModel', 'gpt-4');
-      const useCustomApi = config.get<boolean>('useCustomApi', false);
-      const customApiUrl = config.get<string>('customApiUrl', '');
-      const customModelName = config.get<string>('customModelName', '');
+      const providerType = config.get<AIProviderType>('aiProvider', 'openai');
 
-      // Check if using custom API
-      if (useCustomApi) {
-        if (!customApiUrl) {
+      if (providerType === 'gemini') {
+        // Initialize Gemini provider
+        const geminiApiKey = await this._context.secrets.get('gemini-api-key') ||
+                             config.get<string>('geminiApiKey', '');
+        const geminiModel = config.get<string>('geminiModel', 'gemini-2.5-flash');
+
+        if (!geminiApiKey) {
           vscode.window.showWarningMessage(
-            'Custom API is enabled but no URL is configured. Please set the custom API URL in the extension settings.',
+            'Gemini API key not configured. Please set it in the extension settings or use the secret storage.',
             'Configure'
           ).then(selection => {
             if (selection === 'Configure') {
-              vscode.commands.executeCommand('workbench.action.openSettings', 'gooseCodeReview.customApiUrl');
+              vscode.commands.executeCommand('workbench.action.openSettings', 'gooseCodeReview.geminiApiKey');
             }
           });
           return;
         }
 
-        // Use custom model name if provided, otherwise fall back to analysisModel
-        const modelToUse = customModelName || model;
-
-        this._analysisService = new AnalysisService({
-          apiKey: apiKey || 'dummy-key', // Some custom APIs don't require API key
-          model: modelToUse,
-          timeout: 60000,
-          baseURL: customApiUrl,
+        const provider = AIProviderFactory.create({
+          provider: 'gemini',
+          gemini: {
+            apiKey: geminiApiKey,
+            model: geminiModel,
+            timeout: 60000,
+          },
         });
 
-        vscode.window.showInformationMessage(
-          `Using custom API: ${customApiUrl} with model: ${modelToUse}`
-        );
+        this._analysisService = new AnalysisService(provider);
       } else {
-        // Using official OpenAI API
-        if (!apiKey) {
-          vscode.window.showWarningMessage(
-            'OpenAI API key not configured. Please set it in the extension settings or use the secret storage.',
-            'Configure'
-          ).then(selection => {
-            if (selection === 'Configure') {
-              vscode.commands.executeCommand('workbench.action.openSettings', 'gooseCodeReview.openaiApiKey');
-            }
-          });
-          return;
-        }
+        // Initialize OpenAI provider
+        const openaiApiKey = await this._context.secrets.get('openai-api-key') ||
+                             config.get<string>('openaiApiKey', '');
+        const model = config.get<string>('analysisModel', 'gpt-4');
+        const useCustomApi = config.get<boolean>('useCustomApi', false);
+        const customApiUrl = config.get<string>('customApiUrl', '');
+        const customModelName = config.get<string>('customModelName', '');
 
-        this._analysisService = new AnalysisService({
-          apiKey,
-          model,
-          timeout: 60000,
-        });
+        // Check if using custom API
+        if (useCustomApi) {
+          if (!customApiUrl) {
+            vscode.window.showWarningMessage(
+              'Custom API is enabled but no URL is configured. Please set the custom API URL in the extension settings.',
+              'Configure'
+            ).then(selection => {
+              if (selection === 'Configure') {
+                vscode.commands.executeCommand('workbench.action.openSettings', 'gooseCodeReview.customApiUrl');
+              }
+            });
+            return;
+          }
+
+          // Use custom model name if provided, otherwise fall back to analysisModel
+          const modelToUse = customModelName || model;
+
+          const provider = AIProviderFactory.create({
+            provider: 'openai',
+            openai: {
+              apiKey: openaiApiKey || 'dummy-key', // Some custom APIs don't require API key
+              model: modelToUse,
+              timeout: 60000,
+              baseURL: customApiUrl,
+            },
+          });
+
+          this._analysisService = new AnalysisService(provider);
+        } else {
+          // Using official OpenAI API
+          if (!openaiApiKey) {
+            vscode.window.showWarningMessage(
+              'OpenAI API key not configured. Please set it in the extension settings or use the secret storage.',
+              'Configure'
+            ).then(selection => {
+              if (selection === 'Configure') {
+                vscode.commands.executeCommand('workbench.action.openSettings', 'gooseCodeReview.openaiApiKey');
+              }
+            });
+            return;
+          }
+
+          const provider = AIProviderFactory.create({
+            provider: 'openai',
+            openai: {
+              apiKey: openaiApiKey,
+              model,
+              timeout: 60000,
+            },
+          });
+
+          this._analysisService = new AnalysisService(provider);
+        }
       }
     } catch (error) {
       console.error('Failed to initialize analysis service:', error);
@@ -227,6 +296,14 @@ export class AnalysisPanel {
     }
 
     try {
+      // Get current AI provider and model info (real-time from config)
+      const { provider, model } = this._getCurrentProviderInfo();
+      if (provider && model) {
+        vscode.window.showInformationMessage(
+          `🤖 Analyzing with ${provider}: ${model}`
+        );
+      }
+
       // Show loading state
       this._panel.webview.postMessage({ command: 'analysisLoading', isLoading: true });
 
@@ -264,6 +341,14 @@ export class AnalysisPanel {
     }
 
     try {
+      // Get current AI provider and model info (real-time from config)
+      const { provider, model } = this._getCurrentProviderInfo();
+      if (provider && model) {
+        vscode.window.showInformationMessage(
+          `🤖 Explaining with ${provider}: ${model}`
+        );
+      }
+
       // Show loading state
       this._panel.webview.postMessage({ command: 'explainLoading', isLoading: true });
 

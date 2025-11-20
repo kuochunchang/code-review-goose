@@ -273,7 +273,7 @@ describe('AnalysisPanel', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(AnalysisService).toHaveBeenCalled();
-      expect(vscode.window.showInformationMessage).toHaveBeenCalled();
+      // Note: showInformationMessage is now shown when analysis/explain runs, not during initialization
     });
 
     it('should show warning when custom API enabled but no URL', async () => {
