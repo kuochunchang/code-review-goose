@@ -55,7 +55,7 @@ Thumbs.db
 .claude
 
 # Package manager
-package-lock.json
+# Lock files are now tracked for reproducible builds in CI/CD
 yarn.lock
 pnpm-lock.yaml
 
