@@ -32,8 +32,8 @@ export interface IAIProvider {
  * Change analyzer configuration
  */
 export interface ChangeAnalyzerConfig {
-  /** AI provider instance */
-  aiProvider: IAIProvider;
+  /** AI provider instance (optional - only required for AI-based analysis) */
+  aiProvider?: IAIProvider;
   /** Maximum tokens per AI request (default: 6000) */
   maxTokensPerBatch?: number;
   /** Safety margin for token counting (default: 0.9) */
@@ -57,7 +57,7 @@ export class ChangeAnalyzer {
   private readonly gitService: GitService;
   private readonly diffParser: DiffParser;
   private readonly tokenCounter: TokenCounter;
-  private readonly aiProvider: IAIProvider;
+  private readonly aiProvider: IAIProvider | undefined;
   private readonly maxParallelRequests: number;
 
   constructor(config: ChangeAnalyzerConfig) {
@@ -244,6 +244,10 @@ export class ChangeAnalyzer {
       return 'No changes to analyze.';
     }
 
+    if (!this.aiProvider) {
+      return 'AI provider not available for architecture analysis.';
+    }
+
     const prompt = buildArchitectureReviewPrompt(batches[0]);
 
     try {
@@ -348,6 +352,14 @@ export class ChangeAnalyzer {
     analysisType: AnalysisType,
     commitMessages?: string[]
   ): Promise<AIAnalysisResult> {
+    if (!this.aiProvider) {
+      // Return default analysis when AI provider is not available
+      return {
+        fileAnalyses: batch.map((change) => this.createDefaultFileAnalysis(change)),
+        impactAnalysis: this.createDefaultImpactAnalysis(),
+      };
+    }
+
     const prompt = this.buildPrompt(batch, analysisType, commitMessages);
 
     try {

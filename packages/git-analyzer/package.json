@@ -8,7 +8,9 @@
     "build": "tsc",
     "clean": "rm -rf dist",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:sonarqube": "tsx src/__tests__/sonarqube-integration-test.ts",
+    "test:sonarqube:quick": "tsx src/__tests__/sonarqube-quick-test.ts"
   },
   "keywords": [
     "git",

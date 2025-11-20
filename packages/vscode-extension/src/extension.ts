@@ -11,6 +11,11 @@ import { GenerateSequenceDiagramCommand } from './commands/generate-sequence-dia
 import { analyzeWorkingDirectory } from './commands/analyze-working-directory.js';
 import { analyzeBranchComparison } from './commands/analyze-branch.js';
 import { openGitChangePanel } from './commands/open-git-change-panel.js';
+import { addSonarQubeConnection } from './commands/add-sonarqube-connection.js';
+import { bindSonarQubeProject } from './commands/bind-sonarqube-project.js';
+import { testSonarQubeConnection } from './commands/test-sonarqube-connection.js';
+import { testSonarQubeScanner } from './commands/test-sonarqube-scanner.js';
+import { diagnoseSonarQube } from './commands/diagnose-sonarqube.js';
 import { GitAnalysisService } from './services/git-analysis-service.js';
 
 import { isSupportedLanguage, getSupportedLanguagesList } from './utils/language-support.js';
@@ -19,8 +24,16 @@ import { isSupportedLanguage, getSupportedLanguagesList } from './utils/language
  * Extension activation
  * Called when the extension is activated
  */
+// Create output channel for logging
+const outputChannel = vscode.window.createOutputChannel('Goose Code Review');
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  outputChannel.appendLine('Goose Code Review extension is now active');
   console.log('Goose Code Review extension is now active');
+
+  // Make output channel available globally
+  (global as any).gooseOutputChannel = outputChannel;
+  context.subscriptions.push(outputChannel);
 
   // ==========================================
   // Git Analysis Service (NEW)
@@ -66,7 +79,44 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     () => openGitChangePanel(context)
   );
 
-  context.subscriptions.push(analyzeWorkingDirectoryCmd, analyzeBranchCmd, openGitChangePanelCmd);
+  /**
+   * SonarQube Configuration Commands
+   */
+  const addSonarQubeConnectionCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.sonarqube.addConnection',
+    () => addSonarQubeConnection(context)
+  );
+
+  const bindSonarQubeProjectCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.sonarqube.bindProject',
+    () => bindSonarQubeProject(context)
+  );
+
+  const testSonarQubeConnectionCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.sonarqube.testConnection',
+    () => testSonarQubeConnection(context)
+  );
+
+  const testSonarQubeScannerCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.testSonarQubeScanner',
+    () => testSonarQubeScanner(context)
+  );
+
+  const diagnoseSonarQubeCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.sonarqube.diagnose',
+    () => diagnoseSonarQube(context)
+  );
+
+  context.subscriptions.push(
+    analyzeWorkingDirectoryCmd,
+    analyzeBranchCmd,
+    openGitChangePanelCmd,
+    addSonarQubeConnectionCmd,
+    bindSonarQubeProjectCmd,
+    testSonarQubeConnectionCmd,
+    testSonarQubeScannerCmd,
+    diagnoseSonarQubeCmd
+  );
 
   // ==========================================
   // Analysis Panel (EXISTING)

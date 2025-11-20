@@ -166,12 +166,19 @@ vi.mock('@code-review-goose/git-analyzer', () => ({
   ReportExporter: vi.fn().mockImplementation(() => ({
     export: vi.fn().mockReturnValue('# Mock Report'),
   })),
-  AnalysisOrchestrator: vi.fn().mockImplementation(() => ({})),
+  AnalysisOrchestrator: vi.fn().mockImplementation(() => ({
+    detectMode: vi.fn().mockResolvedValue(undefined),
+    getMode: vi.fn().mockReturnValue('ai-only'),
+    isSonarQubeAvailable: vi.fn().mockReturnValue(false),
+  })),
   AnalysisMode: {
     HYBRID: 'hybrid',
     AI_ONLY: 'ai-only',
     SONARQUBE_ONLY: 'sonarqube-only',
   },
+  SonarQubeService: vi.fn().mockImplementation(() => ({
+    executeScan: vi.fn().mockResolvedValue({ success: true }),
+  })),
 }));
 
 // Mock provider factory
@@ -179,6 +186,15 @@ vi.mock('../services/providers/provider-factory.js', () => ({
   getAIProvider: vi.fn().mockResolvedValue({
     analyze: vi.fn().mockResolvedValue('Mock analysis result'),
   }),
+}));
+
+// Mock SonarQubeConfigService
+vi.mock('../services/sonarqube-config-service.js', () => ({
+  SonarQubeConfigService: vi.fn().mockImplementation(() => ({
+    getAnalysisMode: vi.fn().mockReturnValue('ai-only'),
+    isEnabled: vi.fn().mockReturnValue(false),
+    getSonarQubeConfig: vi.fn().mockResolvedValue(null),
+  })),
 }));
 
 describe('GitAnalysisService', () => {
@@ -205,14 +221,33 @@ describe('GitAnalysisService', () => {
       await expect(newService.initialize()).resolves.not.toThrow();
     });
 
-    it('should throw error if AI provider initialization fails', async () => {
+    it('should continue initialization if AI provider fails in non-sonarqube-only mode', async () => {
       const { getAIProvider } = await import('../services/providers/provider-factory.js');
       vi.mocked(getAIProvider).mockRejectedValueOnce(new Error('Provider init failed'));
 
       const newService = new GitAnalysisService(mockContext);
-      await expect(newService.initialize()).rejects.toThrow(
-        'Failed to initialize Git Analysis Service'
-      );
+      // Should not throw, but log a warning and continue
+      await expect(newService.initialize()).resolves.not.toThrow();
+    });
+
+    it('should not initialize AI provider in sonarqube-only mode', async () => {
+      const { getAIProvider } = await import('../services/providers/provider-factory.js');
+      const getAIProviderSpy = vi.mocked(getAIProvider);
+      getAIProviderSpy.mockClear();
+
+      const newService = new GitAnalysisService(mockContext);
+
+      // Override the sonarQubeConfigService instance
+      (newService as any).sonarQubeConfigService = {
+        getAnalysisMode: vi.fn().mockReturnValue('sonarqube-only'),
+        isEnabled: vi.fn().mockReturnValue(false),
+        getSonarQubeConfig: vi.fn().mockResolvedValue(null),
+      };
+
+      await newService.initialize();
+
+      // AI provider should not be called in sonarqube-only mode
+      expect(getAIProviderSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -232,15 +267,27 @@ describe('GitAnalysisService', () => {
       expect(progressCallback).toHaveBeenCalled();
     });
 
-    it('should throw error if service not initialized', async () => {
-      const uninitializedService = new GitAnalysisService(mockContext);
+    it('should throw error when sonarqube-only mode selected but SonarQube not available', async () => {
+      // Create a new service with mocked config service that returns sonarqube-only mode
+      const newService = new GitAnalysisService(mockContext);
+
+      // Override the sonarQubeConfigService instance
+      (newService as any).sonarQubeConfigService = {
+        getAnalysisMode: vi.fn().mockReturnValue('sonarqube-only'),
+        isEnabled: vi.fn().mockReturnValue(false),
+        getSonarQubeConfig: vi.fn().mockResolvedValue(null),
+      };
+
+      await newService.initialize();
+
       const config = {
         workingDirectory: '/test/repo',
         analysisTypes: ['quality'] as any[],
       };
 
-      await expect(uninitializedService.analyzeWorkingDirectory(config)).rejects.toThrow(
-        'Git Analysis Service not initialized'
+      // Should throw error because SonarQube is not available
+      await expect(newService.analyzeWorkingDirectory(config)).rejects.toThrow(
+        'SonarQube-only mode selected but SonarQube is not available'
       );
     });
 
@@ -311,8 +358,19 @@ describe('GitAnalysisService', () => {
       expect(progressCallback).toHaveBeenCalled();
     });
 
-    it('should throw error if service not initialized', async () => {
-      const uninitializedService = new GitAnalysisService(mockContext);
+    it('should throw error when sonarqube-only mode selected but SonarQube not available', async () => {
+      // Create a new service with mocked config service that returns sonarqube-only mode
+      const newService = new GitAnalysisService(mockContext);
+
+      // Override the sonarQubeConfigService instance
+      (newService as any).sonarQubeConfigService = {
+        getAnalysisMode: vi.fn().mockReturnValue('sonarqube-only'),
+        isEnabled: vi.fn().mockReturnValue(false),
+        getSonarQubeConfig: vi.fn().mockResolvedValue(null),
+      };
+
+      await newService.initialize();
+
       const config = {
         workingDirectory: '/test/repo',
         sourceBranch: 'main',
@@ -320,8 +378,9 @@ describe('GitAnalysisService', () => {
         analysisTypes: ['quality'] as any[],
       };
 
-      await expect(uninitializedService.analyzeBranchComparison(config)).rejects.toThrow(
-        'Git Analysis Service not initialized'
+      // Should throw error because SonarQube is not available
+      await expect(newService.analyzeBranchComparison(config)).rejects.toThrow(
+        'SonarQube-only mode selected but SonarQube is not available'
       );
     });
 

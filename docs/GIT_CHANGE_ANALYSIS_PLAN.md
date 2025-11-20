@@ -20,7 +20,9 @@
 
 - **雙軌分析系統**: SonarQube 靜態分析 + AI 語意分析
 - **互補優勢**: SonarQube 提供精確檢測，AI 提供上下文理解
-- **混合模式**: 自動偵測環境 (Server/CLI/AI-only)，優雅降級
+- **混合模式**: 自動偵測環境 (Server/AI-only)，優雅降級
+  - **分析模式**: HYBRID (SonarQube + AI) / AI_ONLY / SONARQUBE_ONLY
+  - **注意**: SonarQube Scanner 需要 Server，無 standalone CLI mode
 
 ---
 
@@ -596,7 +598,7 @@ Week 11-12: ████ Phase 6 (GitHub Integration)     ✅ DONE (1 day)
 | 風險 | 等級 | 影響 | 緩解措施 | 狀態 |
 |------|------|------|----------|------|
 | AI Token 超限 | 高 | 無法分析大量變更 | 智慧型批次處理、增量分析 | 📋 已規劃 |
-| SonarQube Server 不可用 | 中 | 功能降級 | CLI 降級模式 | 📋 已規劃 |
+| SonarQube Server 不可用 | 中 | 功能降級 | 自動降級至 AI-only 模式 | ✅ 已實現 |
 | GitHub API Rate Limit | 中 | PR 分析受限 | 快取、Token 使用 | 📋 已規劃 |
 | 分析結果誤報 | 中 | 使用者體驗不佳 | 持續優化 prompt、回饋機制 | ⏳ 待實施 |
 

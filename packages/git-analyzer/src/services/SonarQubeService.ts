@@ -106,7 +106,7 @@ export class SonarQubeService {
    * @param _options Scanner execution options
    * @returns Scanner execution result
    */
-  async executeScan(_options: ScannerExecutionOptions): Promise<ScannerExecutionResult> {
+  async executeScan(options: ScannerExecutionOptions): Promise<ScannerExecutionResult> {
     if (!this.isAvailable()) {
       return {
         success: false,
@@ -128,11 +128,27 @@ export class SonarQubeService {
           'sonar.sources': this.config.sources || '.',
           'sonar.exclusions': this.config.exclusions || 'node_modules/**,dist/**,build/**,coverage/**',
           'sonar.sourceEncoding': this.config.sourceEncoding || 'UTF-8',
+          'sonar.projectBaseDir': options.workingDirectory,
           ...this.config.additionalProperties,
         },
       };
 
-      return await new Promise<ScannerExecutionResult>((resolve, reject) => {
+      const logMessage = (msg: string) => {
+        console.log(msg);
+        // Try to log to VS Code output channel if available
+        const outputChannel = (global as any).gooseOutputChannel;
+        if (outputChannel && typeof outputChannel.appendLine === 'function') {
+          outputChannel.appendLine(msg);
+        }
+      };
+
+      logMessage('[SonarQube] Starting scan with config:');
+      logMessage(`  Server URL: ${scannerConfig.serverUrl}`);
+      logMessage(`  Project Key: ${scannerConfig.options['sonar.projectKey']}`);
+      logMessage(`  Sources: ${scannerConfig.options['sonar.sources']}`);
+      logMessage(`  Base Dir: ${scannerConfig.options['sonar.projectBaseDir']}`);
+
+      return await new Promise<ScannerExecutionResult>((resolve) => {
         scanner(
           scannerConfig,
           (error?: unknown) => {
@@ -140,6 +156,9 @@ export class SonarQubeService {
             
             if (error) {
               // Error callback
+              const errorMsg = `[SonarQube] Scanner failed: ${error instanceof Error ? error.message : String(error)}`;
+              console.error(errorMsg);
+              logMessage(errorMsg);
               resolve({
                 success: false,
                 error: error instanceof Error ? error.message : String(error),
@@ -147,6 +166,9 @@ export class SonarQubeService {
               });
             } else {
               // Success callback
+              const successMsg = `[SonarQube] Scanner completed successfully in ${executionTime}ms`;
+              console.log(successMsg);
+              logMessage(successMsg);
               resolve({
                 success: true,
                 executionTime,
@@ -157,6 +179,7 @@ export class SonarQubeService {
       });
     } catch (error) {
       const executionTime = this.getElapsedTime(startTime);
+      console.error('[SonarQube] Scanner execution error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error during scan',
