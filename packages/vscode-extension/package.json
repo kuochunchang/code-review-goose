@@ -50,6 +50,24 @@
         "command": "gooseCodeReview.generateSequenceDiagram",
         "title": "Generate Sequence Diagram",
         "category": "Goose Code Review"
+      },
+      {
+        "command": "gooseCodeReview.analyzeWorkingDirectory",
+        "title": "Analyze Working Directory Changes",
+        "category": "Goose Code Review",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "gooseCodeReview.analyzeBranch",
+        "title": "Analyze Branch Comparison",
+        "category": "Goose Code Review",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "gooseCodeReview.openGitChangePanel",
+        "title": "Open Git Change Analysis",
+        "category": "Goose Code Review",
+        "icon": "$(git-pull-request)"
       }
     ],
     "keybindings": [
@@ -64,6 +82,11 @@
         "key": "ctrl+shift+u",
         "mac": "cmd+shift+u",
         "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python"
+      },
+      {
+        "command": "gooseCodeReview.openGitChangePanel",
+        "key": "ctrl+shift+g",
+        "mac": "cmd+shift+g"
       }
     ],
     "menus": {
@@ -99,6 +122,18 @@
           "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
           "command": "gooseCodeReview.generateSequenceDiagram",
           "group": "gooseCodeReview@3"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "gooseCodeReview.analyzeWorkingDirectory",
+          "group": "navigation",
+          "when": "scmProvider == git"
+        },
+        {
+          "command": "gooseCodeReview.analyzeBranch",
+          "group": "navigation",
+          "when": "scmProvider == git"
         }
       ]
     },
@@ -246,6 +281,7 @@
     "@code-review-goose/analysis-adapter-vscode": "*",
     "@code-review-goose/analysis-core": "*",
     "@code-review-goose/analysis-types": "*",
+    "@code-review-goose/git-analyzer": "*",
     "@google/generative-ai": "^0.24.1",
     "openai": "^4.20.0"
   },

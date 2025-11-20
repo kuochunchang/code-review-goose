@@ -8,6 +8,10 @@ import { DiagramPanel } from './views/diagram-panel.js';
 import { openAnalysisPanel } from './commands/open-analysis-panel.js';
 import { GenerateClassDiagramCommand } from './commands/generate-class-diagram.js';
 import { GenerateSequenceDiagramCommand } from './commands/generate-sequence-diagram.js';
+import { analyzeWorkingDirectory } from './commands/analyze-working-directory.js';
+import { analyzeBranchComparison } from './commands/analyze-branch.js';
+import { openGitChangePanel } from './commands/open-git-change-panel.js';
+import { GitAnalysisService } from './services/git-analysis-service.js';
 
 import { isSupportedLanguage, getSupportedLanguagesList } from './utils/language-support.js';
 
@@ -15,11 +19,57 @@ import { isSupportedLanguage, getSupportedLanguagesList } from './utils/language
  * Extension activation
  * Called when the extension is activated
  */
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   console.log('Goose Code Review extension is now active');
 
   // ==========================================
-  // Analysis Panel (NEW)
+  // Git Analysis Service (NEW)
+  // ==========================================
+
+  const gitAnalysisService = new GitAnalysisService(context);
+
+  // Initialize asynchronously
+  gitAnalysisService.initialize().catch((error) => {
+    console.error('Failed to initialize Git Analysis Service:', error);
+    vscode.window.showWarningMessage(
+      'Git Analysis features may not work properly. Please check your AI provider configuration.'
+    );
+  });
+
+  context.subscriptions.push(gitAnalysisService);
+
+  // ==========================================
+  // Git Change Analysis Commands (NEW)
+  // ==========================================
+
+  /**
+   * Analyze Working Directory Changes
+   */
+  const analyzeWorkingDirectoryCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.analyzeWorkingDirectory',
+    () => analyzeWorkingDirectory(context, gitAnalysisService)
+  );
+
+  /**
+   * Analyze Branch Comparison
+   */
+  const analyzeBranchCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.analyzeBranch',
+    () => analyzeBranchComparison(context, gitAnalysisService)
+  );
+
+  /**
+   * Open Git Change Panel
+   */
+  const openGitChangePanelCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.openGitChangePanel',
+    () => openGitChangePanel(context)
+  );
+
+  context.subscriptions.push(analyzeWorkingDirectoryCmd, analyzeBranchCmd, openGitChangePanelCmd);
+
+  // ==========================================
+  // Analysis Panel (EXISTING)
   // ==========================================
 
   /**
