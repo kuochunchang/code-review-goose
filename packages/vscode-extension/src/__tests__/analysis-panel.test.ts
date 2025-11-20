@@ -88,11 +88,14 @@ describe('AnalysisPanel', () => {
     (vscode.workspace.getConfiguration as any).mockReturnValue({
       get: vi.fn((key: string, defaultValue: any) => {
         const config: Record<string, any> = {
+          aiProvider: 'openai',
           openaiApiKey: 'test-key',
-          analysisModel: 'gpt-4',
+          analysisModel: 'chatgpt-4o-latest',
           useCustomApi: false,
           customApiUrl: '',
           customModelName: '',
+          geminiApiKey: '',
+          geminiModel: 'gemini-2.0-flash-exp',
         };
         return config[key] ?? defaultValue;
       }),
@@ -251,6 +254,39 @@ describe('AnalysisPanel', () => {
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(AnalysisService).toHaveBeenCalled();
+    });
+
+    it('should initialize Gemini provider when configured', async () => {
+      (mockContext.secrets.get as any).mockImplementation(async (key: string) => {
+        if (key === 'gemini-api-key') {
+          return 'gem-secret';
+        }
+        return null;
+      });
+
+      (vscode.workspace.getConfiguration as any).mockReturnValue({
+        get: vi.fn((key: string, defaultValue: any) => {
+          const config: Record<string, any> = {
+            aiProvider: 'gemini',
+            geminiApiKey: '',
+            geminiModel: 'gemini-1.5-pro',
+          };
+          return config[key] ?? defaultValue;
+        }),
+      });
+
+      AnalysisPanel.currentPanel = undefined;
+      AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      expect(AnalysisService).toHaveBeenCalledWith(
+        expect.objectContaining({
+          apiKey: 'gem-secret',
+          model: 'gemini-1.5-pro',
+          provider: 'gemini',
+        })
+      );
     });
 
     it('should initialize with custom API when enabled', async () => {

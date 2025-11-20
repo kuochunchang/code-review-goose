@@ -105,6 +105,20 @@
     "configuration": {
       "title": "Goose Code Review",
       "properties": {
+        "gooseCodeReview.aiProvider": {
+          "type": "string",
+          "default": "openai",
+          "enum": [
+            "openai",
+            "gemini"
+          ],
+          "enumDescriptions": [
+            "Use OpenAI or OpenAI-compatible APIs (default)",
+            "Use Google Gemini models via the Generative Language API"
+          ],
+          "description": "Select which AI provider powers code analysis",
+          "scope": "application"
+        },
         "gooseCodeReview.openaiApiKey": {
           "type": "string",
           "default": "",
@@ -113,7 +127,7 @@
         },
         "gooseCodeReview.analysisModel": {
           "type": "string",
-          "default": "gpt-4o",
+          "default": "chatgpt-4o-latest",
           "enum": [
             "gpt-4o",
             "gpt-4o-mini",
@@ -139,6 +153,30 @@
             "GPT-3.5 Turbo - Legacy model"
           ],
           "description": "OpenAI model to use for code analysis (or custom model name when using custom API)",
+          "scope": "application"
+        },
+        "gooseCodeReview.geminiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Gemini API Key for code analysis (prefer using Secret Storage for security)",
+          "scope": "application"
+        },
+        "gooseCodeReview.geminiModel": {
+          "type": "string",
+          "default": "gemini-2.0-flash-exp",
+          "enum": [
+            "gemini-2.0-flash-exp",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-8b"
+          ],
+          "enumDescriptions": [
+            "Gemini 2.0 Flash Experimental - latest fast multimodal model",
+            "Gemini 1.5 Pro - highest quality reasoning model",
+            "Gemini 1.5 Flash - balanced cost and quality",
+            "Gemini 1.5 Flash 8B - lightweight, cost-effective model"
+          ],
+          "description": "Gemini model to use for code analysis",
           "scope": "application"
         },
         "gooseCodeReview.useCustomApi": {
@@ -201,19 +239,20 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@code-review-goose/analysis-core": "*",
     "@code-review-goose/analysis-adapter-vscode": "*",
+    "@code-review-goose/analysis-core": "*",
     "@code-review-goose/analysis-types": "*",
+    "@google/generative-ai": "^0.24.1",
     "openai": "^4.20.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
+    "@vitest/coverage-v8": "^1.0.0",
     "@vscode/test-electron": "^2.3.8",
     "@vscode/vsce": "^2.22.0",
     "typescript": "^5.3.2",
-    "vitest": "^1.0.0",
-    "@vitest/coverage-v8": "^1.0.0"
+    "vitest": "^1.0.0"
   },
   "repository": {
     "type": "git",

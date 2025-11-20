@@ -106,9 +106,10 @@ Goose Code Review supports multiple programming languages:
 
 Before using AI analysis features, you need to configure your AI provider.
 
-**Configure OpenAI API Key**:
+**Select AI provider & API key**:
 
-- The first time you run `goose`, it will prompt you to enter your OpenAI API key
+- Set `aiProvider` to `openai` (default) or `gemini`
+- The first time you run `goose`, it will prompt for the corresponding API key
 - Or manually create `.code-review/config.json` in your project directory:
 
 ```json
@@ -116,7 +117,17 @@ Before using AI analysis features, you need to configure your AI provider.
   "aiProvider": "openai",
   "openai": {
     "apiKey": "sk-your-api-key-here",
-    "model": "gpt-4"
+    "model": "chatgpt-4o-latest"
+  }
+}
+```
+
+```json
+{
+  "aiProvider": "gemini",
+  "gemini": {
+    "apiKey": "gsk_your_api_key",
+    "model": "gemini-2.0-flash-exp"
   }
 }
 ```
@@ -124,8 +135,13 @@ Before using AI analysis features, you need to configure your AI provider.
 **Get your OpenAI API Key**:
 
 - Visit [OpenAI Platform](https://platform.openai.com/api-keys)
-- Create a new API key
-- Copy and paste it into the configuration
+- Create a new API key and copy it into the configuration
+
+**Get your Gemini API Key**:
+
+- Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+- Create a new API key (Generative Language API) and add it to the config or VS Code settings
+- Use the latest recommended model such as `gemini-2.0-flash-exp` or `gemini-1.5-pro`
 
 ### Advanced Configuration
 
@@ -137,6 +153,10 @@ The `.code-review/config.json` file supports additional options:
   "openai": {
     "apiKey": "sk-your-api-key-here",
     "model": "gpt-4"
+  },
+  "gemini": {
+    "apiKey": "gsk-your-api-key",
+    "model": "gemini-2.0-flash-exp"
   },
   "ignorePatterns": ["node_modules", ".git", "dist", "build", "*.log"],
   "maxFileSize": 5242880

@@ -21,12 +21,35 @@ vi.mock('openai', () => {
   };
 });
 
+// Mock Gemini
+const geminiMocks = vi.hoisted(() => ({
+  generateContent: vi.fn(),
+  getGenerativeModel: vi.fn(),
+}));
+
+vi.mock('@google/generative-ai', () => {
+  geminiMocks.getGenerativeModel.mockImplementation(() => ({
+    generateContent: geminiMocks.generateContent,
+  }));
+
+  return {
+    GoogleGenerativeAI: vi.fn(() => ({
+      getGenerativeModel: geminiMocks.getGenerativeModel,
+    })),
+  };
+});
+
 describe('AnalysisService - Extended Tests', () => {
   let service: AnalysisService;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateFn = undefined;
+    geminiMocks.generateContent.mockReset();
+    geminiMocks.getGenerativeModel.mockReset();
+    geminiMocks.getGenerativeModel.mockImplementation(() => ({
+      generateContent: geminiMocks.generateContent,
+    }));
   });
 
   describe('analyzeCode', () => {
@@ -361,6 +384,47 @@ describe('AnalysisService - Extended Tests', () => {
       });
       const supports = (service as any).supportsCustomTemperature();
       expect(supports).toBe(true);
+    });
+  });
+
+  describe('Gemini integration', () => {
+    it('should call Gemini API for explainCode', async () => {
+      service = new AnalysisService({
+        apiKey: 'gem-key',
+        model: 'gemini-1.5-flash',
+        provider: 'gemini',
+      });
+
+      geminiMocks.generateContent.mockResolvedValue({
+        response: {
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      overview: 'Gemini overview',
+                      fields: [],
+                      mainComponents: [],
+                      methodDependencies: [],
+                      howItWorks: [],
+                      keyConcepts: [],
+                      dependencies: [],
+                      notableFeatures: [],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      });
+
+      const result = await service.explainCode('const x = 1;');
+      expect(geminiMocks.getGenerativeModel).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'gemini-1.5-flash' })
+      );
+      expect(result.overview).toBe('Gemini overview');
     });
   });
 });

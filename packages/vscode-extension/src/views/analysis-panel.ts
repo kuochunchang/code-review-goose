@@ -86,12 +86,49 @@ export class AnalysisPanel {
   private async _initializeAnalysisService(): Promise<void> {
     try {
       const config = vscode.workspace.getConfiguration('gooseCodeReview');
-      const apiKey = await this._context.secrets.get('openai-api-key') ||
-                     config.get<string>('openaiApiKey', '');
-      const model = config.get<string>('analysisModel', 'gpt-4');
+      const provider = config.get<'openai' | 'gemini'>('aiProvider', 'openai');
+      const model = config.get<string>('analysisModel', 'chatgpt-4o-latest');
       const useCustomApi = config.get<boolean>('useCustomApi', false);
       const customApiUrl = config.get<string>('customApiUrl', '');
       const customModelName = config.get<string>('customModelName', '');
+
+      if (provider === 'gemini') {
+        const geminiApiKey =
+          (await this._context.secrets.get('gemini-api-key')) ||
+          config.get<string>('geminiApiKey', '');
+        const geminiModel = config.get<string>('geminiModel', 'gemini-2.0-flash-exp');
+
+        if (!geminiApiKey) {
+          vscode.window
+            .showWarningMessage(
+              'Gemini API key not configured. Please set it in the extension settings or use the secret storage.',
+              'Configure'
+            )
+            .then((selection) => {
+              if (selection === 'Configure') {
+                vscode.commands.executeCommand(
+                  'workbench.action.openSettings',
+                  'gooseCodeReview.geminiApiKey'
+                );
+              }
+            });
+          return;
+        }
+
+        this._analysisService = new AnalysisService({
+          apiKey: geminiApiKey,
+          model: geminiModel,
+          timeout: 60000,
+          provider: 'gemini',
+        });
+
+        vscode.window.showInformationMessage(`Using Gemini model: ${geminiModel}`);
+        return;
+      }
+
+      const apiKey =
+        (await this._context.secrets.get('openai-api-key')) ||
+        config.get<string>('openaiApiKey', '');
 
       // Check if using custom API
       if (useCustomApi) {
@@ -115,6 +152,7 @@ export class AnalysisPanel {
           model: modelToUse,
           timeout: 60000,
           baseURL: customApiUrl,
+          provider: 'openai',
         });
 
         vscode.window.showInformationMessage(
@@ -138,6 +176,7 @@ export class AnalysisPanel {
           apiKey,
           model,
           timeout: 60000,
+          provider: 'openai',
         });
       }
     } catch (error) {

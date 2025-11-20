@@ -19,10 +19,33 @@ vi.mock('openai', () => {
   };
 });
 
+// Mock Gemini
+const geminiMocks = vi.hoisted(() => ({
+  generateContent: vi.fn(),
+  getGenerativeModel: vi.fn(),
+}));
+
+vi.mock('@google/generative-ai', () => {
+  geminiMocks.getGenerativeModel.mockImplementation(() => ({
+    generateContent: geminiMocks.generateContent,
+  }));
+
+  return {
+    GoogleGenerativeAI: vi.fn(() => ({
+      getGenerativeModel: geminiMocks.getGenerativeModel,
+    })),
+  };
+});
+
 describe('AnalysisService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lastConstructorConfig = {};
+    geminiMocks.generateContent.mockReset();
+    geminiMocks.getGenerativeModel.mockReset();
+    geminiMocks.getGenerativeModel.mockImplementation(() => ({
+      generateContent: geminiMocks.generateContent,
+    }));
   });
 
   it('should require API key when not using custom API', () => {
@@ -107,8 +130,42 @@ describe('AnalysisService', () => {
     });
   });
 
-  // Note: Full integration tests with OpenAI would require mocking
-  // the entire OpenAI client, which is complex. For now, we test
-  // the service can be instantiated correctly.
-  // More comprehensive tests would be added in an integration test suite.
+    describe('Gemini provider', () => {
+      it('should require API key for Gemini', () => {
+        expect(() => {
+          new AnalysisService({ apiKey: '', provider: 'gemini' });
+        }).toThrow('Gemini API key is required');
+      });
+
+      it('should analyze code using Gemini', async () => {
+        const service = new AnalysisService({
+          apiKey: 'gem-key',
+          provider: 'gemini',
+          model: 'gemini-1.5-pro',
+        });
+
+        geminiMocks.generateContent.mockResolvedValue({
+          response: {
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: '{"issues": [], "summary": "Gemini summary"}' }],
+                },
+              },
+            ],
+          },
+        });
+
+        const result = await service.analyzeCode('const x = 1;');
+        expect(geminiMocks.getGenerativeModel).toHaveBeenCalledWith(
+          expect.objectContaining({ model: 'gemini-1.5-pro' })
+        );
+        expect(result.summary).toBe('Gemini summary');
+      });
+    });
+
+    // Note: Full integration tests with OpenAI/Gemini would require mocking
+    // the entire clients, which is complex. For now, we test
+    // the services can be instantiated and invoked correctly.
+    // More comprehensive tests would be added in an integration test suite.
 });

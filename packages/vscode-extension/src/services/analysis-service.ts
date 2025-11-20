@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import type {
   AnalysisOptions,
   AnalysisResult,
@@ -6,22 +7,41 @@ import type {
   Issue,
 } from '../types/analysis.js';
 
+export type AIProvider = 'openai' | 'gemini';
+
 export interface AnalysisServiceConfig {
   apiKey: string;
   model?: string;
   timeout?: number;
   baseURL?: string;
+  provider?: AIProvider;
 }
 
 /**
- * Analysis service that directly calls OpenAI API
- * Based on the server's OpenAIProvider implementation
+ * Analysis service that talks directly to OpenAI (and OpenAI-compatible) APIs
+ * or Google Gemini via the Generative Language API.
+ * Based on the server's OpenAIProvider implementation.
  */
 export class AnalysisService {
-  private client: OpenAI;
+  private openaiClient?: OpenAI;
+  private geminiClient?: GoogleGenerativeAI;
   private model: string;
+  private provider: AIProvider;
+  private timeout: number;
 
   constructor(config: AnalysisServiceConfig) {
+    this.provider = config.provider || 'openai';
+    this.timeout = config.timeout || 60000;
+
+    if (this.provider === 'gemini') {
+      if (!config.apiKey) {
+        throw new Error('Gemini API key is required');
+      }
+      this.geminiClient = new GoogleGenerativeAI(config.apiKey);
+      this.model = config.model || 'gemini-2.0-flash-exp';
+      return;
+    }
+
     // API key is optional when using custom API (some local services don't require it)
     const apiKey = config.apiKey || (config.baseURL ? 'dummy-key' : '');
 
@@ -31,7 +51,7 @@ export class AnalysisService {
 
     const clientConfig: any = {
       apiKey,
-      timeout: config.timeout || 60000,
+      timeout: this.timeout,
     };
 
     // Add custom baseURL if provided
@@ -39,8 +59,8 @@ export class AnalysisService {
       clientConfig.baseURL = config.baseURL;
     }
 
-    this.client = new OpenAI(clientConfig);
-    this.model = config.model || 'gpt-4';
+    this.openaiClient = new OpenAI(clientConfig);
+    this.model = config.model || 'chatgpt-4o-latest';
   }
 
   /**
@@ -53,41 +73,57 @@ export class AnalysisService {
       const supportsJsonMode = this.supportsJsonMode();
       const supportsCustomTemp = this.supportsCustomTemperature();
 
-      const requestParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
-        model: this.model,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a professional code reviewer. Analyze code and provide detailed feedback in JSON format.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      };
+      let content: string | undefined;
 
-      if (supportsCustomTemp) {
-        requestParams.temperature = 0.3;
+      if (this.provider === 'gemini') {
+        content = await this.generateWithGemini({
+          systemInstruction:
+            'You are a professional code reviewer. Analyze code and provide detailed feedback in JSON format.',
+          prompt,
+          temperature: supportsCustomTemp ? 0.3 : undefined,
+          useJsonMode: supportsJsonMode,
+        });
+      } else {
+        if (!this.openaiClient) {
+          throw new Error('OpenAI client not initialized');
+        }
+
+        const requestParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
+          model: this.model,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are a professional code reviewer. Analyze code and provide detailed feedback in JSON format.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+        };
+
+        if (supportsCustomTemp) {
+          requestParams.temperature = 0.3;
+        }
+
+        if (supportsJsonMode) {
+          requestParams.response_format = { type: 'json_object' };
+        }
+
+        const response = await this.openaiClient.chat.completions.create(requestParams);
+        content = response.choices[0]?.message?.content;
       }
 
-      if (supportsJsonMode) {
-        requestParams.response_format = { type: 'json_object' };
-      }
-
-      const response = await this.client.chat.completions.create(requestParams);
-
-      const content = response.choices[0]?.message?.content;
       if (!content) {
-        throw new Error('No response from OpenAI');
+        throw new Error(`No response from ${this.getProviderName()}`);
       }
 
       const jsonContent = this.extractJSON(content);
       const result = JSON.parse(jsonContent);
       return this.normalizeAnalysisResult(result);
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      console.error(`${this.getProviderName()} API error:`, error);
       if (error instanceof Error) {
         throw new Error(`AI analysis failed: ${error.message}`);
       }
@@ -105,34 +141,50 @@ export class AnalysisService {
       const supportsCustomTemp = this.supportsCustomTemperature();
       const supportsJsonMode = this.supportsJsonMode();
 
-      const requestParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
-        model: this.model,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are an expert code explainer. Provide clear, comprehensive explanations of code in structured JSON format.',
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      };
+      let content: string | undefined;
 
-      if (supportsCustomTemp) {
-        requestParams.temperature = 0.4;
+      if (this.provider === 'gemini') {
+        content = await this.generateWithGemini({
+          systemInstruction:
+            'You are an expert code explainer. Provide clear, comprehensive explanations of code in structured JSON format.',
+          prompt,
+          temperature: supportsCustomTemp ? 0.4 : undefined,
+          useJsonMode: supportsJsonMode,
+        });
+      } else {
+        if (!this.openaiClient) {
+          throw new Error('OpenAI client not initialized');
+        }
+
+        const requestParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
+          model: this.model,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an expert code explainer. Provide clear, comprehensive explanations of code in structured JSON format.',
+            },
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+        };
+
+        if (supportsCustomTemp) {
+          requestParams.temperature = 0.4;
+        }
+
+        if (supportsJsonMode) {
+          requestParams.response_format = { type: 'json_object' };
+        }
+
+        const response = await this.openaiClient.chat.completions.create(requestParams);
+        content = response.choices[0]?.message?.content;
       }
 
-      if (supportsJsonMode) {
-        requestParams.response_format = { type: 'json_object' };
-      }
-
-      const response = await this.client.chat.completions.create(requestParams);
-
-      const content = response.choices[0]?.message?.content;
       if (!content) {
-        throw new Error('No response from OpenAI');
+        throw new Error(`No response from ${this.getProviderName()}`);
       }
 
       const jsonContent = this.extractJSON(content);
@@ -150,7 +202,7 @@ export class AnalysisService {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      console.error(`${this.getProviderName()} API error:`, error);
       if (error instanceof Error) {
         throw new Error(`Code explanation failed: ${error.message}`);
       }
@@ -361,6 +413,9 @@ Guidelines:
    * Check if model supports JSON mode
    */
   private supportsJsonMode(): boolean {
+    if (this.provider === 'gemini') {
+      return true;
+    }
     const jsonModeModels = [
       // GPT-5 series (future)
       'gpt-5',
@@ -406,6 +461,9 @@ Guidelines:
    * Check if model supports custom temperature
    */
   private supportsCustomTemperature(): boolean {
+    if (this.provider === 'gemini') {
+      return true;
+    }
     const noCustomTempModels = [
       // GPT-5 series (future) - may not support custom temperature
       'gpt-5',
@@ -429,5 +487,63 @@ Guidelines:
     );
 
     return !isRestricted;
+  }
+
+  /**
+   * Get provider name for logging and errors
+   */
+  private getProviderName(): string {
+    return this.provider === 'gemini' ? 'Gemini' : 'OpenAI';
+  }
+
+  /**
+   * Generate JSON-structured output with Gemini
+   */
+  private async generateWithGemini(params: {
+    systemInstruction: string;
+    prompt: string;
+    temperature?: number;
+    useJsonMode?: boolean;
+  }): Promise<string> {
+    if (!this.geminiClient) {
+      throw new Error('Gemini client not initialized');
+    }
+
+    const model = this.geminiClient.getGenerativeModel({
+      model: this.model,
+      systemInstruction: params.systemInstruction,
+      generationConfig: {
+        ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
+        ...(params.useJsonMode ? { responseMimeType: 'application/json' } : {}),
+      },
+    });
+
+    const response = await model.generateContent([
+      {
+        role: 'user',
+        parts: [{ text: params.prompt }],
+      },
+    ]);
+
+    return this.extractGeminiText(response);
+  }
+
+  /**
+   * Extract response text from Gemini output
+   */
+  private extractGeminiText(response: any): string {
+    const candidates = response?.response?.candidates || response?.candidates || [];
+    const texts: string[] = [];
+
+    for (const candidate of candidates) {
+      const parts = candidate?.content?.parts || candidate?.parts || [];
+      for (const part of parts) {
+        if (typeof part?.text === 'string') {
+          texts.push(part.text);
+        }
+      }
+    }
+
+    return texts.join('\n').trim();
   }
 }

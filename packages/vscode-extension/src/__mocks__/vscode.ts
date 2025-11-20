@@ -88,8 +88,8 @@ const window = {
         dispose: vi.fn(),
     })),
     showErrorMessage: vi.fn(),
-    showWarningMessage: vi.fn(),
-    showInformationMessage: vi.fn(),
+    showWarningMessage: vi.fn(async () => undefined),
+    showInformationMessage: vi.fn(async () => undefined),
     showTextDocument: vi.fn(async () => ({
         selection: {} as any,
         revealRange: vi.fn(),
