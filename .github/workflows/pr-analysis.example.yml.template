@@ -1,0 +1,167 @@
+# Goose Code Review - PR Analysis Workflow
+# 
+# This workflow automatically analyzes Pull Requests using Goose Code Review
+# and posts the analysis results as a comment.
+#
+# Setup Instructions:
+# 1. Copy this file to `.github/workflows/pr-analysis.yml`
+# 2. Set up required secrets in your repository:
+#    - GITHUB_TOKEN: Automatically provided by GitHub Actions
+#    - OPENAI_API_KEY: Your OpenAI API key for AI analysis
+#    - SONARQUBE_TOKEN: (Optional) Your SonarQube authentication token
+#    - SONARQUBE_SERVER_URL: (Optional) Your SonarQube server URL
+# 3. Customize the configuration below as needed
+
+name: 'Code Review Analysis'
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    # Optionally limit to specific branches
+    # branches:
+    #   - main
+    #   - develop
+
+# Allow workflow to post comments
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  analyze:
+    name: 'Analyze PR Changes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # Step 1: Checkout the PR branch
+      - name: 'Checkout Code'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch full history for better analysis
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      # Step 2: Setup Node.js environment
+      - name: 'Setup Node.js'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Step 3: Install Goose Code Review
+      - name: 'Install Goose Code Review'
+        run: |
+          npm install -g @kuochunchang/goose-code-review
+          # Or install locally if you prefer:
+          # npm install @kuochunchang/goose-code-review
+
+      # Step 4: Configure Analysis (optional - create .goose-review.yml)
+      - name: 'Configure Analysis'
+        run: |
+          cat > .goose-review.yml <<EOF
+          # Goose Code Review Configuration
+          
+          # AI Provider Settings
+          ai:
+            provider: openai
+            model: gpt-4-turbo-preview
+            maxTokens: 8000
+          
+          # Analysis Settings
+          analysis:
+            types:
+              - quality
+              - security
+              - impact
+              - architecture
+            parallel: true
+            maxConcurrency: 3
+          
+          # SonarQube Integration (optional)
+          sonarqube:
+            enabled: ${SONARQUBE_TOKEN:+true}
+            serverUrl: \${{ secrets.SONARQUBE_SERVER_URL }}
+            projectKey: ${{ github.repository }}
+          
+          # GitHub Integration
+          github:
+            postComment: true
+            collapsePrevious: true
+          EOF
+
+      # Step 5: Run Analysis
+      - name: 'Run Code Review Analysis'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SONARQUBE_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+          SONARQUBE_SERVER_URL: ${{ secrets.SONARQUBE_SERVER_URL }}
+        run: |
+          goose-code-review analyze-pr \
+            --owner="${{ github.repository_owner }}" \
+            --repo="${{ github.event.repository.name }}" \
+            --pr-number="${{ github.event.pull_request.number }}" \
+            --post-comment \
+            --config=.goose-review.yml
+
+      # Step 6: Upload Analysis Report (optional)
+      - name: 'Upload Analysis Report'
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-review-report-${{ github.event.pull_request.number }}
+          path: |
+            .goose-review-report.md
+            .goose-review-report.html
+            .goose-review-report.json
+          retention-days: 30
+
+      # Step 7: Check for Critical Issues (optional - fail on critical issues)
+      - name: 'Check Quality Gate'
+        if: always()
+        run: |
+          if [ -f .goose-review-report.json ]; then
+            CRITICAL_COUNT=$(jq '.analysis.issues | map(select(.severity == "critical")) | length' .goose-review-report.json)
+            echo "Critical issues found: $CRITICAL_COUNT"
+            
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "❌ Quality gate failed: $CRITICAL_COUNT critical issue(s) found"
+              exit 1
+            else
+              echo "✅ Quality gate passed: No critical issues found"
+            fi
+          fi
+
+  # Optional: Post summary to PR
+  summary:
+    name: 'Post Analysis Summary'
+    runs-on: ubuntu-latest
+    needs: analyze
+    if: always()
+    
+    steps:
+      - name: 'Post Summary'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('🔍 Code Review Analysis')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: '✅ Code review analysis completed! Check the comment above for detailed results.'
+              });
+            }
+

@@ -1,0 +1,6 @@
+projectKey=code-review-goose-test
+serverUrl=http://localhost:9001
+serverVersion=25.9.0.112764
+dashboardUrl=http://localhost:9001/dashboard?id=code-review-goose-test
+ceTaskId=6c6b51b9-5b79-44d7-a9dd-d973de26e3f2
+ceTaskUrl=http://localhost:9001/api/ce/task?id=6c6b51b9-5b79-44d7-a9dd-d973de26e3f2

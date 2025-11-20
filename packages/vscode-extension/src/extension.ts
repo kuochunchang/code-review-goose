@@ -8,6 +8,15 @@ import { DiagramPanel } from './views/diagram-panel.js';
 import { openAnalysisPanel } from './commands/open-analysis-panel.js';
 import { GenerateClassDiagramCommand } from './commands/generate-class-diagram.js';
 import { GenerateSequenceDiagramCommand } from './commands/generate-sequence-diagram.js';
+import { analyzeWorkingDirectory } from './commands/analyze-working-directory.js';
+import { analyzeBranchComparison } from './commands/analyze-branch.js';
+import { openGitChangePanel } from './commands/open-git-change-panel.js';
+import { addSonarQubeConnection } from './commands/add-sonarqube-connection.js';
+import { bindSonarQubeProject } from './commands/bind-sonarqube-project.js';
+import { testSonarQubeConnection } from './commands/test-sonarqube-connection.js';
+import { testSonarQubeScanner } from './commands/test-sonarqube-scanner.js';
+import { diagnoseSonarQube } from './commands/diagnose-sonarqube.js';
+import { GitAnalysisService } from './services/git-analysis-service.js';
 
 import { isSupportedLanguage, getSupportedLanguagesList } from './utils/language-support.js';
 
@@ -15,11 +24,102 @@ import { isSupportedLanguage, getSupportedLanguagesList } from './utils/language
  * Extension activation
  * Called when the extension is activated
  */
-export function activate(context: vscode.ExtensionContext): void {
+// Create output channel for logging
+const outputChannel = vscode.window.createOutputChannel('Goose Code Review');
+
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  outputChannel.appendLine('Goose Code Review extension is now active');
   console.log('Goose Code Review extension is now active');
 
+  // Make output channel available globally
+  (global as any).gooseOutputChannel = outputChannel;
+  context.subscriptions.push(outputChannel);
+
   // ==========================================
-  // Analysis Panel (NEW)
+  // Git Analysis Service (NEW)
+  // ==========================================
+
+  const gitAnalysisService = new GitAnalysisService(context);
+
+  // Initialize asynchronously
+  gitAnalysisService.initialize().catch((error) => {
+    console.error('Failed to initialize Git Analysis Service:', error);
+    vscode.window.showWarningMessage(
+      'Git Analysis features may not work properly. Please check your AI provider configuration.'
+    );
+  });
+
+  context.subscriptions.push(gitAnalysisService);
+
+  // ==========================================
+  // Git Change Analysis Commands (NEW)
+  // ==========================================
+
+  /**
+   * Analyze Working Directory Changes
+   */
+  const analyzeWorkingDirectoryCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.analyzeWorkingDirectory',
+    () => analyzeWorkingDirectory(context, gitAnalysisService)
+  );
+
+  /**
+   * Analyze Branch Comparison
+   */
+  const analyzeBranchCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.analyzeBranch',
+    () => analyzeBranchComparison(context, gitAnalysisService)
+  );
+
+  /**
+   * Open Git Change Panel
+   */
+  const openGitChangePanelCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.openGitChangePanel',
+    () => openGitChangePanel(context)
+  );
+
+  /**
+   * SonarQube Configuration Commands
+   */
+  const addSonarQubeConnectionCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.sonarqube.addConnection',
+    () => addSonarQubeConnection(context)
+  );
+
+  const bindSonarQubeProjectCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.sonarqube.bindProject',
+    () => bindSonarQubeProject(context)
+  );
+
+  const testSonarQubeConnectionCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.sonarqube.testConnection',
+    () => testSonarQubeConnection(context)
+  );
+
+  const testSonarQubeScannerCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.testSonarQubeScanner',
+    () => testSonarQubeScanner(context)
+  );
+
+  const diagnoseSonarQubeCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.sonarqube.diagnose',
+    () => diagnoseSonarQube(context)
+  );
+
+  context.subscriptions.push(
+    analyzeWorkingDirectoryCmd,
+    analyzeBranchCmd,
+    openGitChangePanelCmd,
+    addSonarQubeConnectionCmd,
+    bindSonarQubeProjectCmd,
+    testSonarQubeConnectionCmd,
+    testSonarQubeScannerCmd,
+    diagnoseSonarQubeCmd
+  );
+
+  // ==========================================
+  // Analysis Panel (EXISTING)
   // ==========================================
 
   /**

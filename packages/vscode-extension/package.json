@@ -50,6 +50,48 @@
         "command": "gooseCodeReview.generateSequenceDiagram",
         "title": "Generate Sequence Diagram",
         "category": "Goose Code Review"
+      },
+      {
+        "command": "gooseCodeReview.analyzeWorkingDirectory",
+        "title": "Analyze Working Directory Changes",
+        "category": "Goose Code Review",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "gooseCodeReview.analyzeBranch",
+        "title": "Analyze Branch Comparison",
+        "category": "Goose Code Review",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "gooseCodeReview.openGitChangePanel",
+        "title": "Open Git Change Analysis",
+        "category": "Goose Code Review",
+        "icon": "$(git-pull-request)"
+      },
+      {
+        "command": "gooseCodeReview.sonarqube.addConnection",
+        "title": "Add SonarQube Connection",
+        "category": "Goose Code Review",
+        "icon": "$(add)"
+      },
+      {
+        "command": "gooseCodeReview.sonarqube.bindProject",
+        "title": "Bind to SonarQube Project",
+        "category": "Goose Code Review",
+        "icon": "$(link)"
+      },
+      {
+        "command": "gooseCodeReview.sonarqube.testConnection",
+        "title": "Test SonarQube Connection",
+        "category": "Goose Code Review",
+        "icon": "$(check)"
+      },
+      {
+        "command": "gooseCodeReview.sonarqube.diagnose",
+        "title": "Diagnose SonarQube Integration",
+        "category": "Goose Code Review",
+        "icon": "$(pulse)"
       }
     ],
     "keybindings": [
@@ -64,6 +106,11 @@
         "key": "ctrl+shift+u",
         "mac": "cmd+shift+u",
         "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python"
+      },
+      {
+        "command": "gooseCodeReview.openGitChangePanel",
+        "key": "ctrl+shift+g",
+        "mac": "cmd+shift+g"
       }
     ],
     "menus": {
@@ -99,6 +146,18 @@
           "when": "editorLangId == typescript || editorLangId == javascript || editorLangId == typescriptreact || editorLangId == javascriptreact || editorLangId == java || editorLangId == python",
           "command": "gooseCodeReview.generateSequenceDiagram",
           "group": "gooseCodeReview@3"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "gooseCodeReview.analyzeWorkingDirectory",
+          "group": "navigation",
+          "when": "scmProvider == git"
+        },
+        {
+          "command": "gooseCodeReview.analyzeBranch",
+          "group": "navigation",
+          "when": "scmProvider == git"
         }
       ]
     },
@@ -230,6 +289,81 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically refresh diagrams when file changes"
+        },
+        "gooseCodeReview.sonarqube.connections": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Configure SonarQube/SonarCloud connections. Each connection requires a unique connectionId and serverUrl.",
+          "scope": "application",
+          "items": {
+            "type": "object",
+            "required": ["connectionId", "serverUrl"],
+            "properties": {
+              "connectionId": {
+                "type": "string",
+                "description": "Unique connection identifier (e.g., 'local-sonarqube', 'sonarcloud')"
+              },
+              "serverUrl": {
+                "type": "string",
+                "description": "SonarQube server URL (e.g., http://localhost:9000 or https://sonarcloud.io)"
+              },
+              "organizationKey": {
+                "type": "string",
+                "description": "Organization key (required for SonarCloud)"
+              },
+              "disableTelemetry": {
+                "type": "boolean",
+                "default": false,
+                "description": "Disable telemetry for this connection"
+              }
+            }
+          }
+        },
+        "gooseCodeReview.sonarqube.projectBinding": {
+          "type": "object",
+          "default": null,
+          "markdownDescription": "Bind workspace to a SonarQube project. Set connectionId and projectKey to enable SonarQube analysis.",
+          "scope": "resource",
+          "properties": {
+            "connectionId": {
+              "type": "string",
+              "description": "Connection ID from sonarqube.connections"
+            },
+            "projectKey": {
+              "type": "string",
+              "description": "SonarQube project key (unique identifier)"
+            },
+            "projectName": {
+              "type": "string",
+              "description": "Project display name (optional)"
+            }
+          }
+        },
+        "gooseCodeReview.sonarqube.timeout": {
+          "type": "number",
+          "default": 3000,
+          "minimum": 1000,
+          "maximum": 30000,
+          "description": "SonarQube connection timeout in milliseconds",
+          "scope": "application"
+        },
+        "gooseCodeReview.sonarqube.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable SonarQube integration for Git change analysis",
+          "scope": "application"
+        },
+        "gooseCodeReview.gitAnalysis.mode": {
+          "type": "string",
+          "default": "hybrid",
+          "enum": ["hybrid", "ai-only", "sonarqube-only"],
+          "enumDescriptions": [
+            "Hybrid: SonarQube + AI analysis (best quality, requires both configured)",
+            "AI Only: Use only AI analysis (no SonarQube required)",
+            "SonarQube Only: Use only SonarQube analysis (no AI required)"
+          ],
+          "description": "Git change analysis mode. Auto-detects available providers and falls back gracefully.",
+          "scope": "application"
         }
       }
     }
@@ -246,6 +380,7 @@
     "@code-review-goose/analysis-adapter-vscode": "*",
     "@code-review-goose/analysis-core": "*",
     "@code-review-goose/analysis-types": "*",
+    "@code-review-goose/git-analyzer": "*",
     "@google/generative-ai": "^0.24.1",
     "openai": "^4.20.0"
   },

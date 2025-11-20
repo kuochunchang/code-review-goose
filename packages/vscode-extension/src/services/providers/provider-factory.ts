@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import type {
   IAIProvider,
   AIProviderType,
@@ -43,5 +44,61 @@ export class AIProviderFactory {
       default:
         throw new Error(`Unknown AI provider: ${config.provider}`);
     }
+  }
+}
+
+/**
+ * Get AI provider from VS Code configuration
+ * Reads settings and creates appropriate provider instance
+ */
+export async function getAIProvider(context: vscode.ExtensionContext): Promise<IAIProvider> {
+  const config = vscode.workspace.getConfiguration('gooseCodeReview');
+  const providerType = config.get<AIProviderType>('aiProvider', 'openai');
+
+  if (providerType === 'gemini') {
+    const geminiApiKey = await context.secrets.get('gemini-api-key') ||
+                         config.get<string>('geminiApiKey', '');
+    const geminiModel = config.get<string>('geminiModel', 'gemini-pro');
+
+    if (!geminiApiKey) {
+      throw new Error('Gemini API key is required. Please configure it in extension settings.');
+    }
+
+    return AIProviderFactory.create({
+      provider: 'gemini',
+      gemini: {
+        apiKey: geminiApiKey,
+        model: geminiModel,
+        timeout: 60000,
+      },
+    });
+  } else {
+    // Default to OpenAI
+    const openaiApiKey = await context.secrets.get('openai-api-key') ||
+                         config.get<string>('openaiApiKey', '');
+    const model = config.get<string>('analysisModel', 'gpt-4');
+    const useCustomApi = config.get<boolean>('useCustomApi', false);
+    const customApiUrl = config.get<string>('customApiUrl', '');
+    const customModelName = config.get<string>('customModelName', '');
+
+    if (!openaiApiKey && !useCustomApi) {
+      throw new Error('OpenAI API key is required. Please configure it in extension settings.');
+    }
+
+    if (useCustomApi && !customApiUrl) {
+      throw new Error('Custom API URL is required when using custom API.');
+    }
+
+    const modelToUse = useCustomApi ? (customModelName || model) : model;
+
+    return AIProviderFactory.create({
+      provider: 'openai',
+      openai: {
+        apiKey: openaiApiKey || 'dummy-key', // Some custom APIs don't require API key
+        model: modelToUse,
+        timeout: 60000,
+        baseURL: useCustomApi ? customApiUrl : undefined,
+      },
+    });
   }
 }
