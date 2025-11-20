@@ -8,10 +8,25 @@
       "path": "./packages/analysis-utils"
     },
     {
+      "path": "./packages/analysis-parser-common"
+    },
+    {
+      "path": "./packages/analysis-parser-typescript"
+    },
+    {
+      "path": "./packages/analysis-parser-java"
+    },
+    {
+      "path": "./packages/analysis-parser-python"
+    },
+    {
       "path": "./packages/analysis-core"
     },
     {
       "path": "./packages/analysis-adapter-vscode"
+    },
+    {
+      "path": "./packages/git-analyzer"
     },
     {
       "path": "./packages/vscode-extension"
