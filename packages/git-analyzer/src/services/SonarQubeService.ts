@@ -132,35 +132,27 @@ export class SonarQubeService {
         },
       };
 
-      return await new Promise<ScannerExecutionResult>((resolve) => {
+      return await new Promise<ScannerExecutionResult>((resolve, reject) => {
         scanner(
           scannerConfig,
-          (result: { ceTaskId?: string; ceTaskUrl?: string; dashboardUrl?: string }) => {
+          (error?: unknown) => {
             const executionTime = this.getElapsedTime(startTime);
-
-            if (result.ceTaskId) {
+            
+            if (error) {
+              // Error callback
               resolve({
-                success: true,
-                taskId: result.ceTaskId,
-                dashboardUrl: result.dashboardUrl,
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
                 executionTime,
               });
             } else {
+              // Success callback
               resolve({
                 success: true,
-                dashboardUrl: result.dashboardUrl,
                 executionTime,
               });
             }
-          },
-          (error: Error) => {
-            const executionTime = this.getElapsedTime(startTime);
-            resolve({
-              success: false,
-              error: error.message,
-              executionTime,
-            });
-          },
+          }
         );
       });
     } catch (error) {

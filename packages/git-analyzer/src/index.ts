@@ -18,6 +18,9 @@ export { MergeService } from './services/MergeService.js';
 export type { MergeConfig, DeduplicationStrategy } from './services/MergeService.js';
 export { ReportExporter } from './services/ReportExporter.js';
 export type { ExportFormat, ExportOptions } from './services/ReportExporter.js';
+export { GitHubService } from './services/GitHubService.js';
+export { PRAnalysisService } from './services/PRAnalysisService.js';
+export type { PRAnalysisServiceConfig } from './services/PRAnalysisService.js';
 
 // Export utilities
 export { ConfigLoader } from './utils/ConfigLoader.js';
