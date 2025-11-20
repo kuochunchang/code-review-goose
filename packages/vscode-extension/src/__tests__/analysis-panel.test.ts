@@ -32,8 +32,8 @@ vi.mock('../services/cache-service.js', () => ({
       hashMatched: false,
       insight: null,
     })),
-    saveAnalysis: vi.fn(async () => {}),
-    saveExplain: vi.fn(async () => {}),
+    saveAnalysis: vi.fn(async () => { }),
+    saveExplain: vi.fn(async () => { }),
   })),
 }));
 
@@ -65,7 +65,7 @@ describe('AnalysisPanel', () => {
     mockPanel = {
       webview: {
         html: '',
-        postMessage: vi.fn(async () => {}),
+        postMessage: vi.fn(async () => { }),
         onDidReceiveMessage: vi.fn(() => ({ dispose: vi.fn() })),
       },
       reveal: vi.fn(),
@@ -77,13 +77,14 @@ describe('AnalysisPanel', () => {
       extensionUri: mockExtensionUri,
       secrets: {
         get: vi.fn(async () => null),
-        store: vi.fn(async () => {}),
-        delete: vi.fn(async () => {}),
+        store: vi.fn(async () => { }),
+        delete: vi.fn(async () => { }),
       },
     } as any;
 
     // Mock window.createWebviewPanel
     (vscode.window.createWebviewPanel as any).mockReturnValue(mockPanel);
+    (vscode.window.showWarningMessage as any).mockResolvedValue(undefined);
     (vscode.workspace.openTextDocument as any).mockResolvedValue(mockDocument);
     (vscode.workspace.getConfiguration as any).mockReturnValue({
       get: vi.fn((key: string, defaultValue: any) => {
@@ -173,7 +174,7 @@ describe('AnalysisPanel', () => {
 
     it('should handle runAnalysis message', async () => {
       await panel.loadFile(mockFileUri);
-      
+
       // Manually trigger message handler
       const onDidReceiveMessageCall = (mockPanel.webview.onDidReceiveMessage as any).mock.calls[0];
       if (onDidReceiveMessageCall) {
@@ -185,7 +186,7 @@ describe('AnalysisPanel', () => {
 
     it('should handle runExplain message', async () => {
       await panel.loadFile(mockFileUri);
-      
+
       const onDidReceiveMessageCall = (mockPanel.webview.onDidReceiveMessage as any).mock.calls[0];
       if (onDidReceiveMessageCall) {
         await onDidReceiveMessageCall[0]({ command: 'runExplain' });
@@ -205,7 +206,7 @@ describe('AnalysisPanel', () => {
 
     it('should handle jumpToLine message', async () => {
       await panel.loadFile(mockFileUri);
-      
+
       const mockEditor = {
         selection: {} as any,
         revealRange: vi.fn(),
@@ -243,7 +244,7 @@ describe('AnalysisPanel', () => {
   describe('_initializeAnalysisService', () => {
     it('should initialize with API key from secrets', async () => {
       (mockContext.secrets.get as any).mockResolvedValue('secret-key');
-      
+
       AnalysisPanel.currentPanel = undefined;
       AnalysisPanel.createOrShow(mockExtensionUri, mockContext);
 

@@ -21,6 +21,7 @@
   "license": "MIT",
   "dependencies": {
     "@code-review-goose/analysis-types": "*",
+    "gpt-3-encoder": "^1.1.4",
     "simple-git": "^3.25.0",
     "sonarqube-scanner": "^4.3.2"
   },

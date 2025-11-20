@@ -27,7 +27,7 @@ let mockScannerShouldFail = false;
 const mockFetchResponses: Map<string, any> = new Map();
 
 // Mock fetch globally
-global.fetch = vi.fn((url: string | URL) => {
+const mockFetch = vi.fn((url: string | URL) => {
   const urlStr = url.toString();
   const response = mockFetchResponses.get(urlStr);
 
@@ -36,6 +36,8 @@ global.fetch = vi.fn((url: string | URL) => {
       ok: false,
       status: 404,
       statusText: 'Not Found',
+      json: () => Promise.resolve({}),
+      text: () => Promise.resolve('Not Found'),
     } as Response);
   }
 
@@ -43,9 +45,12 @@ global.fetch = vi.fn((url: string | URL) => {
     ok: response.ok,
     status: response.status || 200,
     statusText: response.statusText || 'OK',
-    json: async () => response.data,
+    json: () => Promise.resolve(response.data),
+    text: () => Promise.resolve(JSON.stringify(response.data)),
   } as Response);
-}) as any;
+});
+
+vi.stubGlobal('fetch', mockFetch);
 
 describe('SonarQubeService', () => {
   let service: SonarQubeService;
@@ -56,6 +61,7 @@ describe('SonarQubeService', () => {
     mockScannerShouldFail = false;
     mockFetchResponses.clear();
     vi.clearAllMocks();
+    global.fetch = mockFetch as unknown as typeof fetch;
 
     // Default configuration
     config = {
@@ -252,8 +258,11 @@ describe('SonarQubeService', () => {
 
     it('should fetch complete analysis result', async () => {
       // Mock issues API
-      const issuesUrl = 'http://localhost:9000/api/issues/search?componentKeys=test-project&resolved=false&ps=500';
-      mockFetchResponses.set(issuesUrl, {
+      const issuesUrl = new URL('http://localhost:9000/api/issues/search');
+      issuesUrl.searchParams.set('componentKeys', 'test-project');
+      issuesUrl.searchParams.set('resolved', 'false');
+      issuesUrl.searchParams.set('ps', '500');
+      mockFetchResponses.set(issuesUrl.toString(), {
         ok: true,
         data: {
           issues: [
@@ -286,8 +295,13 @@ describe('SonarQubeService', () => {
       });
 
       // Mock metrics API
-      const metricsUrl = 'http://localhost:9000/api/measures/component?component=test-project&metricKeys=bugs,vulnerabilities,code_smells,security_hotspots,sqale_debt_ratio,coverage,ncloc,duplicated_lines_density';
-      mockFetchResponses.set(metricsUrl, {
+      const metricsUrl = new URL('http://localhost:9000/api/measures/component');
+      metricsUrl.searchParams.set('component', 'test-project');
+      metricsUrl.searchParams.set(
+        'metricKeys',
+        'bugs,vulnerabilities,code_smells,security_hotspots,sqale_debt_ratio,coverage,ncloc,duplicated_lines_density',
+      );
+      mockFetchResponses.set(metricsUrl.toString(), {
         ok: true,
         data: {
           component: {
@@ -306,8 +320,9 @@ describe('SonarQubeService', () => {
       });
 
       // Mock quality gate API
-      const qgUrl = 'http://localhost:9000/api/qualitygates/project_status?projectKey=test-project';
-      mockFetchResponses.set(qgUrl, {
+      const qgUrl = new URL('http://localhost:9000/api/qualitygates/project_status');
+      qgUrl.searchParams.set('projectKey', 'test-project');
+      mockFetchResponses.set(qgUrl.toString(), {
         ok: true,
         data: {
           projectStatus: {
@@ -362,7 +377,11 @@ describe('SonarQubeService', () => {
         ok: true,
         data: { status: 'UP', version: '9.9.0' },
       });
-      await service.testConnection();
+      const result = await service.testConnection();
+      if (!result.success) {
+        console.error('testConnection failed in beforeEach:', result.error);
+        throw new Error(`testConnection failed: ${result.error}`);
+      }
     });
 
     it('should throw error if server is not available', async () => {

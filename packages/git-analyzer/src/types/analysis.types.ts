@@ -3,6 +3,7 @@
  */
 
 import type { GitChanges } from './git.types.js';
+import type { SonarQubeAnalysisResult } from './sonarqube.types.js';
 
 /**
  * Analysis options
@@ -147,26 +148,6 @@ export interface SonarIssue {
   effort?: string;
   /** Creation date */
   creationDate: string;
-}
-
-/**
- * SonarQube analysis result
- */
-export interface SonarQubeAnalysisResult {
-  /** All issues found */
-  issues: SonarIssue[];
-  /** Total bugs */
-  bugs: number;
-  /** Total vulnerabilities */
-  vulnerabilities: number;
-  /** Total code smells */
-  codeSmells: number;
-  /** Total security hotspots */
-  securityHotspots: number;
-  /** Technical debt (in minutes) */
-  technicalDebt: number;
-  /** Analysis timestamp */
-  timestamp: string;
 }
 
 /**

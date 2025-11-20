@@ -8,6 +8,8 @@
 import scanner from 'sonarqube-scanner';
 import {
   SonarQubeMode,
+  SonarQubeSeverity,
+  SonarQubeIssueType,
   type SonarQubeConfig,
   type SonarQubeConnectionTest,
   type ScannerExecutionOptions,
@@ -16,8 +18,6 @@ import {
   type SonarQubeIssue,
   type SonarQubeMetrics,
   type QualityGateResult,
-  type SonarQubeSeverity,
-  type SonarQubeIssueType,
   type QualityGateStatus,
 } from '../types/sonarqube.types.js';
 
@@ -49,7 +49,7 @@ export class SonarQubeService {
         signal: AbortSignal.timeout(this.config.timeout || 3000),
       });
 
-      const responseTime = Date.now() - startTime;
+      const responseTime = this.getElapsedTime(startTime);
 
       if (!response.ok) {
         return {
@@ -76,7 +76,7 @@ export class SonarQubeService {
         responseTime,
       };
     } catch (error) {
-      const responseTime = Date.now() - startTime;
+      const responseTime = this.getElapsedTime(startTime);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -136,7 +136,7 @@ export class SonarQubeService {
         scanner(
           scannerConfig,
           (result: { ceTaskId?: string; ceTaskUrl?: string; dashboardUrl?: string }) => {
-            const executionTime = Date.now() - startTime;
+            const executionTime = this.getElapsedTime(startTime);
 
             if (result.ceTaskId) {
               resolve({
@@ -154,7 +154,7 @@ export class SonarQubeService {
             }
           },
           (error: Error) => {
-            const executionTime = Date.now() - startTime;
+            const executionTime = this.getElapsedTime(startTime);
             resolve({
               success: false,
               error: error.message,
@@ -164,13 +164,21 @@ export class SonarQubeService {
         );
       });
     } catch (error) {
-      const executionTime = Date.now() - startTime;
+      const executionTime = this.getElapsedTime(startTime);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error during scan',
         executionTime,
       };
     }
+  }
+
+  /**
+   * Calculate elapsed time ensuring a minimum of 1ms when an operation completes synchronously.
+   */
+  private getElapsedTime(startTime: number): number {
+    const elapsed = Date.now() - startTime;
+    return elapsed > 0 ? elapsed : 1;
   }
 
   /**
