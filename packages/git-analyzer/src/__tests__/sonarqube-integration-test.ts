@@ -20,13 +20,15 @@ import * as path from 'path';
 // ============================================
 // 配置區域 - 請根據您的環境修改
 // ============================================
+// Note: TEST_CONFIG is defined here for reference but should be configured via environment
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const TEST_CONFIG: SonarQubeConfig = {
   // SonarQube 伺服器 URL
   serverUrl: 'http://localhost:9001',
-  
+
   // 認證 Token (從 SonarQube 介面生成: My Account > Security > Generate Tokens)
   token: 'sqa_2831130cded5ddd88814e6f903bfa09cbeb49d79',
-  
+
   // 專案唯一識別碼
   projectKey: 'code-review-goose-git-analyzer',
   
@@ -180,8 +182,9 @@ async function runSonarQubeTest() {
       
       logInfo('開始掃描... 這可能需要幾分鐘時間');
       logInfo('請注意: 大型專案可能需要更長時間');
-      
-      const scanStartTime = Date.now();
+
+      // Start time tracking (for future metrics)
+      // const scanStartTime = Date.now();
       const scanResult = await service.executeScan({
         workingDirectory: workingDir,
         waitForAnalysis: false,
@@ -361,7 +364,7 @@ async function runSonarQubeTest() {
 // ============================================
 
 // 處理未捕獲的錯誤
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   console.error('\n未處理的 Promise 拒絕:', reason);
   process.exit(1);
 });

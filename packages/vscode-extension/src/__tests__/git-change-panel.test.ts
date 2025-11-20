@@ -23,7 +23,7 @@ describe('GitChangePanel', () => {
     mockPanel = {
       webview: {
         html: '',
-        onDidReceiveMessage: vi.fn((callback: (message: any) => void) => {
+        onDidReceiveMessage: vi.fn((_callback: (message: any) => void) => {
           // Store callback so it can be accessed via mock.calls[0][0]
           return { dispose: vi.fn() };
         }),

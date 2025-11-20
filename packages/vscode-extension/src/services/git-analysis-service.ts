@@ -3,23 +3,22 @@
  * Integrates git-analyzer package for VS Code extension
  */
 
-import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
 import {
+  AnalysisMode,
+  AnalysisOrchestrator,
   ChangeAnalyzer,
   MergeService,
   ReportExporter,
-  AnalysisOrchestrator,
-  AnalysisMode,
   SonarQubeService,
-  type ChangeAnalyzerConfig,
-  type IAIProvider,
   type AnalysisType,
-  type MergedAnalysisResult,
+  type ChangeAnalysisResult,
   type ExportFormat,
   type ExportOptions,
-  type ChangeAnalysisResult,
+  type IAIProvider,
+  type MergedAnalysisResult,
 } from '@code-review-goose/git-analyzer';
+import * as fs from 'node:fs/promises';
+import * as vscode from 'vscode';
 import { getAIProvider } from './providers/provider-factory.js';
 import { SonarQubeConfigService } from './sonarqube-config-service.js';
 
@@ -55,14 +54,14 @@ export type ProgressCallback = (message: string, increment?: number) => void;
  * Provides high-level API for Git change analysis
  */
 export class GitAnalysisService {
-  private changeAnalyzer: ChangeAnalyzer | null = null;
-  private mergeService: MergeService;
-  private reportExporter: ReportExporter;
+  private readonly changeAnalyzer: ChangeAnalyzer | null = null;
+  private readonly mergeService: MergeService;
+  private readonly reportExporter: ReportExporter;
   private aiProvider: IAIProvider | null = null;
-  private sonarQubeConfigService: SonarQubeConfigService;
+  private readonly sonarQubeConfigService: SonarQubeConfigService;
   private orchestrator: AnalysisOrchestrator | null = null;
 
-  constructor(private context: vscode.ExtensionContext) {
+  constructor(private readonly context: vscode.ExtensionContext) {
     this.mergeService = new MergeService();
     this.reportExporter = new ReportExporter();
     this.sonarQubeConfigService = new SonarQubeConfigService(context);
@@ -119,16 +118,13 @@ export class GitAnalysisService {
         // Create a minimal orchestrator that will skip analysis
         this.orchestrator = new AnalysisOrchestrator(undefined, false);
       }
+    } else if (aiProviderAvailable) {
+      // No SonarQube config - Create orchestrator with AI-only mode
+      this.orchestrator = new AnalysisOrchestrator(undefined, true);
+      await this.orchestrator.detectMode();
     } else {
-      // No SonarQube config
-      if (aiProviderAvailable) {
-        // Create orchestrator with AI-only mode
-        this.orchestrator = new AnalysisOrchestrator(undefined, true);
-        await this.orchestrator.detectMode();
-      } else {
-        // No SonarQube config and no AI provider - create empty orchestrator
-        this.orchestrator = new AnalysisOrchestrator(undefined, false);
-      }
+      // No SonarQube config and no AI provider - create empty orchestrator
+      this.orchestrator = new AnalysisOrchestrator(undefined, false);
     }
   }
 
@@ -572,7 +568,8 @@ export class GitAnalysisService {
     sqConfig: any,
     changedFilePaths: string[]
   ): Promise<any> {
-    const sqService = new SonarQubeService(sqConfig);
+    // Note: sqService is created but not used directly; we make direct API calls instead
+    // This is intentional as we need more granular control over the API requests
 
     // Build component keys for SonarQube API (format: projectKey:filePath)
     const componentKeys = changedFilePaths.map(

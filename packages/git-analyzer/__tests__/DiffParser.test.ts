@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { DiffParser } from '../src/utils/DiffParser.js';
-import type { GitChanges, GitFileChange, WorkingDirectoryChanges } from '../src/types/git.types.js';
+import type { WorkingDirectoryChanges } from '../src/types/git.types.js';
 
 describe('DiffParser', () => {
   const parser = new DiffParser();

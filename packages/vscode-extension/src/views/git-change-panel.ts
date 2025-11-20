@@ -235,7 +235,7 @@ export class GitChangePanel {
   /**
    * Get HTML for webview
    */
-  private _getHtmlForWebview(webview: vscode.Webview): string {
+  private _getHtmlForWebview(_webview: vscode.Webview): string {
     const result = this._data.result;
 
     if (!result) {
@@ -299,7 +299,7 @@ export class GitChangePanel {
   /**
    * Get header HTML
    */
-  private _getHeaderHtml(result: MergedAnalysisResult): string {
+  private _getHeaderHtml(_result: MergedAnalysisResult): string {
     const { changeSource, sourceBranch, targetBranch } = this._data;
     let subtitle = '';
 

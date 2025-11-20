@@ -114,7 +114,9 @@ describe('ReportExporter', () => {
     it('should format severity icons', () => {
       const markdown = exporter.export(sampleResult, 'markdown');
 
-      expect(markdown).toMatch(/[🔴🟠🟡🔵ℹ️]/);
+      // Check for severity icons (emojis may be combined characters)
+      const hasIcon = /🔴|🟠|🟡|🔵|ℹ️/u.test(markdown);
+      expect(hasIcon).toBe(true);
     });
 
     it('should include issue details', () => {
@@ -337,7 +339,7 @@ describe('ReportExporter', () => {
     it('should format risk levels with emojis', () => {
       const markdown = exporter.export(sampleResult, 'markdown');
 
-      expect(markdown).toMatch(/[🔴🟠🟡🟢]/);
+      expect(markdown).toMatch(/[🔴🟠🟡🟢]/u);
     });
   });
 

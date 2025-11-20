@@ -85,7 +85,7 @@ const window = {
     createWebviewPanel: vi.fn(() => {
         const webviewMock = {
             html: '',
-            onDidReceiveMessage: vi.fn((callback: (message: any) => void) => {
+            onDidReceiveMessage: vi.fn((_callback: (message: any) => void) => {
                 // Store callback so tests can access it via mock.calls[0][0]
                 return { dispose: vi.fn() };
             }),

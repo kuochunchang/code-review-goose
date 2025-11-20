@@ -17,21 +17,18 @@
  */
 
 import { GitHubService } from './GitHubService.js';
-import { ChangeAnalyzer, type IAIProvider, type ChangeAnalyzerConfig } from './ChangeAnalyzer.js';
+import { ChangeAnalyzer, type IAIProvider } from './ChangeAnalyzer.js';
 import { MergeService } from './MergeService.js';
 import { ReportExporter } from './ReportExporter.js';
 import { SonarQubeService } from './SonarQubeService.js';
 import type {
   GitHubConfig,
-  GitHubRepository,
   PRAnalysisRequest,
   PRAnalysisResult,
 } from '../types/github.types.js';
 import type {
-  ChangeAnalysisResult,
   AnalysisOptions,
   MergedAnalysisResult,
-  IssueSeverity,
 } from '../types/analysis.types.js';
 import type {
   SonarQubeConfig,
