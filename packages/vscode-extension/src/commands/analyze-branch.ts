@@ -81,7 +81,7 @@ export async function analyzeBranchComparison(
             targetBranch,
           });
 
-          const totalIssues = result.fileAnalyses.flatMap(f => f.issues).length;
+          const totalIssues = result.fileAnalyses.flatMap((f) => f.issues).length;
           const totalFiles = result.fileAnalyses.length;
           vscode.window.showInformationMessage(
             `Analysis complete! Found ${totalIssues} issue(s) in ${totalFiles} file(s).`

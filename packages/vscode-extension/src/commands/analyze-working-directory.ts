@@ -65,7 +65,7 @@ export async function analyzeWorkingDirectory(
             workingDirectory,
           });
 
-          const totalIssues = result.fileAnalyses.flatMap(f => f.issues).length;
+          const totalIssues = result.fileAnalyses.flatMap((f) => f.issues).length;
           const totalFiles = result.fileAnalyses.length;
           vscode.window.showInformationMessage(
             `Analysis complete! Found ${totalIssues} issue(s) in ${totalFiles} file(s).`

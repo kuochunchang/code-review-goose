@@ -214,7 +214,7 @@ export class GitAnalysisService {
             const { GitService } = await import('@code-review-goose/git-analyzer');
             const gitService = new GitService(config.workingDirectory);
             const changes = await gitService.getWorkingDirectoryChanges();
-            const changedFilePaths = changes.files.map(f => f.path);
+            const changedFilePaths = changes.files.map((f) => f.path);
 
             console.log(`[Git Analysis] Found ${changedFilePaths.length} changed files for SonarQube analysis`);
 
@@ -407,7 +407,7 @@ export class GitAnalysisService {
               config.targetBranch,
               config.sourceBranch
             );
-            const changedFilePaths = changes.files.map(f => f.path);
+            const changedFilePaths = changes.files.map((f) => f.path);
 
             // Log to output channel as well
             const branchComparisonOutputChannel = (global as any).gooseOutputChannel;

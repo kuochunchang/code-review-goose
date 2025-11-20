@@ -4,7 +4,7 @@
  */
 
 import * as vscode from 'vscode';
-import type { MergedAnalysisResult } from '@code-review-goose/git-analyzer';
+import type { MergedAnalysisResult, FileAnalysis, CodeIssue } from '@code-review-goose/git-analyzer';
 
 /**
  * Panel data passed to webview
@@ -38,13 +38,13 @@ function calculateSummaryStats(result: MergedAnalysisResult): {
     info: number;
   };
 } {
-  const allIssues = result.fileAnalyses.flatMap(f => f.issues);
+  const allIssues = result.fileAnalyses.flatMap((f) => f.issues);
   const bySeverity = {
-    critical: allIssues.filter(i => i.severity === 'critical').length,
-    high: allIssues.filter(i => i.severity === 'high').length,
-    medium: allIssues.filter(i => i.severity === 'medium').length,
-    low: allIssues.filter(i => i.severity === 'low').length,
-    info: allIssues.filter(i => i.severity === 'info').length,
+    critical: allIssues.filter((i) => i.severity === 'critical').length,
+    high: allIssues.filter((i) => i.severity === 'high').length,
+    medium: allIssues.filter((i) => i.severity === 'medium').length,
+    low: allIssues.filter((i) => i.severity === 'low').length,
+    info: allIssues.filter((i) => i.severity === 'info').length,
   };
 
   return {
@@ -418,9 +418,9 @@ export class GitChangePanel {
    */
   private _getIssuesHtml(result: MergedAnalysisResult): string {
     const issuesHtml = result.fileAnalyses
-      .map((fileAnalysis) => {
+      .map((fileAnalysis: FileAnalysis) => {
         const issuesForFile = fileAnalysis.issues
-          .map((issue) => {
+          .map((issue: CodeIssue) => {
             return `
           <div class="issue ${issue.severity}" data-severity="${issue.severity}">
             <div class="issue-header">

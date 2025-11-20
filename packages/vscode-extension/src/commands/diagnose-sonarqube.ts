@@ -79,7 +79,7 @@ export async function diagnoseSonarQube(context: vscode.ExtensionContext): Promi
 
       if (changes.files.length > 0) {
         outputChannel.appendLine('   Changed files:');
-        changes.files.slice(0, 10).forEach(file => {
+        changes.files.slice(0, 10).forEach((file) => {
           outputChannel.appendLine(`     - ${file.path} (${file.status})`);
         });
         if (changes.files.length > 10) {
@@ -152,7 +152,7 @@ export async function diagnoseSonarQube(context: vscode.ExtensionContext): Promi
     // 7. Sample issues
     if (analysisResult.issues.length > 0) {
       outputChannel.appendLine('   Sample issues (first 5):');
-      analysisResult.issues.slice(0, 5).forEach((issue, index) => {
+      analysisResult.issues.slice(0, 5).forEach((issue: any, index: number) => {
         outputChannel.appendLine(`   ${index + 1}. [${issue.severity}] ${issue.message}`);
         outputChannel.appendLine(`      File: ${issue.component}`);
         outputChannel.appendLine(`      Line: ${(issue as any).line || 'N/A'}`);
