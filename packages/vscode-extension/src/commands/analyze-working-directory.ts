@@ -5,7 +5,7 @@
 
 import * as vscode from 'vscode';
 import { GitAnalysisService } from '../services/git-analysis-service.js';
-import type { AnalysisType } from '@code-review-goose/git-analyzer';
+import type { AnalysisType, FileAnalysis } from '@code-review-goose/git-analyzer';
 
 /**
  * Execute analyze working directory command
@@ -65,7 +65,7 @@ export async function analyzeWorkingDirectory(
             workingDirectory,
           });
 
-          const totalIssues = result.fileAnalyses.flatMap((f) => f.issues).length;
+          const totalIssues = result.fileAnalyses.flatMap((f: FileAnalysis) => f.issues).length;
           const totalFiles = result.fileAnalyses.length;
           vscode.window.showInformationMessage(
             `Analysis complete! Found ${totalIssues} issue(s) in ${totalFiles} file(s).`

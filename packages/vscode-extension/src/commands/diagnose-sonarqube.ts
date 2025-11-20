@@ -7,6 +7,7 @@ import * as vscode from 'vscode';
 import { SonarQubeConfigService } from '../services/sonarqube-config-service.js';
 import { SonarQubeService } from '@code-review-goose/git-analyzer';
 import { GitService } from '@code-review-goose/git-analyzer';
+import type { GitFileChange } from '@code-review-goose/git-analyzer';
 
 /**
  * Diagnose SonarQube configuration and connectivity
@@ -79,7 +80,7 @@ export async function diagnoseSonarQube(context: vscode.ExtensionContext): Promi
 
       if (changes.files.length > 0) {
         outputChannel.appendLine('   Changed files:');
-        changes.files.slice(0, 10).forEach((file) => {
+        changes.files.slice(0, 10).forEach((file: GitFileChange) => {
           outputChannel.appendLine(`     - ${file.path} (${file.status})`);
         });
         if (changes.files.length > 10) {

@@ -38,13 +38,13 @@ function calculateSummaryStats(result: MergedAnalysisResult): {
     info: number;
   };
 } {
-  const allIssues = result.fileAnalyses.flatMap((f) => f.issues);
+  const allIssues = result.fileAnalyses.flatMap((f: FileAnalysis) => f.issues);
   const bySeverity = {
-    critical: allIssues.filter((i) => i.severity === 'critical').length,
-    high: allIssues.filter((i) => i.severity === 'high').length,
-    medium: allIssues.filter((i) => i.severity === 'medium').length,
-    low: allIssues.filter((i) => i.severity === 'low').length,
-    info: allIssues.filter((i) => i.severity === 'info').length,
+    critical: allIssues.filter((i: CodeIssue) => i.severity === 'critical').length,
+    high: allIssues.filter((i: CodeIssue) => i.severity === 'high').length,
+    medium: allIssues.filter((i: CodeIssue) => i.severity === 'medium').length,
+    low: allIssues.filter((i: CodeIssue) => i.severity === 'low').length,
+    info: allIssues.filter((i: CodeIssue) => i.severity === 'info').length,
   };
 
   return {
