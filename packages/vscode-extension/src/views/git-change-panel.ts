@@ -23,6 +23,40 @@ export interface GitChangePanelData {
 }
 
 /**
+ * Calculate summary statistics from MergedAnalysisResult
+ */
+function calculateSummaryStats(result: MergedAnalysisResult): {
+  totalIssues: number;
+  totalFiles: number;
+  qualityScore: number;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  bySeverity: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+    info: number;
+  };
+} {
+  const allIssues = result.fileAnalyses.flatMap(f => f.issues);
+  const bySeverity = {
+    critical: allIssues.filter(i => i.severity === 'critical').length,
+    high: allIssues.filter(i => i.severity === 'high').length,
+    medium: allIssues.filter(i => i.severity === 'medium').length,
+    low: allIssues.filter(i => i.severity === 'low').length,
+    info: allIssues.filter(i => i.severity === 'info').length,
+  };
+
+  return {
+    totalIssues: allIssues.length,
+    totalFiles: result.fileAnalyses.length,
+    qualityScore: result.impactAnalysis.qualityScore,
+    riskLevel: result.impactAnalysis.riskLevel,
+    bySeverity,
+  };
+}
+
+/**
  * Git Change Analysis Panel
  */
 export class GitChangePanel {
@@ -188,8 +222,8 @@ export class GitChangePanel {
       // Import ReportExporter dynamically
       const { ReportExporter } = await import('@code-review-goose/git-analyzer');
       const exporter = new ReportExporter();
-
-      await exporter.export(this._data.result, format, uri.fsPath);
+      const content = exporter.export(this._data.result, format);
+      await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf-8'));
 
       vscode.window.showInformationMessage(`Report exported to ${uri.fsPath}`);
     } catch (error) {
@@ -291,7 +325,7 @@ export class GitChangePanel {
    * Get summary HTML
    */
   private _getSummaryHtml(result: MergedAnalysisResult): string {
-    const { summary } = result;
+    const summary = calculateSummaryStats(result);
 
     return `
     <div class="summary">

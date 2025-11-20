@@ -17,7 +17,7 @@ import {
   type ExportOptions,
   type ChangeAnalysisResult,
 } from '@code-review-goose/git-analyzer';
-import { getAIProvider as getProviderFactory } from './providers/provider-factory.js';
+import { getAIProvider } from './providers/provider-factory.js';
 
 /**
  * Git analysis configuration
@@ -66,7 +66,7 @@ export class GitAnalysisService {
    */
   async initialize(): Promise<void> {
     try {
-      this.aiProvider = await getProviderFactory();
+      this.aiProvider = await getAIProvider(this.context);
       // ChangeAnalyzer will be created per-analysis with specific repo path
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

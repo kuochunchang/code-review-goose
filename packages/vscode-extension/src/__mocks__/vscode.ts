@@ -53,6 +53,12 @@ const ViewColumn = {
     Nine: 9,
 };
 
+const ProgressLocation = {
+    SourceControl: 1,
+    Window: 10,
+    Notification: 15,
+};
+
 const Disposable = class {
     dispose = vi.fn();
     static from = vi.fn((..._disposables: { dispose: () => any }[]) => {
@@ -76,20 +82,34 @@ const window = {
         command: '',
         tooltip: '',
     })),
-    createWebviewPanel: vi.fn(() => ({
-        webview: {
+    createWebviewPanel: vi.fn(() => {
+        const webviewMock = {
             html: '',
-            onDidReceiveMessage: vi.fn(() => ({ dispose: vi.fn() })),
+            onDidReceiveMessage: vi.fn((callback: (message: any) => void) => {
+                // Store callback so tests can access it via mock.calls[0][0]
+                return { dispose: vi.fn() };
+            }),
             postMessage: vi.fn(async () => { }),
             asWebviewUri: vi.fn((uri: any) => uri),
-        },
-        reveal: vi.fn(),
-        onDidDispose: vi.fn(() => ({ dispose: vi.fn() })),
-        dispose: vi.fn(),
-    })),
+        };
+        return {
+            webview: webviewMock,
+            reveal: vi.fn(),
+            onDidDispose: vi.fn(() => ({ dispose: vi.fn() })),
+            dispose: vi.fn(),
+        };
+    }),
     showErrorMessage: vi.fn(),
     showWarningMessage: vi.fn(),
     showInformationMessage: vi.fn(),
+    showQuickPick: vi.fn(),
+    showSaveDialog: vi.fn(),
+    withProgress: vi.fn(async (options, task) => {
+        const progress = {
+            report: vi.fn(),
+        };
+        return task(progress as any, {} as any);
+    }),
     showTextDocument: vi.fn(async () => ({
         selection: {} as any,
         revealRange: vi.fn(),
@@ -110,6 +130,7 @@ const commands = {
 const workspace = {
     fs: {
         readFile: vi.fn(async () => new Uint8Array()),
+        writeFile: vi.fn(async () => {}),
         stat: vi.fn(async () => ({ type: FileType.File })),
     },
     findFiles: vi.fn(async () => []),
@@ -160,6 +181,7 @@ export {
     FileType,
     StatusBarAlignment,
     ViewColumn,
+    ProgressLocation,
     Disposable,
     window,
     commands,

@@ -27,12 +27,24 @@ describe('Git Commands', () => {
       getCurrentBranch: vi.fn().mockResolvedValue('main'),
       getBranches: vi.fn().mockResolvedValue(['main', 'develop', 'feature/test']),
       analyzeWorkingDirectory: vi.fn().mockResolvedValue({
+        fileAnalyses: [
+          {
+            file: 'test.ts',
+            issues: [{ severity: 'medium', message: 'Test issue' }],
+          },
+        ],
         summary: {
           totalFiles: 1,
           totalIssues: 5,
         },
       }),
       analyzeBranchComparison: vi.fn().mockResolvedValue({
+        fileAnalyses: [
+          {
+            file: 'test.ts',
+            issues: [{ severity: 'medium', message: 'Test issue' }],
+          },
+        ],
         summary: {
           totalFiles: 2,
           totalIssues: 10,
@@ -109,8 +121,10 @@ describe('Git Commands', () => {
         { label: 'Quality', picked: true },
       ] as any);
 
+      // Ensure withProgress executes the task
       vi.mocked(vscode.window.withProgress).mockImplementationOnce(async (options, task) => {
-        return task({ report: vi.fn() } as any, {} as any);
+        const progress = { report: vi.fn() };
+        return await task(progress as any, {} as any);
       });
 
       const { analyzeWorkingDirectory } = await import('../commands/analyze-working-directory.js');
@@ -201,8 +215,10 @@ describe('Git Commands', () => {
         .mockResolvedValueOnce('develop')
         .mockResolvedValueOnce([{ label: 'Quality', picked: true }] as any);
 
+      // Ensure withProgress executes the task
       vi.mocked(vscode.window.withProgress).mockImplementationOnce(async (options, task) => {
-        return task({ report: vi.fn() } as any, {} as any);
+        const progress = { report: vi.fn() };
+        return await task(progress as any, {} as any);
       });
 
       const { analyzeBranchComparison } = await import('../commands/analyze-branch.js');

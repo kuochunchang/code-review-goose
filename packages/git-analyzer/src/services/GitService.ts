@@ -267,6 +267,27 @@ export class GitService {
   }
 
   /**
+   * Get list of all branches
+   */
+  async getBranches(): Promise<{ all: string[]; current: string; local: string[]; remote: string[] }> {
+    const branchSummary = await this.git.branch(['-a']);
+    const currentBranch = await this.getCurrentBranch();
+    
+    return {
+      all: branchSummary.all,
+      current: currentBranch,
+      local: branchSummary.branches
+        ? Object.keys(branchSummary.branches).filter(b => !b.startsWith('remotes/'))
+        : [],
+      remote: branchSummary.branches
+        ? Object.keys(branchSummary.branches)
+            .filter(b => b.startsWith('remotes/'))
+            .map(b => b.replace(/^remotes\//, ''))
+        : [],
+    };
+  }
+
+  /**
    * Map git status character to GitFileStatus
    */
   private mapFileStatus(status: string): GitFileStatus {

@@ -10,7 +10,7 @@ import type { MergedAnalysisResult } from '@code-review-goose/git-analyzer';
 // Mock ReportExporter
 vi.mock('@code-review-goose/git-analyzer', () => ({
   ReportExporter: vi.fn().mockImplementation(() => ({
-    export: vi.fn().mockResolvedValue(undefined),
+    export: vi.fn().mockReturnValue('# Mock Report Content'),
   })),
 }));
 
@@ -23,7 +23,12 @@ describe('GitChangePanel', () => {
     mockPanel = {
       webview: {
         html: '',
-        onDidReceiveMessage: vi.fn(),
+        onDidReceiveMessage: vi.fn((callback: (message: any) => void) => {
+          // Store callback so it can be accessed via mock.calls[0][0]
+          return { dispose: vi.fn() };
+        }),
+        postMessage: vi.fn(),
+        asWebviewUri: vi.fn((uri: any) => uri),
       },
       onDidDispose: vi.fn(),
       reveal: vi.fn(),
@@ -82,8 +87,42 @@ describe('GitChangePanel', () => {
       const newData = {
         ...mockData,
         result: {
-          summary: { totalFiles: 1, totalIssues: 5 },
-        } as any,
+          fileAnalyses: [
+            {
+              file: 'test.ts',
+              changeType: 'feature',
+              issues: [],
+              summary: 'Test summary',
+              linesChanged: 15,
+              qualityScore: 85,
+            },
+          ],
+          summary: {
+            totalFiles: 1,
+            totalIssues: 0,
+            bySeverity: {},
+            byType: {},
+            bySource: {},
+            qualityScore: 85,
+            riskLevel: 'low',
+            deduplicationInfo: {
+              originalTotal: 0,
+              duplicatesRemoved: 0,
+              finalTotal: 0,
+            },
+          },
+          impactAnalysis: {
+            riskLevel: 'low',
+            affectedModules: [],
+            breakingChanges: [],
+            migrationRequired: false,
+            qualityScore: 85,
+          },
+          changes: {
+            files: [],
+            summary: { totalFiles: 1, totalAdditions: 10, totalDeletions: 5 },
+          },
+        } as MergedAnalysisResult,
       };
 
       GitChangePanel.createOrShow(mockExtensionUri, newData);
@@ -204,16 +243,77 @@ describe('GitChangePanel', () => {
 
   describe('message handling', () => {
     it('should handle openFile message', async () => {
-      GitChangePanel.createOrShow(mockExtensionUri, mockData);
+      const dataWithResult = {
+        ...mockData,
+        result: {
+          fileAnalyses: [
+            {
+              file: 'test.ts',
+              changeType: 'feature',
+              issues: [
+                {
+                  source: 'ai',
+                  severity: 'medium',
+                  type: 'code-smell',
+                  file: '/test/file.ts',
+                  line: 10,
+                  message: 'Test issue',
+                  description: 'Test description',
+                },
+              ],
+              summary: 'Test summary',
+              linesChanged: 15,
+              qualityScore: 85,
+            },
+          ],
+          summary: {
+            totalFiles: 1,
+            totalIssues: 1,
+            bySeverity: { medium: 1 },
+            byType: { 'code-smell': 1 },
+            bySource: { ai: 1 },
+            qualityScore: 85,
+            riskLevel: 'low',
+            deduplicationInfo: {
+              originalTotal: 1,
+              duplicatesRemoved: 0,
+              finalTotal: 1,
+            },
+          },
+          impactAnalysis: {
+            riskLevel: 'low',
+            affectedModules: [],
+            breakingChanges: [],
+            migrationRequired: false,
+            qualityScore: 85,
+          },
+          changes: {
+            files: [],
+            summary: { totalFiles: 1, totalAdditions: 10, totalDeletions: 5 },
+          },
+        } as MergedAnalysisResult,
+      };
 
+      GitChangePanel.createOrShow(mockExtensionUri, dataWithResult);
+
+      // Get the callback from the mock calls
+      expect(mockPanel.webview.onDidReceiveMessage).toHaveBeenCalled();
       const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
+      expect(messageHandler).toBeDefined();
 
-      const mockDocument = { uri: { fsPath: '/test/file.ts' } };
-      const mockEditor = { selection: null, revealRange: vi.fn() };
+      // Get the panel instance to ensure the callback has the right context
+      const panelInstance = (GitChangePanel as any).currentPanel;
+      expect(panelInstance).toBeDefined();
 
-      vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument);
-      vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockEditor);
+      const mockUri = vscode.Uri.file('/test/file.ts');
+      const mockDocument = { uri: mockUri, languageId: 'typescript', fileName: 'file.ts', getText: vi.fn(() => '') };
+      const mockEditor = { selection: {} as any, revealRange: vi.fn() };
 
+      vi.mocked(vscode.Uri.file).mockReturnValue(mockUri);
+      vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument as any);
+      vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockEditor as any);
+
+      // Call the message handler - it should call _handleMessage which calls _openFile
       await messageHandler({
         command: 'openFile',
         file: '/test/file.ts',
@@ -248,6 +348,7 @@ describe('GitChangePanel', () => {
             affectedModules: [],
             breakingChanges: [],
             migrationRequired: false,
+            qualityScore: 100,
           },
           changes: {
             files: [],
@@ -258,18 +359,28 @@ describe('GitChangePanel', () => {
 
       GitChangePanel.createOrShow(mockExtensionUri, dataWithResult);
 
+      // Get the callback from the mock calls
+      expect(mockPanel.webview.onDidReceiveMessage).toHaveBeenCalled();
       const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
+      expect(messageHandler).toBeDefined();
 
-      vi.mocked(vscode.window.showSaveDialog).mockResolvedValueOnce({
-        fsPath: '/test/report.md',
-      });
+      // Get the panel instance to ensure the callback has the right context
+      const panelInstance = (GitChangePanel as any).currentPanel;
+      expect(panelInstance).toBeDefined();
 
+      const mockUri = vscode.Uri.file('/test/report.md');
+      vi.mocked(vscode.Uri.file).mockReturnValue(mockUri);
+      vi.mocked(vscode.window.showSaveDialog).mockResolvedValueOnce(mockUri);
+      vi.mocked(vscode.workspace.fs.writeFile).mockResolvedValueOnce();
+
+      // Call the message handler - it should call _handleMessage which calls _exportReport
       await messageHandler({
         command: 'exportReport',
         format: 'markdown',
       });
 
       expect(vscode.window.showSaveDialog).toHaveBeenCalled();
+      expect(vscode.workspace.fs.writeFile).toHaveBeenCalled();
       expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
         expect.stringContaining('Report exported')
       );
@@ -361,6 +472,7 @@ describe('GitChangePanel', () => {
             affectedModules: [],
             breakingChanges: [],
             migrationRequired: false,
+            qualityScore: 85,
           },
           changes: {
             files: [],
@@ -371,9 +483,26 @@ describe('GitChangePanel', () => {
 
       GitChangePanel.createOrShow(mockExtensionUri, dataWithHtml);
 
-      expect(mockPanel.webview.html).not.toContain('<script>');
-      expect(mockPanel.webview.html).toContain('&lt;script&gt;');
-      expect(mockPanel.webview.html).toContain('&amp;');
+      const html = mockPanel.webview.html;
+      
+      // Check that the issue message is escaped (the template has a script tag, but issue message should be escaped)
+      // Find the issue message section and check it's escaped
+      const issueMessageMatch = html.match(/<div class="issue-message">(.*?)<\/div>/s);
+      expect(issueMessageMatch).toBeTruthy();
+      if (issueMessageMatch) {
+        const issueMessageContent = issueMessageMatch[1];
+        // The issue message should contain escaped HTML
+        expect(issueMessageContent).toContain('&lt;script&gt;');
+        expect(issueMessageContent).toContain('&quot;xss&quot;');
+        expect(issueMessageContent).not.toContain('<script>alert');
+      }
+      
+      // Check description is escaped
+      const descriptionMatch = html.match(/<div class="issue-description">(.*?)<\/div>/s);
+      expect(descriptionMatch).toBeTruthy();
+      if (descriptionMatch) {
+        expect(descriptionMatch[1]).toContain('&amp;');
+      }
     });
   });
 });
