@@ -21,7 +21,8 @@
   "license": "MIT",
   "dependencies": {
     "@code-review-goose/analysis-types": "*",
-    "simple-git": "^3.25.0"
+    "simple-git": "^3.25.0",
+    "sonarqube-scanner": "^4.3.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

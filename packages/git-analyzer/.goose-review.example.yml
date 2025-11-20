@@ -1,0 +1,84 @@
+# Goose Code Review Configuration
+# Copy this file to .goose-review.yml and customize for your project
+
+# SonarQube Server Configuration
+sonarqube:
+  # SonarQube server URL
+  # For local Docker: http://localhost:9000
+  # For cloud: https://sonarcloud.io
+  serverUrl: http://localhost:9000
+
+  # Authentication token (required for SonarQube Server)
+  # Generate token: SonarQube UI -> My Account -> Security -> Generate Token
+  # IMPORTANT: Keep this token secret! Add .goose-review.yml to .gitignore
+  token: your-token-here
+
+  # Project configuration
+  projectKey: my-project-key
+  projectName: My Project Name
+  projectVersion: 1.0.0
+
+  # Source configuration
+  sources: src
+  exclusions: node_modules/**,dist/**,build/**,coverage/**,*.test.ts,*.spec.ts
+
+  # Connection settings
+  timeout: 3000 # Connection timeout in milliseconds
+  skipCertVerification: false # Set to true for self-signed certificates
+
+  # Additional SonarQube properties (optional)
+  # See: https://docs.sonarqube.org/latest/analysis/analysis-parameters/
+  additionalProperties:
+    sonar.javascript.lcov.reportPaths: coverage/lcov.info
+    sonar.testExecutionReportPaths: test-report.xml
+
+# Analysis Configuration
+analysis:
+  # Enable/disable analysis types
+  types:
+    codeQuality: true
+    security: true
+    impact: true
+    architecture: true
+    testCoverage: true
+    performance: true
+
+  # AI Provider settings (for AI-only mode or hybrid analysis)
+  ai:
+    provider: openai # openai | gemini
+    model: gpt-4 # gpt-4, gpt-3.5-turbo, gemini-pro
+    temperature: 0.3
+    maxTokens: 4000
+
+  # Batch processing settings
+  batch:
+    maxFilesPerBatch: 10
+    maxTokensPerBatch: 8000
+    parallelBatches: 3
+
+# Cache Configuration
+cache:
+  enabled: true
+  ttl: 86400 # Cache TTL in seconds (24 hours)
+  directory: .goose-review-cache
+
+# Git Configuration
+git:
+  # Ignore patterns for file analysis
+  ignorePatterns:
+    - node_modules/**
+    - dist/**
+    - build/**
+    - coverage/**
+    - '*.lock'
+    - '*.log'
+
+  # Maximum file size to analyze (in bytes)
+  maxFileSize: 1048576 # 1MB
+
+# Output Configuration
+output:
+  format: markdown # markdown | html | json
+  destination: ./code-review-report.md
+  includeMetrics: true
+  includeDashboardUrl: true
