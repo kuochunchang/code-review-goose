@@ -72,26 +72,33 @@ export class GitAnalysisService {
    * Initialize the service with AI provider and SonarQube (if configured)
    */
   async initialize(): Promise<void> {
+    console.log('[Git Analysis] Initializing service...');
     try {
       // Check if we're in sonarqube-only mode
       const analysisMode = this.sonarQubeConfigService.getAnalysisMode();
+      console.log('[Git Analysis] Analysis mode preference:', analysisMode);
       const isSonarQubeOnly = analysisMode === 'sonarqube-only';
 
       // Only initialize AI provider if not in sonarqube-only mode
       if (!isSonarQubeOnly) {
         try {
           this.aiProvider = await getAIProvider(this.context);
+          console.log('[Git Analysis] AI provider initialized:', this.aiProvider !== null);
         } catch (error) {
           // If AI provider initialization fails and we're not in sonarqube-only mode,
           // log the error but continue (might fall back to sonarqube-only)
-          console.warn('Failed to initialize AI provider:', error);
+          console.warn('[Git Analysis] Failed to initialize AI provider:', error);
           this.aiProvider = null;
         }
       }
 
       // Initialize SonarQube orchestrator if enabled and configured
-      if (this.sonarQubeConfigService.isEnabled()) {
+      const sqEnabled = this.sonarQubeConfigService.isEnabled();
+      console.log('[Git Analysis] SonarQube enabled:', sqEnabled);
+      if (sqEnabled) {
         await this.initializeSonarQube();
+      } else {
+        console.log('[Git Analysis] SonarQube is disabled, skipping initialization');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -103,8 +110,12 @@ export class GitAnalysisService {
    * Initialize SonarQube orchestrator
    */
   private async initializeSonarQube(): Promise<void> {
+    console.log('[Git Analysis] Initializing SonarQube...');
     const sqConfig = await this.sonarQubeConfigService.getSonarQubeConfig();
     const aiProviderAvailable = this.aiProvider !== null;
+
+    console.log('[Git Analysis] SonarQube config:', sqConfig ? 'found' : 'NOT FOUND');
+    console.log('[Git Analysis] AI provider available:', aiProviderAvailable);
 
     if (sqConfig) {
       const sonarQubeService = new SonarQubeService(sqConfig);
@@ -112,18 +123,22 @@ export class GitAnalysisService {
 
       // Detect mode (will test connection and set up graceful degradation)
       try {
-        await this.orchestrator.detectMode();
+        const detectionResult = await this.orchestrator.detectMode();
+        console.log('[Git Analysis] Mode detection result:', detectionResult.mode);
+        console.log('[Git Analysis] SonarQube available:', detectionResult.sonarQubeAvailable);
       } catch (error) {
         // If detectMode fails (e.g., no providers available), log warning but continue
-        console.warn('Failed to detect analysis mode:', error);
+        console.warn('[Git Analysis] Failed to detect analysis mode:', error);
         // Create a minimal orchestrator that will skip analysis
         this.orchestrator = new AnalysisOrchestrator(undefined, false);
       }
     } else if (aiProviderAvailable) {
+      console.log('[Git Analysis] No SonarQube config, using AI-only mode');
       // No SonarQube config - Create orchestrator with AI-only mode
       this.orchestrator = new AnalysisOrchestrator(undefined, true);
       await this.orchestrator.detectMode();
     } else {
+      console.log('[Git Analysis] No SonarQube config and no AI provider');
       // No SonarQube config and no AI provider - create empty orchestrator
       this.orchestrator = new AnalysisOrchestrator(undefined, false);
     }
