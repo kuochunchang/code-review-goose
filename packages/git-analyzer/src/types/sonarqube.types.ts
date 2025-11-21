@@ -429,3 +429,91 @@ export interface ScannerExecutionResult {
    */
   executionTime: number;
 }
+
+/**
+ * Project analysis options
+ */
+export interface ProjectAnalysisOptions {
+  /**
+   * Working directory containing the project
+   */
+  workingDirectory: string;
+
+  /**
+   * Whether to wait for server-side analysis completion
+   * @default true
+   */
+  waitForCompletion?: boolean;
+
+  /**
+   * Timeout for waiting for analysis completion (in milliseconds)
+   * @default 300000 (5 minutes)
+   */
+  timeout?: number;
+
+  /**
+   * Whether to include quality gate information
+   * @default true
+   */
+  includeQualityGate?: boolean;
+
+  /**
+   * Whether to include metrics
+   * @default true
+   */
+  includeMetrics?: boolean;
+
+  /**
+   * Whether to include issues
+   * @default true
+   */
+  includeIssues?: boolean;
+}
+
+/**
+ * Complete project analysis result
+ */
+export interface ProjectAnalysisResult {
+  /**
+   * Project key
+   */
+  projectKey: string;
+
+  /**
+   * Analysis timestamp
+   */
+  analysisDate: string;
+
+  /**
+   * Scanner execution result
+   */
+  scanResult: ScannerExecutionResult;
+
+  /**
+   * Analysis result from server (if available)
+   */
+  analysisResult?: SonarQubeAnalysisResult;
+
+  /**
+   * Dashboard URL for viewing results
+   */
+  dashboardUrl?: string;
+
+  /**
+   * Overall quality status
+   */
+  qualityStatus?: QualityGateStatus;
+
+  /**
+   * Summary statistics
+   */
+  summary: {
+    totalIssues: number;
+    blockerIssues: number;
+    criticalIssues: number;
+    bugs: number;
+    vulnerabilities: number;
+    codeSmells: number;
+    securityHotspots: number;
+  };
+}

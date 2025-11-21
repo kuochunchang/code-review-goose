@@ -92,6 +92,12 @@
         "title": "Diagnose SonarQube Integration",
         "category": "Goose Code Review",
         "icon": "$(pulse)"
+      },
+      {
+        "command": "gooseCodeReview.analyzeProjectSonarQube",
+        "title": "Analyze Project with SonarQube",
+        "category": "Goose Code Review",
+        "icon": "$(search)"
       }
     ],
     "keybindings": [
