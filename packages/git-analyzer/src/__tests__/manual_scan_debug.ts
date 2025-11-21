@@ -1,9 +1,12 @@
 
 import { SonarQubeConfig } from '../types/sonarqube.types';
 
+// Debug script for manual SonarQube scanning
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function run() {
     console.log('Starting manual scan debug...');
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const config: SonarQubeConfig = {
         serverUrl: 'http://localhost:9000',
         projectKey: 'project-goose',
