@@ -417,6 +417,15 @@ export class GitAnalysisService {
         progress?.('AI provider not available, skipping AI analysis...', 30);
       }
 
+      // Get git changes for branch comparison (needed for both SonarQube and result summary)
+      const { GitService } = await import('@code-review-goose/git-analyzer');
+      const gitService = new GitService(config.workingDirectory);
+      const gitChanges = await gitService.compareBranches(
+        config.targetBranch,
+        config.sourceBranch
+      );
+      console.log(`[Git Analysis] Branch comparison found ${gitChanges.files.length} changed files`);
+
       // Perform SonarQube analysis (if needed and available)
       let sonarQubeResult = undefined;
       if (
@@ -428,23 +437,16 @@ export class GitAnalysisService {
           const sqConfig = await this.sonarQubeConfigService.getSonarQubeConfig();
           if (sqConfig) {
             const sqService = new SonarQubeService(sqConfig);
-            
-            // Get changed files for SonarQube analysis
-            const { GitService } = await import('@code-review-goose/git-analyzer');
-            const gitService = new GitService(config.workingDirectory);
-            const changes = await gitService.compareBranches(
-              config.targetBranch,
-              config.sourceBranch
-            );
-            const changedFilePaths = changes.files.map((f: GitFileChange) => f.path);
+            const changedFilePaths = gitChanges.files.map((f: GitFileChange) => f.path);
 
             // Log to output channel as well
             const branchComparisonOutputChannel = (global as any).gooseOutputChannel;
             if (branchComparisonOutputChannel) {
-              branchComparisonOutputChannel.appendLine(`[SonarQube] Found ${changedFilePaths.length} changed files`);
+              branchComparisonOutputChannel.appendLine(`[SonarQube] Branch comparison: ${changedFilePaths.length} changed files`);
             }
 
             if (changedFilePaths.length > 0) {
+              console.log(`[Git Analysis] Changed files:`, changedFilePaths.slice(0, 5).join(', ') + (changedFilePaths.length > 5 ? '...' : ''));
               // Execute SonarQube scan
               progress?.('Running SonarQube scanner...', 55);
               const scanResult = await sqService.executeScan({
@@ -526,7 +528,7 @@ export class GitAnalysisService {
 
       const baseResult = aiResult || {
         changeType: 'branch-comparison' as const,
-        summary: { filesChanged: 0, insertions: 0, deletions: 0 },
+        summary: gitChanges.summary,
         fileAnalyses: [],
         impactAnalysis: aiAnalysisResult.impactAnalysis,
         timestamp: new Date().toISOString(),
