@@ -5,7 +5,15 @@
 
 import * as vscode from 'vscode';
 import { GitAnalysisService } from '../services/git-analysis-service.js';
-import type { AnalysisType, FileAnalysis } from '@code-review-goose/git-analyzer';
+import {
+  getWorkspaceFolder,
+  selectAnalysisTypes,
+  showAnalyzingPanel,
+  executeAnalysisWithProgress,
+  updatePanelWithResults,
+  showCompletionMessage,
+  handleAnalysisError,
+} from '../utils/git-analysis-helpers.js';
 
 /**
  * Execute analyze branch comparison command
@@ -15,10 +23,8 @@ export async function analyzeBranchComparison(
   gitAnalysisService: GitAnalysisService
 ): Promise<void> {
   try {
-    // Get workspace folder
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const workspaceFolder = getWorkspaceFolder();
     if (!workspaceFolder) {
-      vscode.window.showErrorMessage('No workspace folder found. Please open a folder first.');
       return;
     }
 
@@ -51,92 +57,55 @@ export async function analyzeBranchComparison(
       return; // User cancelled
     }
 
-    // Show progress
-    await vscode.window.withProgress(
-      {
-        location: vscode.ProgressLocation.Notification,
-        title: `Comparing ${currentBranch} with ${targetBranch}`,
-        cancellable: false,
-      },
-      async (progress) => {
-        try {
-          // Perform analysis
-          const result = await gitAnalysisService.analyzeBranchComparison(
-            {
-              workingDirectory,
-              sourceBranch: currentBranch,
-              targetBranch,
-              analysisTypes,
-            },
-            (message, increment) => {
-              progress.report({ message, increment });
-            }
-          );
+    // Show panel immediately with analyzing state
+    showAnalyzingPanel(context.extensionUri, {
+      changeSource: 'branch-comparison',
+      workingDirectory,
+      sourceBranch: currentBranch,
+      targetBranch,
+    });
 
-          // Show results in webview
-          const { GitChangePanel } = await import('../views/git-change-panel.js');
-          GitChangePanel.createOrShow(context.extensionUri, {
-            result,
-            changeSource: 'branch-comparison',
+    // Execute analysis with progress tracking
+    const result = await executeAnalysisWithProgress(
+      `Comparing ${currentBranch} with ${targetBranch}`,
+      async (progressCallback) => {
+        return gitAnalysisService.analyzeBranchComparison(
+          {
             workingDirectory,
             sourceBranch: currentBranch,
             targetBranch,
-          });
-
-          const totalIssues = result.fileAnalyses.flatMap((f: FileAnalysis) => f.issues).length;
-          const totalFiles = result.fileAnalyses.length;
-          vscode.window.showInformationMessage(
-            `Analysis complete! Found ${totalIssues} issue(s) in ${totalFiles} file(s).`
-          );
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          vscode.window.showErrorMessage(`Analysis failed: ${errorMessage}`);
-        }
+            analysisTypes,
+          },
+          progressCallback
+        );
       }
     );
+
+    // Update panel with results
+    updatePanelWithResults(context.extensionUri, result, {
+      changeSource: 'branch-comparison',
+      workingDirectory,
+      sourceBranch: currentBranch,
+      targetBranch,
+    });
+
+    // Show completion message
+    showCompletionMessage(result);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    vscode.window.showErrorMessage(`Failed to analyze branch comparison: ${errorMessage}`);
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    if (workspaceFolder) {
+      handleAnalysisError(
+        error,
+        'Failed to analyze branch comparison',
+        {
+          changeSource: 'branch-comparison',
+          workingDirectory: workspaceFolder.uri.fsPath,
+        }
+      );
+    } else {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      vscode.window.showErrorMessage(`Failed to analyze branch comparison: ${errorMessage}`);
+    }
   }
-}
-
-/**
- * Select analysis types via quick pick
- */
-async function selectAnalysisTypes(): Promise<AnalysisType[] | undefined> {
-  const items: vscode.QuickPickItem[] = [
-    {
-      label: 'Quality',
-      description: 'Code quality, complexity, and maintainability',
-      picked: true,
-    },
-    {
-      label: 'Security',
-      description: 'Security vulnerabilities and hotspots',
-      picked: true,
-    },
-    {
-      label: 'Impact',
-      description: 'Impact analysis and risk assessment',
-      picked: true,
-    },
-    {
-      label: 'Architecture',
-      description: 'Architecture review and design patterns',
-      picked: false,
-    },
-  ];
-
-  const selected = await vscode.window.showQuickPick(items, {
-    canPickMany: true,
-    title: 'Select Analysis Types',
-    placeHolder: 'Choose which types of analysis to perform',
-  });
-
-  if (!selected || selected.length === 0) {
-    return undefined;
-  }
-
-  return selected.map((item) => item.label.toLowerCase() as AnalysisType);
 }
 
