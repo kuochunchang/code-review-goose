@@ -401,6 +401,71 @@ describe('GitChangePanel', () => {
       );
     });
 
+    it('should handle copyToClipboard message', async () => {
+      const dataWithResult = {
+        ...mockData,
+        result: {
+          fileAnalyses: [],
+          summary: {
+            totalFiles: 0,
+            totalIssues: 0,
+            bySeverity: {},
+            byType: {},
+            bySource: {},
+            qualityScore: 100,
+            riskLevel: 'low',
+            deduplicationInfo: {
+              originalTotal: 0,
+              duplicatesRemoved: 0,
+              finalTotal: 0,
+            },
+          },
+          impactAnalysis: {
+            riskLevel: 'low',
+            affectedModules: [],
+            breakingChanges: [],
+            migrationRequired: false,
+            qualityScore: 100,
+          },
+          changes: {
+            files: [],
+            summary: { totalFiles: 0, totalAdditions: 0, totalDeletions: 0 },
+          },
+        } as MergedAnalysisResult,
+      };
+
+      GitChangePanel.createOrShow(mockExtensionUri, dataWithResult);
+
+      const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
+
+      vi.mocked(vscode.env.clipboard.writeText).mockResolvedValueOnce();
+
+      await messageHandler({
+        command: 'copyToClipboard',
+        format: 'markdown',
+      });
+
+      expect(vscode.env.clipboard.writeText).toHaveBeenCalled();
+      expect(vscode.window.showInformationMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Copied MARKDOWN to clipboard')
+      );
+    });
+
+    it('should show warning when copying without result', async () => {
+      GitChangePanel.createOrShow(mockExtensionUri, mockData);
+
+      const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
+
+      await messageHandler({
+        command: 'copyToClipboard',
+        format: 'json',
+      });
+
+      expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+        'No analysis result to copy'
+      );
+    });
+
     it('should handle refresh message', async () => {
       GitChangePanel.createOrShow(mockExtensionUri, mockData);
 

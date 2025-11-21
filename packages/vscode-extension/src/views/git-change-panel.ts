@@ -190,6 +190,9 @@ export class GitChangePanel {
       case 'exportReport':
         await this._exportReport(message.format);
         break;
+      case 'copyToClipboard':
+        await this._copyToClipboard(message.format);
+        break;
       case 'refresh':
         // Refresh analysis (re-run)
         vscode.window.showInformationMessage('Refresh analysis not yet implemented');
@@ -224,7 +227,7 @@ export class GitChangePanel {
   /**
    * Export report to file
    */
-  private async _exportReport(format: 'markdown' | 'html' | 'json'): Promise<void> {
+  private async _exportReport(format: 'markdown' | 'json'): Promise<void> {
     if (!this._data.result) {
       vscode.window.showWarningMessage('No analysis result to export');
       return;
@@ -252,6 +255,29 @@ export class GitChangePanel {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       vscode.window.showErrorMessage(`Failed to export report: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Copy report to clipboard
+   */
+  private async _copyToClipboard(format: 'markdown' | 'json'): Promise<void> {
+    if (!this._data.result) {
+      vscode.window.showWarningMessage('No analysis result to copy');
+      return;
+    }
+
+    try {
+      // Import ReportExporter dynamically
+      const { ReportExporter } = await import('@code-review-goose/git-analyzer');
+      const exporter = new ReportExporter();
+      const content = exporter.export(this._data.result, format);
+      
+      await vscode.env.clipboard.writeText(content);
+      vscode.window.showInformationMessage(`Copied ${format.toUpperCase()} to clipboard`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      vscode.window.showErrorMessage(`Failed to copy to clipboard: ${errorMessage}`);
     }
   }
 
@@ -395,9 +421,10 @@ export class GitChangePanel {
       <h1>🔍 Git Change Analysis</h1>
       <p class="subtitle">${subtitle}</p>
       <div class="actions">
-        <button onclick="exportReport('markdown')">📄 Export Markdown</button>
-        <button onclick="exportReport('html')">🌐 Export HTML</button>
-        <button onclick="exportReport('json')">📊 Export JSON</button>
+        <button onclick="copyToClipboard('markdown')">📋 Copy Markdown</button>
+        <button onclick="copyToClipboard('json')">📋 Copy JSON</button>
+        <button onclick="exportReport('markdown')">💾 Export Markdown</button>
+        <button onclick="exportReport('json')">💾 Export JSON</button>
       </div>
     </div>`;
   }
@@ -916,6 +943,13 @@ export class GitChangePanel {
       function exportReport(format) {
         vscode.postMessage({
           command: 'exportReport',
+          format: format
+        });
+      }
+
+      function copyToClipboard(format) {
+        vscode.postMessage({
+          command: 'copyToClipboard',
           format: format
         });
       }
