@@ -141,26 +141,37 @@ export class SonarQubeConfigService {
    * Get complete SonarQube configuration for git-analyzer
    */
   async getSonarQubeConfig(): Promise<SonarQubeConfig | null> {
+    console.log('[SonarQube Config] Getting SonarQube config...');
+
     const binding = this.getProjectBinding();
     if (!binding) {
+      console.log('[SonarQube Config] No project binding found');
       return null;
     }
+    console.log('[SonarQube Config] Project binding:', JSON.stringify(binding));
 
     const connections = this.getConnections();
+    console.log('[SonarQube Config] Available connections:', connections.map(c => c.connectionId));
+
     const connection = connections.find(c => c.connectionId === binding.connectionId);
     if (!connection) {
+      console.log('[SonarQube Config] Connection not found for ID:', binding.connectionId);
       return null;
     }
+    console.log('[SonarQube Config] Found connection:', connection.serverUrl);
 
     const token = await this.getToken(connection.connectionId);
     if (!token) {
+      console.log('[SonarQube Config] Token not found for connection:', connection.connectionId);
       return null;
     }
+    console.log('[SonarQube Config] Token found (length:', token.length, ')');
 
     const timeout = vscode.workspace
       .getConfiguration('gooseCodeReview.sonarqube')
       .get<number>('timeout', 3000);
 
+    console.log('[SonarQube Config] Config ready - projectKey:', binding.projectKey);
     return {
       serverUrl: connection.serverUrl,
       token,
