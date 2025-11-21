@@ -43,6 +43,8 @@ export async function analyzeBranchComparison(
       return; // User cancelled
     }
 
+    console.log(`[Analyze Branch] User selected: currentBranch=${currentBranch}, targetBranch=${targetBranch}`);
+
     // Ask user to select analysis types
     const analysisTypes = await selectAnalysisTypes();
     if (!analysisTypes || analysisTypes.length === 0) {

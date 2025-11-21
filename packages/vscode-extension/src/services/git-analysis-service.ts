@@ -420,6 +420,7 @@ export class GitAnalysisService {
       // Get git changes for branch comparison (needed for both SonarQube and result summary)
       const { GitService } = await import('@code-review-goose/git-analyzer');
       const gitService = new GitService(config.workingDirectory);
+      console.log(`[Git Analysis] Comparing branches: ${config.sourceBranch} -> ${config.targetBranch}`);
       const gitChanges = await gitService.compareBranches(
         config.targetBranch,
         config.sourceBranch
