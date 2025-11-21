@@ -43,6 +43,8 @@ async function testScanner() {
   console.log('\n=== Scan Result ===');
   console.log('Success:', scanResult.success);
   console.log('Execution time:', scanResult.executionTime, 'ms');
+  console.log('Task ID:', scanResult.taskId || 'N/A');
+  console.log('Dashboard URL:', scanResult.dashboardUrl || 'N/A');
   if (scanResult.error) {
     console.log('Error:', scanResult.error);
   }
@@ -54,8 +56,24 @@ async function testScanner() {
 
   console.log('✅ Scanner completed successfully\n');
 
-  // Step 3: Get analysis results
-  console.log('Step 3: Fetching analysis results...');
+  // Step 3: Wait for analysis to complete on server
+  if (scanResult.taskId) {
+    console.log('Step 3: Waiting for server-side analysis to complete...');
+    try {
+      const analysisCompleted = await service.waitForAnalysis(scanResult.taskId, 300000);
+      if (analysisCompleted) {
+        console.log('✅ Server-side analysis completed\n');
+      }
+    } catch (error) {
+      console.error('❌ Server-side analysis failed:', error);
+      process.exit(1);
+    }
+  } else {
+    console.log('⚠️ No task ID available, skipping wait for analysis\n');
+  }
+
+  // Step 4: Get analysis results
+  console.log('Step 4: Fetching analysis results...');
   try {
     const analysisResult = await service.getAnalysisResult(config.projectKey);
     console.log('\n=== Analysis Result ===');

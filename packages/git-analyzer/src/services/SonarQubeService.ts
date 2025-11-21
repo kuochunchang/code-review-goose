@@ -6,6 +6,8 @@
  */
 
 import scanner from 'sonarqube-scanner';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import {
   SonarQubeMode,
   SonarQubeSeverity,
@@ -165,13 +167,19 @@ export class SonarQubeService {
                 executionTime,
               });
             } else {
-              // Success callback
+              // Success callback - read taskId and dashboardUrl from report-task.txt
               const successMsg = `[SonarQube] Scanner completed successfully in ${executionTime}ms`;
               console.log(successMsg);
               logMessage(successMsg);
+
+              // Parse report-task.txt to get taskId and dashboardUrl
+              const { taskId, dashboardUrl } = this.parseReportTask(options.workingDirectory);
+
               resolve({
                 success: true,
                 executionTime,
+                taskId,
+                dashboardUrl,
               });
             }
           }
@@ -194,6 +202,43 @@ export class SonarQubeService {
   private getElapsedTime(startTime: number): number {
     const elapsed = Date.now() - startTime;
     return elapsed > 0 ? elapsed : 1;
+  }
+
+  /**
+   * Parse report-task.txt to extract taskId and dashboardUrl
+   * @param workingDirectory The directory where scanner was executed
+   * @returns Object containing taskId and dashboardUrl if available
+   */
+  private parseReportTask(workingDirectory: string): { taskId?: string; dashboardUrl?: string } {
+    const reportTaskPath = join(workingDirectory, '.scannerwork', 'report-task.txt');
+
+    if (!existsSync(reportTaskPath)) {
+      console.warn('[SonarQube] report-task.txt not found at:', reportTaskPath);
+      return {};
+    }
+
+    try {
+      const content = readFileSync(reportTaskPath, 'utf-8');
+      const taskIdMatch = content.match(/ceTaskId=(.+)/);
+      const dashboardUrlMatch = content.match(/dashboardUrl=(.+)/);
+
+      const result = {
+        taskId: taskIdMatch?.[1]?.trim(),
+        dashboardUrl: dashboardUrlMatch?.[1]?.trim(),
+      };
+
+      if (result.taskId) {
+        console.log('[SonarQube] Task ID:', result.taskId);
+      }
+      if (result.dashboardUrl) {
+        console.log('[SonarQube] Dashboard URL:', result.dashboardUrl);
+      }
+
+      return result;
+    } catch (error) {
+      console.warn('[SonarQube] Failed to parse report-task.txt:', error);
+      return {};
+    }
   }
 
   /**
