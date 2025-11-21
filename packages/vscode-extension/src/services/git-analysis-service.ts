@@ -240,9 +240,22 @@ export class GitAnalysisService {
                 throw new Error(`SonarQube scan failed: ${scanResult.error}`);
               }
 
-              // Wait a bit for SonarQube to process the results
+              // Wait for SonarQube server to complete analysis
               progress?.('Waiting for SonarQube to process results...', 60);
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              if (scanResult.taskId) {
+                console.log(`[Git Analysis] Waiting for SonarQube task ${scanResult.taskId} to complete...`);
+                if (workingDirOutputChannel) {
+                  workingDirOutputChannel.appendLine(`[SonarQube] Waiting for analysis task ${scanResult.taskId} to complete...`);
+                }
+                await sqService.waitForAnalysis(scanResult.taskId, 300000); // 5 minutes timeout
+                console.log(`[Git Analysis] SonarQube analysis completed`);
+                if (workingDirOutputChannel) {
+                  workingDirOutputChannel.appendLine(`[SonarQube] Analysis completed`);
+                }
+              } else {
+                console.warn('[Git Analysis] No taskId returned from SonarQube scan, waiting 5s as fallback');
+                await new Promise(resolve => setTimeout(resolve, 5000));
+              }
 
               // Get analysis results for changed files
               progress?.('Fetching SonarQube results...', 65);
@@ -427,9 +440,22 @@ export class GitAnalysisService {
                 throw new Error(`SonarQube scan failed: ${scanResult.error}`);
               }
 
-              // Wait a bit for SonarQube to process the results
+              // Wait for SonarQube server to complete analysis
               progress?.('Waiting for SonarQube to process results...', 60);
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              if (scanResult.taskId) {
+                console.log(`[Git Analysis] Waiting for SonarQube task ${scanResult.taskId} to complete...`);
+                if (branchComparisonOutputChannel) {
+                  branchComparisonOutputChannel.appendLine(`[SonarQube] Waiting for analysis task ${scanResult.taskId} to complete...`);
+                }
+                await sqService.waitForAnalysis(scanResult.taskId, 300000); // 5 minutes timeout
+                console.log(`[Git Analysis] SonarQube analysis completed`);
+                if (branchComparisonOutputChannel) {
+                  branchComparisonOutputChannel.appendLine(`[SonarQube] Analysis completed`);
+                }
+              } else {
+                console.warn('[Git Analysis] No taskId returned from SonarQube scan, waiting 5s as fallback');
+                await new Promise(resolve => setTimeout(resolve, 5000));
+              }
 
               // Get analysis results for changed files
               progress?.('Fetching SonarQube results...', 65);
