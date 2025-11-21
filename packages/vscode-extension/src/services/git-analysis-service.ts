@@ -14,9 +14,10 @@ import {
   type ChangeAnalysisResult,
   type ExportFormat,
   type ExportOptions,
+  type GitFileChange,
   type IAIProvider,
   type MergedAnalysisResult,
-  type GitFileChange,
+  type WorkingDirectoryChanges,
 } from '@code-review-goose/git-analyzer';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
@@ -72,26 +73,33 @@ export class GitAnalysisService {
    * Initialize the service with AI provider and SonarQube (if configured)
    */
   async initialize(): Promise<void> {
+    console.log('[Git Analysis] Initializing service...');
     try {
       // Check if we're in sonarqube-only mode
       const analysisMode = this.sonarQubeConfigService.getAnalysisMode();
+      console.log('[Git Analysis] Analysis mode preference:', analysisMode);
       const isSonarQubeOnly = analysisMode === 'sonarqube-only';
 
       // Only initialize AI provider if not in sonarqube-only mode
       if (!isSonarQubeOnly) {
         try {
           this.aiProvider = await getAIProvider(this.context);
+          console.log('[Git Analysis] AI provider initialized:', this.aiProvider !== null);
         } catch (error) {
           // If AI provider initialization fails and we're not in sonarqube-only mode,
           // log the error but continue (might fall back to sonarqube-only)
-          console.warn('Failed to initialize AI provider:', error);
+          console.warn('[Git Analysis] Failed to initialize AI provider:', error);
           this.aiProvider = null;
         }
       }
 
       // Initialize SonarQube orchestrator if enabled and configured
-      if (this.sonarQubeConfigService.isEnabled()) {
+      const sqEnabled = this.sonarQubeConfigService.isEnabled();
+      console.log('[Git Analysis] SonarQube enabled:', sqEnabled);
+      if (sqEnabled) {
         await this.initializeSonarQube();
+      } else {
+        console.log('[Git Analysis] SonarQube is disabled, skipping initialization');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -103,8 +111,12 @@ export class GitAnalysisService {
    * Initialize SonarQube orchestrator
    */
   private async initializeSonarQube(): Promise<void> {
+    console.log('[Git Analysis] Initializing SonarQube...');
     const sqConfig = await this.sonarQubeConfigService.getSonarQubeConfig();
     const aiProviderAvailable = this.aiProvider !== null;
+
+    console.log('[Git Analysis] SonarQube config:', sqConfig ? 'found' : 'NOT FOUND');
+    console.log('[Git Analysis] AI provider available:', aiProviderAvailable);
 
     if (sqConfig) {
       const sonarQubeService = new SonarQubeService(sqConfig);
@@ -112,18 +124,22 @@ export class GitAnalysisService {
 
       // Detect mode (will test connection and set up graceful degradation)
       try {
-        await this.orchestrator.detectMode();
+        const detectionResult = await this.orchestrator.detectMode();
+        console.log('[Git Analysis] Mode detection result:', detectionResult.mode);
+        console.log('[Git Analysis] SonarQube available:', detectionResult.sonarQubeAvailable);
       } catch (error) {
         // If detectMode fails (e.g., no providers available), log warning but continue
-        console.warn('Failed to detect analysis mode:', error);
+        console.warn('[Git Analysis] Failed to detect analysis mode:', error);
         // Create a minimal orchestrator that will skip analysis
         this.orchestrator = new AnalysisOrchestrator(undefined, false);
       }
     } else if (aiProviderAvailable) {
+      console.log('[Git Analysis] No SonarQube config, using AI-only mode');
       // No SonarQube config - Create orchestrator with AI-only mode
       this.orchestrator = new AnalysisOrchestrator(undefined, true);
       await this.orchestrator.detectMode();
     } else {
+      console.log('[Git Analysis] No SonarQube config and no AI provider');
       // No SonarQube config and no AI provider - create empty orchestrator
       this.orchestrator = new AnalysisOrchestrator(undefined, false);
     }
@@ -146,7 +162,7 @@ export class GitAnalysisService {
 
       const mode = this.orchestrator?.getMode();
       const analysisMode = this.sonarQubeConfigService.getAnalysisMode();
-      
+
       // Determine actual analysis mode based on preference and availability
       let actualMode: AnalysisMode | 'ai-only' = AnalysisMode.AI_ONLY;
       if (mode) {
@@ -199,6 +215,16 @@ export class GitAnalysisService {
         progress?.('AI provider not available, skipping AI analysis...', 30);
       }
 
+      // If no AI result, fetch git changes manually for summary and SonarQube
+      let gitChanges: WorkingDirectoryChanges | undefined;
+      let gitRoot = config.workingDirectory;
+      if (!aiResult) {
+        const { GitService } = await import('@code-review-goose/git-analyzer');
+        const gitService = new GitService(config.workingDirectory);
+        gitRoot = await gitService.getGitRoot();
+        gitChanges = await gitService.getWorkingDirectoryChanges();
+      }
+
       // Perform SonarQube analysis (if needed and available)
       let sonarQubeResult = undefined;
       if (
@@ -210,11 +236,16 @@ export class GitAnalysisService {
           const sqConfig = await this.sonarQubeConfigService.getSonarQubeConfig();
           if (sqConfig) {
             const sqService = new SonarQubeService(sqConfig);
-            
+
             // Get changed files for SonarQube analysis
-            const { GitService } = await import('@code-review-goose/git-analyzer');
-            const gitService = new GitService(config.workingDirectory);
-            const changes = await gitService.getWorkingDirectoryChanges();
+            // Get changed files for SonarQube analysis
+            if (!gitChanges) {
+              const { GitService } = await import('@code-review-goose/git-analyzer');
+              const gitService = new GitService(config.workingDirectory);
+              gitRoot = await gitService.getGitRoot();
+              gitChanges = await gitService.getWorkingDirectoryChanges();
+            }
+            const changes = gitChanges;
             const changedFilePaths = changes.files.map((f: GitFileChange) => f.path);
 
             console.log(`[Git Analysis] Found ${changedFilePaths.length} changed files for SonarQube analysis`);
@@ -231,18 +262,37 @@ export class GitAnalysisService {
                 workingDirOutputChannel.appendLine(`[SonarQube] Changed files: ${changedFilePaths.slice(0, 5).join(', ')}${changedFilePaths.length > 5 ? ` ... and ${changedFilePaths.length - 5} more` : ''}`);
               }
               // Execute SonarQube scan
+              progress?.('Verifying SonarQube connection...', 52);
+              const connectionTest = await sqService.testConnection();
+              if (!connectionTest.success) {
+                throw new Error(`SonarQube connection failed: ${connectionTest.error}`);
+              }
+
               progress?.('Running SonarQube scanner...', 55);
               const scanResult = await sqService.executeScan({
-                workingDirectory: config.workingDirectory,
+                workingDirectory: gitRoot,
               });
 
               if (!scanResult.success) {
                 throw new Error(`SonarQube scan failed: ${scanResult.error}`);
               }
 
-              // Wait a bit for SonarQube to process the results
+              // Wait for SonarQube server to complete analysis
               progress?.('Waiting for SonarQube to process results...', 60);
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              if (scanResult.taskId) {
+                console.log(`[Git Analysis] Waiting for SonarQube task ${scanResult.taskId} to complete...`);
+                if (workingDirOutputChannel) {
+                  workingDirOutputChannel.appendLine(`[SonarQube] Waiting for analysis task ${scanResult.taskId} to complete...`);
+                }
+                await sqService.waitForAnalysis(scanResult.taskId, 300000); // 5 minutes timeout
+                console.log(`[Git Analysis] SonarQube analysis completed`);
+                if (workingDirOutputChannel) {
+                  workingDirOutputChannel.appendLine(`[SonarQube] Analysis completed`);
+                }
+              } else {
+                console.warn('[Git Analysis] No taskId returned from SonarQube scan, waiting 5s as fallback');
+                await new Promise(resolve => setTimeout(resolve, 5000));
+              }
 
               // Get analysis results for changed files
               progress?.('Fetching SonarQube results...', 65);
@@ -271,6 +321,14 @@ export class GitAnalysisService {
         } catch (error) {
           // SonarQube failed, but continue with AI-only
           const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`[Git Analysis] SonarQube analysis failed:`, error);
+
+          const workingDirOutputChannel = (global as any).gooseOutputChannel;
+          if (workingDirOutputChannel) {
+            workingDirOutputChannel.appendLine(`[SonarQube] Analysis failed: ${errorMessage}`);
+            workingDirOutputChannel.appendLine(`[SonarQube] Continuing with AI-only analysis...`);
+          }
+
           progress?.(`SonarQube analysis failed: ${errorMessage}. Continuing with AI-only...`, 50);
         }
       }
@@ -279,26 +337,35 @@ export class GitAnalysisService {
 
       // Merge results
       // If no AI result, create empty one (for SonarQube-only mode)
+      // If we have git changes, populate file analyses so they show up in the report even without issues
+      const initialFileAnalyses = aiResult?.fileAnalyses || (gitChanges?.files.map(f => ({
+        file: f.path,
+        changeType: 'unknown' as const,
+        issues: [],
+        summary: 'File changed',
+        linesChanged: (f.linesAdded || 0) + (f.linesDeleted || 0)
+      })) || []);
+
       const aiAnalysisResult = aiResult
         ? {
-            fileAnalyses: aiResult.fileAnalyses,
-            impactAnalysis: aiResult.impactAnalysis,
-          }
+          fileAnalyses: aiResult.fileAnalyses,
+          impactAnalysis: aiResult.impactAnalysis,
+        }
         : {
-            fileAnalyses: [],
-            impactAnalysis: {
-              riskLevel: 'low' as const,
-              affectedModules: [],
-              breakingChanges: [],
-              testingRecommendations: [],
-              deploymentRisks: [],
-              qualityScore: 100,
-            },
-          };
+          fileAnalyses: initialFileAnalyses,
+          impactAnalysis: {
+            riskLevel: 'low' as const,
+            affectedModules: [],
+            breakingChanges: [],
+            testingRecommendations: [],
+            deploymentRisks: [],
+            qualityScore: 100,
+          },
+        };
 
       const baseResult = aiResult || {
         changeType: 'working-directory' as const,
-        summary: { filesChanged: 0, insertions: 0, deletions: 0 },
+        summary: gitChanges?.summary || { filesChanged: 0, insertions: 0, deletions: 0 },
         fileAnalyses: [],
         impactAnalysis: aiAnalysisResult.impactAnalysis,
         timestamp: new Date().toISOString(),
@@ -337,7 +404,7 @@ export class GitAnalysisService {
 
       const mode = this.orchestrator?.getMode();
       const analysisMode = this.sonarQubeConfigService.getAnalysisMode();
-      
+
       // Determine actual analysis mode
       let actualMode: AnalysisMode | 'ai-only' = AnalysisMode.AI_ONLY;
       if (mode) {
@@ -389,6 +456,16 @@ export class GitAnalysisService {
         progress?.('AI provider not available, skipping AI analysis...', 30);
       }
 
+      // Get git changes for branch comparison (needed for both SonarQube and result summary)
+      const { GitService } = await import('@code-review-goose/git-analyzer');
+      const gitService = new GitService(config.workingDirectory);
+      console.log(`[Git Analysis] Comparing branches: ${config.sourceBranch} -> ${config.targetBranch}`);
+      const gitChanges = await gitService.compareBranches(
+        config.targetBranch,
+        config.sourceBranch
+      );
+      console.log(`[Git Analysis] Branch comparison found ${gitChanges.files.length} changed files`);
+
       // Perform SonarQube analysis (if needed and available)
       let sonarQubeResult = undefined;
       if (
@@ -400,24 +477,23 @@ export class GitAnalysisService {
           const sqConfig = await this.sonarQubeConfigService.getSonarQubeConfig();
           if (sqConfig) {
             const sqService = new SonarQubeService(sqConfig);
-            
-            // Get changed files for SonarQube analysis
-            const { GitService } = await import('@code-review-goose/git-analyzer');
-            const gitService = new GitService(config.workingDirectory);
-            const changes = await gitService.compareBranches(
-              config.targetBranch,
-              config.sourceBranch
-            );
-            const changedFilePaths = changes.files.map((f: GitFileChange) => f.path);
+            const changedFilePaths = gitChanges.files.map((f: GitFileChange) => f.path);
 
             // Log to output channel as well
             const branchComparisonOutputChannel = (global as any).gooseOutputChannel;
             if (branchComparisonOutputChannel) {
-              branchComparisonOutputChannel.appendLine(`[SonarQube] Found ${changedFilePaths.length} changed files`);
+              branchComparisonOutputChannel.appendLine(`[SonarQube] Branch comparison: ${changedFilePaths.length} changed files`);
             }
 
             if (changedFilePaths.length > 0) {
+              console.log(`[Git Analysis] Changed files:`, changedFilePaths.slice(0, 5).join(', ') + (changedFilePaths.length > 5 ? '...' : ''));
               // Execute SonarQube scan
+              progress?.('Verifying SonarQube connection...', 52);
+              const connectionTest = await sqService.testConnection();
+              if (!connectionTest.success) {
+                throw new Error(`SonarQube connection failed: ${connectionTest.error}`);
+              }
+
               progress?.('Running SonarQube scanner...', 55);
               const scanResult = await sqService.executeScan({
                 workingDirectory: config.workingDirectory,
@@ -427,9 +503,22 @@ export class GitAnalysisService {
                 throw new Error(`SonarQube scan failed: ${scanResult.error}`);
               }
 
-              // Wait a bit for SonarQube to process the results
+              // Wait for SonarQube server to complete analysis
               progress?.('Waiting for SonarQube to process results...', 60);
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              if (scanResult.taskId) {
+                console.log(`[Git Analysis] Waiting for SonarQube task ${scanResult.taskId} to complete...`);
+                if (branchComparisonOutputChannel) {
+                  branchComparisonOutputChannel.appendLine(`[SonarQube] Waiting for analysis task ${scanResult.taskId} to complete...`);
+                }
+                await sqService.waitForAnalysis(scanResult.taskId, 300000); // 5 minutes timeout
+                console.log(`[Git Analysis] SonarQube analysis completed`);
+                if (branchComparisonOutputChannel) {
+                  branchComparisonOutputChannel.appendLine(`[SonarQube] Analysis completed`);
+                }
+              } else {
+                console.warn('[Git Analysis] No taskId returned from SonarQube scan, waiting 5s as fallback');
+                await new Promise(resolve => setTimeout(resolve, 5000));
+              }
 
               // Get analysis results for changed files
               progress?.('Fetching SonarQube results...', 65);
@@ -458,6 +547,14 @@ export class GitAnalysisService {
         } catch (error) {
           // SonarQube failed, but continue with AI-only
           const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`[Git Analysis] SonarQube analysis failed:`, error);
+
+          const branchComparisonOutputChannel = (global as any).gooseOutputChannel;
+          if (branchComparisonOutputChannel) {
+            branchComparisonOutputChannel.appendLine(`[SonarQube] Analysis failed: ${errorMessage}`);
+            branchComparisonOutputChannel.appendLine(`[SonarQube] Continuing with AI-only analysis...`);
+          }
+
           progress?.(`SonarQube analysis failed: ${errorMessage}. Continuing with AI-only...`, 50);
         }
       }
@@ -466,26 +563,35 @@ export class GitAnalysisService {
 
       // Merge results
       // If no AI result, create empty one (for SonarQube-only mode)
+      // If we have git changes, populate file analyses so they show up in the report even without issues
+      const initialFileAnalyses = aiResult?.fileAnalyses || (gitChanges?.files.map(f => ({
+        file: f.path,
+        changeType: 'unknown' as const,
+        issues: [],
+        summary: 'File changed',
+        linesChanged: (f.linesAdded || 0) + (f.linesDeleted || 0)
+      })) || []);
+
       const aiAnalysisResult = aiResult
         ? {
-            fileAnalyses: aiResult.fileAnalyses,
-            impactAnalysis: aiResult.impactAnalysis,
-          }
+          fileAnalyses: aiResult.fileAnalyses,
+          impactAnalysis: aiResult.impactAnalysis,
+        }
         : {
-            fileAnalyses: [],
-            impactAnalysis: {
-              riskLevel: 'low' as const,
-              affectedModules: [],
-              breakingChanges: [],
-              testingRecommendations: [],
-              deploymentRisks: [],
-              qualityScore: 100,
-            },
-          };
+          fileAnalyses: initialFileAnalyses,
+          impactAnalysis: {
+            riskLevel: 'low' as const,
+            affectedModules: [],
+            breakingChanges: [],
+            testingRecommendations: [],
+            deploymentRisks: [],
+            qualityScore: 100,
+          },
+        };
 
       const baseResult = aiResult || {
         changeType: 'branch-comparison' as const,
-        summary: { filesChanged: 0, insertions: 0, deletions: 0 },
+        summary: gitChanges.summary,
         fileAnalyses: [],
         impactAnalysis: aiAnalysisResult.impactAnalysis,
         timestamp: new Date().toISOString(),
@@ -586,7 +692,9 @@ export class GitAnalysisService {
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
-        Authorization: sqConfig.token ? `Bearer ${sqConfig.token}` : '',
+        Authorization: sqConfig.token
+          ? `Basic ${Buffer.from(sqConfig.token + ':').toString('base64')}`
+          : '',
       },
     });
 
@@ -608,7 +716,9 @@ export class GitAnalysisService {
     const metricsResponse = await fetch(metricsUrl.toString(), {
       method: 'GET',
       headers: {
-        Authorization: sqConfig.token ? `Bearer ${sqConfig.token}` : '',
+        Authorization: sqConfig.token
+          ? `Basic ${Buffer.from(sqConfig.token + ':').toString('base64')}`
+          : '',
       },
     });
 
@@ -653,7 +763,9 @@ export class GitAnalysisService {
     const qgResponse = await fetch(qgUrl.toString(), {
       method: 'GET',
       headers: {
-        Authorization: sqConfig.token ? `Bearer ${sqConfig.token}` : '',
+        Authorization: sqConfig.token
+          ? `Basic ${Buffer.from(sqConfig.token + ':').toString('base64')}`
+          : '',
       },
     });
 

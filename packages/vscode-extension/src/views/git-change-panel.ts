@@ -3,8 +3,8 @@
  * Webview panel for displaying Git change analysis results
  */
 
+import type { CodeIssue, FileAnalysis, MergedAnalysisResult } from '@code-review-goose/git-analyzer';
 import * as vscode from 'vscode';
-import type { MergedAnalysisResult, FileAnalysis, CodeIssue } from '@code-review-goose/git-analyzer';
 
 /**
  * Panel data passed to webview
@@ -20,6 +20,13 @@ export interface GitChangePanelData {
   sourceBranch?: string;
   /** Target branch (for branch comparison) */
   targetBranch?: string;
+  /** Current status of the analysis */
+  status?: 'idle' | 'analyzing' | 'completed' | 'error';
+  /** Progress information */
+  progress?: {
+    message: string;
+    percentage: number;
+  };
 }
 
 /**
@@ -49,7 +56,7 @@ function calculateSummaryStats(result: MergedAnalysisResult): {
 
   return {
     totalIssues: allIssues.length,
-    totalFiles: result.fileAnalyses.length,
+    totalFiles: result.summary?.filesChanged ?? result.fileAnalyses.length,
     qualityScore: result.impactAnalysis.qualityScore,
     riskLevel: result.impactAnalysis.riskLevel,
     bySeverity,
@@ -132,6 +139,22 @@ export class GitChangePanel {
   }
 
   /**
+   * Update progress
+   */
+  public updateProgress(message: string, percentage: number): void {
+    this._data.status = 'analyzing';
+    this._data.progress = { message, percentage };
+
+    // If we are already in analyzing state, just send update message
+    // Otherwise, we need to re-render to show the progress view
+    this._panel.webview.postMessage({
+      command: 'updateProgress',
+      message,
+      percentage
+    });
+  }
+
+  /**
    * Dispose panel
    */
   public dispose(): void {
@@ -167,6 +190,9 @@ export class GitChangePanel {
       case 'exportReport':
         await this._exportReport(message.format);
         break;
+      case 'copyToClipboard':
+        await this._copyToClipboard(message.format);
+        break;
       case 'refresh':
         // Refresh analysis (re-run)
         vscode.window.showInformationMessage('Refresh analysis not yet implemented');
@@ -201,7 +227,7 @@ export class GitChangePanel {
   /**
    * Export report to file
    */
-  private async _exportReport(format: 'markdown' | 'html' | 'json'): Promise<void> {
+  private async _exportReport(format: 'markdown' | 'json'): Promise<void> {
     if (!this._data.result) {
       vscode.window.showWarningMessage('No analysis result to export');
       return;
@@ -233,10 +259,38 @@ export class GitChangePanel {
   }
 
   /**
+   * Copy report to clipboard
+   */
+  private async _copyToClipboard(format: 'markdown' | 'json'): Promise<void> {
+    if (!this._data.result) {
+      vscode.window.showWarningMessage('No analysis result to copy');
+      return;
+    }
+
+    try {
+      // Import ReportExporter dynamically
+      const { ReportExporter } = await import('@code-review-goose/git-analyzer');
+      const exporter = new ReportExporter();
+      const content = exporter.export(this._data.result, format);
+      
+      await vscode.env.clipboard.writeText(content);
+      vscode.window.showInformationMessage(`Copied ${format.toUpperCase()} to clipboard`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      vscode.window.showErrorMessage(`Failed to copy to clipboard: ${errorMessage}`);
+    }
+  }
+
+  /**
    * Get HTML for webview
    */
   private _getHtmlForWebview(_webview: vscode.Webview): string {
     const result = this._data.result;
+    const status = this._data.status || 'idle';
+
+    if (status === 'analyzing') {
+      return this._getAnalyzingStateHtml();
+    }
 
     if (!result) {
       return this._getEmptyStateHtml();
@@ -261,6 +315,59 @@ export class GitChangePanel {
   </div>
   <script>
     ${this._getScript()}
+  </script>
+</body>
+</html>`;
+  }
+
+  /**
+   * Get analyzing state HTML
+   */
+  private _getAnalyzingStateHtml(): string {
+    const progress = this._data.progress || { message: 'Initializing...', percentage: 0 };
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Git Change Analysis</title>
+  <style>
+    ${this._getStyles()}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="analyzing-state">
+      <h1>🔍 Git Change Analysis</h1>
+      <div class="progress-container">
+        <div class="progress-info">
+          <span id="progress-message">${progress.message}</span>
+          <span id="progress-percentage">${Math.round(progress.percentage)}%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div id="progress-bar" class="progress-bar-fill" style="width: ${progress.percentage}%"></div>
+        </div>
+      </div>
+      <div class="analyzing-details">
+        <p>Please wait while we analyze your changes...</p>
+        <p class="sub-text">This may take a few moments depending on the size of changes.</p>
+      </div>
+    </div>
+  </div>
+  <script>
+    const vscode = acquireVsCodeApi();
+    
+    window.addEventListener('message', event => {
+      const message = event.data;
+      switch (message.command) {
+        case 'updateProgress':
+          document.getElementById('progress-message').textContent = message.message;
+          document.getElementById('progress-percentage').textContent = Math.round(message.percentage) + '%';
+          document.getElementById('progress-bar').style.width = message.percentage + '%';
+          break;
+      }
+    });
   </script>
 </body>
 </html>`;
@@ -314,9 +421,10 @@ export class GitChangePanel {
       <h1>🔍 Git Change Analysis</h1>
       <p class="subtitle">${subtitle}</p>
       <div class="actions">
-        <button onclick="exportReport('markdown')">📄 Export Markdown</button>
-        <button onclick="exportReport('html')">🌐 Export HTML</button>
-        <button onclick="exportReport('json')">📊 Export JSON</button>
+        <button onclick="copyToClipboard('markdown')">📋 Copy Markdown</button>
+        <button onclick="copyToClipboard('json')">📋 Copy JSON</button>
+        <button onclick="exportReport('markdown')">💾 Export Markdown</button>
+        <button onclick="exportReport('json')">💾 Export JSON</button>
       </div>
     </div>`;
   }
@@ -767,6 +875,53 @@ export class GitChangePanel {
       .empty-state li {
         margin-bottom: 10px;
       }
+
+      .analyzing-state {
+        text-align: center;
+        padding: 60px 20px;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .analyzing-state h1 {
+        font-size: 36px;
+        margin-bottom: 40px;
+      }
+
+      .progress-container {
+        margin-bottom: 30px;
+      }
+
+      .progress-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-size: 14px;
+        font-weight: bold;
+      }
+
+      .progress-bar-bg {
+        height: 10px;
+        background-color: var(--vscode-editor-inactiveSelectionBackground);
+        border-radius: 5px;
+        overflow: hidden;
+      }
+
+      .progress-bar-fill {
+        height: 100%;
+        background-color: var(--vscode-progressBar-background);
+        transition: width 0.3s ease;
+      }
+
+      .analyzing-details {
+        color: var(--vscode-descriptionForeground);
+      }
+
+      .sub-text {
+        font-size: 12px;
+        margin-top: 5px;
+        opacity: 0.8;
+      }
     `;
   }
 
@@ -788,6 +943,13 @@ export class GitChangePanel {
       function exportReport(format) {
         vscode.postMessage({
           command: 'exportReport',
+          format: format
+        });
+      }
+
+      function copyToClipboard(format) {
+        vscode.postMessage({
+          command: 'copyToClipboard',
           format: format
         });
       }

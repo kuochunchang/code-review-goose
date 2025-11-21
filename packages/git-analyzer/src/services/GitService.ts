@@ -2,16 +2,16 @@
  * GitService - Git operations wrapper using simple-git
  */
 
-import simpleGit, { SimpleGit, StatusResult, LogResult } from 'simple-git';
+import simpleGit, { LogResult, SimpleGit, StatusResult } from 'simple-git';
 import type {
-  WorkingDirectoryChanges,
   BranchComparisonChanges,
-  GitFileChange,
-  GitFileStatus,
+  DiffHunk,
+  FileDiff,
   GitChangeSummary,
   GitCommit,
-  FileDiff,
-  DiffHunk,
+  GitFileChange,
+  GitFileStatus,
+  WorkingDirectoryChanges,
 } from '../types/index.js';
 
 export class GitService {
@@ -19,6 +19,14 @@ export class GitService {
 
   constructor(private repoPath: string) {
     this.git = simpleGit(repoPath);
+  }
+
+  /**
+   * Get the root directory of the git repository
+   */
+  async getGitRoot(): Promise<string> {
+    const root = await this.git.revparse(['--show-toplevel']);
+    return root.trim();
   }
 
   /**
@@ -272,7 +280,7 @@ export class GitService {
   async getBranches(): Promise<{ all: string[]; current: string; local: string[]; remote: string[] }> {
     const branchSummary = await this.git.branch(['-a']);
     const currentBranch = await this.getCurrentBranch();
-    
+
     return {
       all: branchSummary.all,
       current: currentBranch,
@@ -281,8 +289,8 @@ export class GitService {
         : [],
       remote: branchSummary.branches
         ? Object.keys(branchSummary.branches)
-            .filter(b => b.startsWith('remotes/'))
-            .map(b => b.replace(/^remotes\//, ''))
+          .filter(b => b.startsWith('remotes/'))
+          .map(b => b.replace(/^remotes\//, ''))
         : [],
     };
   }

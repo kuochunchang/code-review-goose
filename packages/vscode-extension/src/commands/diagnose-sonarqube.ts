@@ -192,6 +192,43 @@ export async function diagnoseSonarQube(context: vscode.ExtensionContext): Promi
     outputChannel.appendLine('ERROR');
     outputChannel.appendLine('='.repeat(60));
     outputChannel.appendLine(errorMsg);
+
+    // Enhanced error diagnostics
+    if (errorMsg.includes('403')) {
+      outputChannel.appendLine('');
+      outputChannel.appendLine('🔍 403 Forbidden Error Analysis:');
+      outputChannel.appendLine('   This error indicates a permissions issue, not an authentication issue.');
+      outputChannel.appendLine('');
+      outputChannel.appendLine('   Common causes:');
+      outputChannel.appendLine('   1. Token type is "Analysis Token" instead of "User Token"');
+      outputChannel.appendLine('   2. User lacks "Browse" permission on the project');
+      outputChannel.appendLine('   3. Project is private and user is not granted access');
+      outputChannel.appendLine('');
+      outputChannel.appendLine('   Quick fixes:');
+      outputChannel.appendLine('   ✓ Verify token type: My Account → Security → Tokens');
+      outputChannel.appendLine('   ✓ Check project permissions: Administration → Projects → project-goose → Permissions');
+      outputChannel.appendLine('   ✓ Grant "Browse" permission to your user');
+      outputChannel.appendLine('');
+      outputChannel.appendLine('   📖 Detailed guide: docs/SONARQUBE_403_TROUBLESHOOTING.md');
+    } else if (errorMsg.includes('401')) {
+      outputChannel.appendLine('');
+      outputChannel.appendLine('🔍 401 Unauthorized Error Analysis:');
+      outputChannel.appendLine('   This error indicates the token is invalid or expired.');
+      outputChannel.appendLine('');
+      outputChannel.appendLine('   Quick fixes:');
+      outputChannel.appendLine('   ✓ Regenerate token in SonarQube: My Account → Security → Tokens');
+      outputChannel.appendLine('   ✓ Update connection: Run "Goose: Add SonarQube Connection"');
+      outputChannel.appendLine('   ✓ Ensure token is copied correctly (no extra spaces)');
+    } else if (errorMsg.includes('404')) {
+      outputChannel.appendLine('');
+      outputChannel.appendLine('🔍 404 Not Found Error Analysis:');
+      outputChannel.appendLine('   This error indicates the project or resource was not found.');
+      outputChannel.appendLine('');
+      outputChannel.appendLine('   Quick fixes:');
+      outputChannel.appendLine('   ✓ Verify project key is correct (check .vscode/settings.json)');
+      outputChannel.appendLine('   ✓ Ensure scanner completed successfully');
+      outputChannel.appendLine('   ✓ Check if project exists in SonarQube UI');
+    }
     outputChannel.appendLine('');
 
     if (error instanceof Error && error.stack) {

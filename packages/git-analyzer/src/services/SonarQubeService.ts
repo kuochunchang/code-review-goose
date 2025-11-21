@@ -5,20 +5,22 @@
  * Provides scanning, issue retrieval, quality gate checks, and metrics collection.
  */
 
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import scanner from 'sonarqube-scanner';
 import {
+  SonarQubeIssueType,
   SonarQubeMode,
   SonarQubeSeverity,
-  SonarQubeIssueType,
-  type SonarQubeConfig,
-  type SonarQubeConnectionTest,
+  type QualityGateResult,
+  type QualityGateStatus,
   type ScannerExecutionOptions,
   type ScannerExecutionResult,
   type SonarQubeAnalysisResult,
+  type SonarQubeConfig,
+  type SonarQubeConnectionTest,
   type SonarQubeIssue,
   type SonarQubeMetrics,
-  type QualityGateResult,
-  type QualityGateStatus,
 } from '../types/sonarqube.types.js';
 
 /**
@@ -31,6 +33,7 @@ export class SonarQubeService {
   constructor(config: SonarQubeConfig) {
     this.config = config;
     this.mode = SonarQubeMode.DISABLED; // Default to disabled until connection is verified
+    console.log('[SonarQubeService] Created instance. Mode:', this.mode);
   }
 
   /**
@@ -39,12 +42,15 @@ export class SonarQubeService {
    */
   async testConnection(): Promise<SonarQubeConnectionTest> {
     const startTime = Date.now();
+    console.log('[SonarQubeService] Testing connection to:', this.config.serverUrl);
 
     try {
       const response = await fetch(`${this.config.serverUrl}/api/system/status`, {
         method: 'GET',
         headers: {
-          Authorization: this.config.token ? `Bearer ${this.config.token}` : '',
+          Authorization: this.config.token
+            ? `Basic ${Buffer.from(this.config.token + ':').toString('base64')}`
+            : '',
         },
         signal: AbortSignal.timeout(this.config.timeout || 3000),
       });
@@ -52,6 +58,7 @@ export class SonarQubeService {
       const responseTime = this.getElapsedTime(startTime);
 
       if (!response.ok) {
+        console.log('[SonarQubeService] Connection failed with status:', response.status);
         return {
           success: false,
           error: `Server returned status ${response.status}: ${response.statusText}`,
@@ -63,6 +70,7 @@ export class SonarQubeService {
 
       if (data.status === 'UP') {
         this.mode = SonarQubeMode.SERVER;
+        console.log('[SonarQubeService] Connection successful. Mode set to SERVER.');
         return {
           success: true,
           version: data.version,
@@ -77,6 +85,7 @@ export class SonarQubeService {
       };
     } catch (error) {
       const responseTime = this.getElapsedTime(startTime);
+      console.log('[SonarQubeService] Connection error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -107,7 +116,9 @@ export class SonarQubeService {
    * @returns Scanner execution result
    */
   async executeScan(options: ScannerExecutionOptions): Promise<ScannerExecutionResult> {
+    console.log('[SonarQubeService] executeScan called. Current mode:', this.mode);
     if (!this.isAvailable()) {
+      console.error('[SonarQubeService] executeScan failed: Server not available. Mode:', this.mode);
       return {
         success: false,
         error: 'SonarQube server is not available',
@@ -126,9 +137,11 @@ export class SonarQubeService {
           'sonar.projectName': this.config.projectName || this.config.projectKey,
           'sonar.projectVersion': this.config.projectVersion || '1.0',
           'sonar.sources': this.config.sources || '.',
-          'sonar.exclusions': this.config.exclusions || 'node_modules/**,dist/**,build/**,coverage/**',
+          'sonar.exclusions': this.config.exclusions || 'node_modules/**,dist/**,build/**,coverage/**,.scannerwork/**,.git/**',
           'sonar.sourceEncoding': this.config.sourceEncoding || 'UTF-8',
           'sonar.projectBaseDir': options.workingDirectory,
+          'sonar.login': this.config.token || '', // Explicitly pass token as sonar.login
+          'sonar.java.binaries': '.', // Default to current directory for Java binaries to avoid AnalysisException
           ...this.config.additionalProperties,
         },
       };
@@ -148,34 +161,58 @@ export class SonarQubeService {
       logMessage(`  Sources: ${scannerConfig.options['sonar.sources']}`);
       logMessage(`  Base Dir: ${scannerConfig.options['sonar.projectBaseDir']}`);
 
-      return await new Promise<ScannerExecutionResult>((resolve) => {
-        scanner(
-          scannerConfig,
-          (error?: unknown) => {
-            const executionTime = this.getElapsedTime(startTime);
-            
-            if (error) {
-              // Error callback
-              const errorMsg = `[SonarQube] Scanner failed: ${error instanceof Error ? error.message : String(error)}`;
-              console.error(errorMsg);
-              logMessage(errorMsg);
-              resolve({
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-                executionTime,
-              });
-            } else {
-              // Success callback
-              const successMsg = `[SonarQube] Scanner completed successfully in ${executionTime}ms`;
-              console.log(successMsg);
-              logMessage(successMsg);
-              resolve({
-                success: true,
-                executionTime,
-              });
+      return await new Promise<ScannerExecutionResult>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          const timeoutMsg = '[SonarQube] Scanner timed out after 60s';
+          console.error(timeoutMsg);
+          logMessage(timeoutMsg);
+          resolve({
+            success: false,
+            error: 'Scanner timed out',
+            executionTime: this.getElapsedTime(startTime),
+          });
+        }, 60000);
+
+        try {
+          logMessage('[SonarQube] Invoking scanner...');
+          scanner(
+            scannerConfig,
+            (error?: unknown) => {
+              clearTimeout(timeoutId);
+              const executionTime = this.getElapsedTime(startTime);
+
+              if (error) {
+                // Error callback
+                const errorMsg = `[SonarQube] Scanner failed: ${error instanceof Error ? error.message : String(error)}`;
+                console.error(errorMsg);
+                logMessage(errorMsg);
+                resolve({
+                  success: false,
+                  error: error instanceof Error ? error.message : String(error),
+                  executionTime,
+                });
+              } else {
+                // Success callback - read taskId and dashboardUrl from report-task.txt
+                const successMsg = `[SonarQube] Scanner completed successfully in ${executionTime}ms`;
+                console.log(successMsg);
+                logMessage(successMsg);
+
+                // Parse report-task.txt to get taskId and dashboardUrl
+                const { taskId, dashboardUrl } = this.parseReportTask(options.workingDirectory);
+
+                resolve({
+                  success: true,
+                  executionTime,
+                  taskId,
+                  dashboardUrl,
+                });
+              }
             }
-          }
-        );
+          );
+        } catch (err) {
+          clearTimeout(timeoutId);
+          reject(err);
+        }
       });
     } catch (error) {
       const executionTime = this.getElapsedTime(startTime);
@@ -194,6 +231,43 @@ export class SonarQubeService {
   private getElapsedTime(startTime: number): number {
     const elapsed = Date.now() - startTime;
     return elapsed > 0 ? elapsed : 1;
+  }
+
+  /**
+   * Parse report-task.txt to extract taskId and dashboardUrl
+   * @param workingDirectory The directory where scanner was executed
+   * @returns Object containing taskId and dashboardUrl if available
+   */
+  private parseReportTask(workingDirectory: string): { taskId?: string; dashboardUrl?: string } {
+    const reportTaskPath = join(workingDirectory, '.scannerwork', 'report-task.txt');
+
+    if (!existsSync(reportTaskPath)) {
+      console.warn('[SonarQube] report-task.txt not found at:', reportTaskPath);
+      return {};
+    }
+
+    try {
+      const content = readFileSync(reportTaskPath, 'utf-8');
+      const taskIdMatch = content.match(/ceTaskId=(.+)/);
+      const dashboardUrlMatch = content.match(/dashboardUrl=(.+)/);
+
+      const result = {
+        taskId: taskIdMatch?.[1]?.trim(),
+        dashboardUrl: dashboardUrlMatch?.[1]?.trim(),
+      };
+
+      if (result.taskId) {
+        console.log('[SonarQube] Task ID:', result.taskId);
+      }
+      if (result.dashboardUrl) {
+        console.log('[SonarQube] Dashboard URL:', result.dashboardUrl);
+      }
+
+      return result;
+    } catch (error) {
+      console.warn('[SonarQube] Failed to parse report-task.txt:', error);
+      return {};
+    }
   }
 
   /**
@@ -242,7 +316,9 @@ export class SonarQubeService {
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
-        Authorization: this.config.token ? `Bearer ${this.config.token}` : '',
+        Authorization: this.config.token
+          ? `Basic ${Buffer.from(this.config.token + ':').toString('base64')}`
+          : '',
       },
     });
 
@@ -278,7 +354,9 @@ export class SonarQubeService {
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
-        Authorization: this.config.token ? `Bearer ${this.config.token}` : '',
+        Authorization: this.config.token
+          ? `Basic ${Buffer.from(this.config.token + ':').toString('base64')}`
+          : '',
       },
     });
 
@@ -322,7 +400,9 @@ export class SonarQubeService {
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
-        Authorization: this.config.token ? `Bearer ${this.config.token}` : '',
+        Authorization: this.config.token
+          ? `Basic ${Buffer.from(this.config.token + ':').toString('base64')}`
+          : '',
       },
     });
 
@@ -422,7 +502,9 @@ export class SonarQubeService {
       const response = await fetch(url.toString(), {
         method: 'GET',
         headers: {
-          Authorization: this.config.token ? `Bearer ${this.config.token}` : '',
+          Authorization: this.config.token
+            ? `Basic ${Buffer.from(this.config.token + ':').toString('base64')}`
+            : '',
         },
       });
 
