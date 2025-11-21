@@ -49,7 +49,7 @@ function calculateSummaryStats(result: MergedAnalysisResult): {
 
   return {
     totalIssues: allIssues.length,
-    totalFiles: result.fileAnalyses.length,
+    totalFiles: result.summary?.filesChanged ?? result.fileAnalyses.length,
     qualityScore: result.impactAnalysis.qualityScore,
     riskLevel: result.impactAnalysis.riskLevel,
     bySeverity,
