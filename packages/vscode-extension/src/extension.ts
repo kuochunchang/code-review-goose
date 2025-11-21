@@ -16,6 +16,7 @@ import { bindSonarQubeProject } from './commands/bind-sonarqube-project.js';
 import { testSonarQubeConnection } from './commands/test-sonarqube-connection.js';
 import { testSonarQubeScanner } from './commands/test-sonarqube-scanner.js';
 import { diagnoseSonarQube } from './commands/diagnose-sonarqube.js';
+import { registerAnalyzeProjectSonarQubeCommand } from './commands/analyze-project-sonarqube.js';
 import { GitAnalysisService } from './services/git-analysis-service.js';
 
 import { isSupportedLanguage, getSupportedLanguagesList } from './utils/language-support.js';
@@ -107,6 +108,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     () => diagnoseSonarQube(context)
   );
 
+  const analyzeProjectSonarQubeCmd = registerAnalyzeProjectSonarQubeCommand(context);
+
   context.subscriptions.push(
     analyzeWorkingDirectoryCmd,
     analyzeBranchCmd,
@@ -115,7 +118,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     bindSonarQubeProjectCmd,
     testSonarQubeConnectionCmd,
     testSonarQubeScannerCmd,
-    diagnoseSonarQubeCmd
+    diagnoseSonarQubeCmd,
+    analyzeProjectSonarQubeCmd
   );
 
   // ==========================================

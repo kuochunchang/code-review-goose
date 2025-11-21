@@ -9,6 +9,7 @@ export * from './types/index.js';
 // Export services
 export { GitService } from './services/GitService.js';
 export { SonarQubeService } from './services/SonarQubeService.js';
+export { ProjectAnalysisService } from './services/ProjectAnalysisService.js';
 export { AnalysisOrchestrator, AnalysisMode } from './services/AnalysisOrchestrator.js';
 export { AnalysisCacheService } from './services/AnalysisCacheService.js';
 export type { CacheStats } from './services/AnalysisCacheService.js';
