@@ -205,7 +205,15 @@ export class GitChangePanel {
    */
   private async _openFile(filePath: string, line: number): Promise<void> {
     try {
-      const uri = vscode.Uri.file(filePath);
+      // Resolve file path - if relative, make it absolute using working directory
+      let resolvedPath = filePath;
+      if (!filePath.startsWith('/') && !filePath.match(/^[a-zA-Z]:\\/)) {
+        // Relative path - prepend working directory
+        const path = await import('path');
+        resolvedPath = path.join(this._data.workingDirectory, filePath);
+      }
+
+      const uri = vscode.Uri.file(resolvedPath);
       const document = await vscode.workspace.openTextDocument(uri);
       const editor = await vscode.window.showTextDocument(document);
 

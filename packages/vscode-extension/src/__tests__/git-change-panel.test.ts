@@ -242,7 +242,7 @@ describe('GitChangePanel', () => {
   });
 
   describe('message handling', () => {
-    it('should handle openFile message', async () => {
+    it('should handle openFile message with absolute path', async () => {
       const dataWithResult = {
         ...mockData,
         result: {
@@ -320,6 +320,85 @@ describe('GitChangePanel', () => {
         line: 10,
       });
 
+      expect(vscode.workspace.openTextDocument).toHaveBeenCalled();
+      expect(vscode.window.showTextDocument).toHaveBeenCalled();
+    });
+
+    it('should handle openFile message with relative path (SonarQube case)', async () => {
+      const dataWithResult = {
+        ...mockData,
+        workingDirectory: '/test/repo',
+        result: {
+          fileAnalyses: [
+            {
+              file: 'scripts/split_repositories.py',
+              changeType: 'feature',
+              issues: [
+                {
+                  source: 'sonarqube',
+                  severity: 'medium',
+                  type: 'code-smell',
+                  file: 'scripts/split_repositories.py',
+                  line: 18,
+                  message: 'Define a constant instead of duplicating this literal',
+                  description: 'SonarQube code smell',
+                },
+              ],
+              summary: 'Test summary',
+              linesChanged: 15,
+              qualityScore: 85,
+            },
+          ],
+          summary: {
+            totalFiles: 1,
+            totalIssues: 1,
+            bySeverity: { medium: 1 },
+            byType: { 'code-smell': 1 },
+            bySource: { sonarqube: 1 },
+            qualityScore: 85,
+            riskLevel: 'low',
+            deduplicationInfo: {
+              originalTotal: 1,
+              duplicatesRemoved: 0,
+              finalTotal: 1,
+            },
+          },
+          impactAnalysis: {
+            riskLevel: 'low',
+            affectedModules: [],
+            breakingChanges: [],
+            migrationRequired: false,
+            qualityScore: 85,
+          },
+          changes: {
+            files: [],
+            summary: { totalFiles: 1, totalAdditions: 10, totalDeletions: 5 },
+          },
+        } as MergedAnalysisResult,
+      };
+
+      GitChangePanel.createOrShow(mockExtensionUri, dataWithResult);
+
+      const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
+
+      const expectedPath = '/test/repo/scripts/split_repositories.py';
+      const mockUri = vscode.Uri.file(expectedPath);
+      const mockDocument = { uri: mockUri, languageId: 'python', fileName: 'split_repositories.py', getText: vi.fn(() => '') };
+      const mockEditor = { selection: {} as any, revealRange: vi.fn() };
+
+      vi.mocked(vscode.Uri.file).mockReturnValue(mockUri);
+      vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument as any);
+      vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockEditor as any);
+
+      // Call with relative path (as SonarQube provides)
+      await messageHandler({
+        command: 'openFile',
+        file: 'scripts/split_repositories.py',
+        line: 18,
+      });
+
+      // Verify that the file was opened with the absolute path
+      expect(vscode.Uri.file).toHaveBeenCalledWith(expectedPath);
       expect(vscode.workspace.openTextDocument).toHaveBeenCalled();
       expect(vscode.window.showTextDocument).toHaveBeenCalled();
     });
