@@ -201,13 +201,19 @@ export class GitChangePanel {
   private async _handleMessage(message: WebviewMessage): Promise<void> {
     switch (message.command) {
       case 'openFile':
-        await this._openFile(message.file, message.line);
+        if (message.file !== undefined && message.line !== undefined) {
+          await this._openFile(message.file, message.line);
+        }
         break;
       case 'exportReport':
-        await this._exportReport(message.format);
+        if (message.format === 'markdown' || message.format === 'json') {
+          await this._exportReport(message.format);
+        }
         break;
       case 'copyToClipboard':
-        await this._copyToClipboard(message.format);
+        if (message.format === 'markdown' || message.format === 'json') {
+          await this._copyToClipboard(message.format);
+        }
         break;
       case 'refresh':
         // Refresh analysis (re-run)
