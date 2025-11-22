@@ -6,13 +6,13 @@
 import * as vscode from 'vscode';
 import { GitAnalysisService } from '../services/git-analysis-service.js';
 import {
+  executeAnalysisWithProgress,
   getWorkspaceFolder,
+  handleAnalysisError,
   selectAnalysisTypes,
   showAnalyzingPanel,
-  executeAnalysisWithProgress,
-  updatePanelWithResults,
   showCompletionMessage,
-  handleAnalysisError,
+  updatePanelWithResults,
 } from '../utils/git-analysis-helpers.js';
 
 /**
@@ -52,7 +52,7 @@ export async function analyzeBranchComparison(
     console.log(`[Analyze Branch] User selected: currentBranch=${currentBranch}, targetBranch=${targetBranch}`);
 
     // Ask user to select analysis types
-    const analysisTypes = await selectAnalysisTypes();
+    const analysisTypes = await selectAnalysisTypes(context);
     if (!analysisTypes || analysisTypes.length === 0) {
       return; // User cancelled
     }

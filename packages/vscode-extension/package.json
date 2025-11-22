@@ -70,6 +70,15 @@
         "icon": "$(git-pull-request)"
       },
       {
+        "command": "gooseCodeReview.showGitAnalysisMenu",
+        "title": "Git Analysis Menu",
+        "category": "Goose Code Review",
+        "icon": {
+          "light": "resources/goose-icon-dark.svg",
+          "dark": "resources/goose-icon-light.svg"
+        }
+      },
+      {
         "command": "gooseCodeReview.sonarqube.addConnection",
         "title": "Add SonarQube Connection",
         "category": "Goose Code Review",
@@ -117,6 +126,11 @@
         "command": "gooseCodeReview.openGitChangePanel",
         "key": "ctrl+shift+g",
         "mac": "cmd+shift+g"
+      },
+      {
+        "command": "gooseCodeReview.showGitAnalysisMenu",
+        "key": "ctrl+shift+g ctrl+shift+m",
+        "mac": "cmd+shift+g cmd+shift+m"
       }
     ],
     "menus": {
@@ -156,12 +170,7 @@
       ],
       "scm/title": [
         {
-          "command": "gooseCodeReview.analyzeWorkingDirectory",
-          "group": "navigation",
-          "when": "scmProvider == git"
-        },
-        {
-          "command": "gooseCodeReview.analyzeBranch",
+          "command": "gooseCodeReview.showGitAnalysisMenu",
           "group": "navigation",
           "when": "scmProvider == git"
         }
@@ -303,7 +312,10 @@
           "scope": "application",
           "items": {
             "type": "object",
-            "required": ["connectionId", "serverUrl"],
+            "required": [
+              "connectionId",
+              "serverUrl"
+            ],
             "properties": {
               "connectionId": {
                 "type": "string",
@@ -362,7 +374,11 @@
         "gooseCodeReview.gitAnalysis.mode": {
           "type": "string",
           "default": "hybrid",
-          "enum": ["hybrid", "ai-only", "sonarqube-only"],
+          "enum": [
+            "hybrid",
+            "ai-only",
+            "sonarqube-only"
+          ],
           "enumDescriptions": [
             "Hybrid: SonarQube + AI analysis (best quality, requires both configured)",
             "AI Only: Use only AI analysis (no SonarQube required)",
