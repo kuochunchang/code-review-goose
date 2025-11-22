@@ -726,62 +726,167 @@ export class GitAnalysisService {
       // Import necessary services
       const { PRAnalysisService, GitHubService } = await import('@code-review-goose/git-analyzer');
 
-      // Validate AI provider is available
-      if (!this.aiProvider) {
-        throw new Error('AI provider is required for PR analysis. Please configure your AI provider first.');
+      // Check analysis mode
+      const analysisMode = this.sonarQubeConfigService.getAnalysisMode();
+      const isSonarQubeOnly = analysisMode === 'sonarqube-only';
+
+      // Validate AI provider is available (unless in sonarqube-only mode)
+      if (!isSonarQubeOnly && !this.aiProvider) {
+        throw new Error('AI provider is required for PR analysis. Please configure your AI provider first, or switch to SonarQube-only mode.');
       }
 
       progress?.('Fetching PR information...', 10);
 
-      // Create PR analysis service
-      const prAnalysisService = new PRAnalysisService({
-        github: {
-          token: config.githubToken,
-        },
-        aiProvider: this.aiProvider,
-        workingDir: config.workingDirectory,
-      });
+      // Fetch all PR files list
+      const githubService = new GitHubService({ token: config.githubToken });
+      const prFiles = await githubService.getPullRequestFiles(
+        config.repository,
+        config.prNumber
+      );
 
-      // Validate GitHub connection
-      const validation = await prAnalysisService.validateConfiguration();
-      if (!validation.github.valid) {
-        throw new Error(`GitHub authentication failed: ${validation.github.error || 'Invalid token'}`);
+      console.log(`[PR Analysis] Found ${prFiles.length} files in PR #${config.prNumber}`);
+
+      // Perform AI analysis (if not in sonarqube-only mode)
+      let prResult: any = null;
+      if (!isSonarQubeOnly && this.aiProvider) {
+        progress?.('Analyzing pull request with AI...', 20);
+
+        // Create PR analysis service
+        const prAnalysisService = new PRAnalysisService({
+          github: {
+            token: config.githubToken,
+          },
+          aiProvider: this.aiProvider,
+          workingDir: config.workingDirectory,
+        });
+
+        // Validate GitHub connection
+        const validation = await prAnalysisService.validateConfiguration();
+        if (!validation.github.valid) {
+          throw new Error(`GitHub authentication failed: ${validation.github.error || 'Invalid token'}`);
+        }
+
+        // Analyze the PR with AI
+        prResult = await prAnalysisService.analyzePullRequest({
+          repository: config.repository,
+          prNumber: config.prNumber,
+          analysisTypes: config.analysisTypes,
+          postComment: false, // User wants results only in VS Code
+        });
+
+        progress?.('Processing AI results...', 50);
+      } else {
+        console.log(`[PR Analysis] Skipping AI analysis (SonarQube-only mode)`);
+        progress?.('Skipping AI analysis (SonarQube-only mode)...', 20);
       }
 
-      progress?.('Analyzing pull request...', 20);
+      // Perform SonarQube analysis (if available)
+      let sonarQubeResult = undefined;
+      const isSonarQubeEnabled =
+        (analysisMode === 'hybrid' || analysisMode === 'sonarqube-only') &&
+        this.orchestrator?.isSonarQubeAvailable();
 
-      // Analyze the PR
-      const prResult = await prAnalysisService.analyzePullRequest({
-        repository: config.repository,
-        prNumber: config.prNumber,
-        analysisTypes: config.analysisTypes,
-        postComment: false, // User wants results only in VS Code
-      });
+      if (isSonarQubeEnabled) {
+        progress?.('Analyzing with SonarQube...', 60);
+        try {
+          const sqConfig = await this.sonarQubeConfigService.getSonarQubeConfig();
+          if (sqConfig) {
+            const sqService = new SonarQubeService(sqConfig);
 
-      progress?.('Processing results...', 90);
+            // Get git root
+            const { GitService } = await import('@code-review-goose/git-analyzer');
+            const gitService = new GitService(config.workingDirectory);
+            const gitRoot = await gitService.getGitRoot();
 
-      // Convert PR analysis result to MergedAnalysisResult format
-      const mergedResult: MergedAnalysisResult = {
-        changeType: 'pull-request' as any, // Extend the type
-        summary: {
-          filesChanged: prResult.analysis.filesAnalyzed,
-          insertions: 0, // Not available in PR result
-          deletions: 0,  // Not available in PR result
-        },
-        fileAnalyses: prResult.analysis.issues.reduce((acc, issue) => {
-          let fileAnalysis = acc.find(fa => fa.file === issue.file);
-          if (!fileAnalysis) {
-            fileAnalysis = {
-              file: issue.file,
-              changeType: 'modified' as const,
-              summary: `PR #${config.prNumber} changes`,
-              issues: [],
-              linesChanged: 0,
-            };
-            acc.push(fileAnalysis);
+            const changedFilePaths = prFiles.map(f => f.filename);
+            console.log(`[PR Analysis] Running SonarQube on ${changedFilePaths.length} changed files`);
+
+            const prOutputChannel = (global as any).gooseOutputChannel;
+            if (prOutputChannel) {
+              prOutputChannel.appendLine(`[SonarQube] PR #${config.prNumber}: ${changedFilePaths.length} changed files`);
+            }
+
+            if (changedFilePaths.length > 0) {
+              // Execute SonarQube scan
+              progress?.('Verifying SonarQube connection...', 62);
+              const connectionTest = await sqService.testConnection();
+              if (!connectionTest.success) {
+                throw new Error(`SonarQube connection failed: ${connectionTest.error}`);
+              }
+
+              progress?.('Running SonarQube scanner...', 65);
+              const scanResult = await sqService.executeScan({
+                workingDirectory: gitRoot,
+              });
+
+              if (!scanResult.success) {
+                throw new Error(`SonarQube scan failed: ${scanResult.error}`);
+              }
+
+              // Wait for SonarQube server to complete analysis
+              progress?.('Waiting for SonarQube to process results...', 70);
+              if (scanResult.taskId) {
+                console.log(`[PR Analysis] Waiting for SonarQube task ${scanResult.taskId} to complete...`);
+                if (prOutputChannel) {
+                  prOutputChannel.appendLine(`[SonarQube] Waiting for analysis task ${scanResult.taskId} to complete...`);
+                }
+                await sqService.waitForAnalysis(scanResult.taskId, 300000); // 5 minutes timeout
+                console.log(`[PR Analysis] SonarQube analysis completed`);
+                if (prOutputChannel) {
+                  prOutputChannel.appendLine(`[SonarQube] Analysis completed`);
+                }
+              } else {
+                console.warn('[PR Analysis] No taskId returned from SonarQube scan, waiting 5s as fallback');
+                await new Promise(resolve => setTimeout(resolve, 5000));
+              }
+
+              // Get analysis results for changed files
+              progress?.('Fetching SonarQube results...', 75);
+              sonarQubeResult = await this.getSonarQubeResultsForChangedFiles(
+                sqConfig,
+                changedFilePaths
+              );
+
+              // Log results
+              if (prOutputChannel) {
+                const totalIssues = sonarQubeResult?.issues?.length || 0;
+                prOutputChannel.appendLine(`[SonarQube] Found ${totalIssues} issue(s) in PR files`);
+                if (totalIssues === 0) {
+                  prOutputChannel.appendLine(`[SonarQube] No issues found. This could mean:`);
+                  prOutputChannel.appendLine(`  - Your code has no issues (great!)`);
+                  prOutputChannel.appendLine(`  - SonarQube rules are not configured for these file types`);
+                  prOutputChannel.appendLine(`  - The scan needs more time to process`);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          // SonarQube failed, but continue with AI-only
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`[PR Analysis] SonarQube analysis failed:`, error);
+
+          const prOutputChannel = (global as any).gooseOutputChannel;
+          if (prOutputChannel) {
+            prOutputChannel.appendLine(`[SonarQube] Analysis failed: ${errorMessage}`);
+            prOutputChannel.appendLine(`[SonarQube] Continuing with AI-only analysis...`);
           }
 
-          fileAnalysis.issues.push({
+          progress?.(`SonarQube analysis failed: ${errorMessage}. Continuing with AI-only...`, 75);
+        }
+      }
+
+      progress?.('Merging results...', 90);
+
+      // Create a map of files with issues from both AI and SonarQube
+      const fileIssuesMap = new Map<string, any[]>();
+
+      // Add AI issues (if available)
+      if (prResult?.analysis?.issues) {
+        prResult.analysis.issues.forEach((issue: any) => {
+          if (!fileIssuesMap.has(issue.file)) {
+            fileIssuesMap.set(issue.file, []);
+          }
+          fileIssuesMap.get(issue.file)!.push({
             file: issue.file,
             line: issue.line,
             severity: issue.severity,
@@ -789,16 +894,64 @@ export class GitAnalysisService {
             message: issue.message,
             source: issue.source,
           });
+        });
+      }
 
-          return acc;
-        }, [] as any[]),
+      // Add SonarQube issues
+      if (sonarQubeResult?.issues) {
+        sonarQubeResult.issues.forEach((issue: any) => {
+          if (!fileIssuesMap.has(issue.file)) {
+            fileIssuesMap.set(issue.file, []);
+          }
+          fileIssuesMap.get(issue.file)!.push({
+            file: issue.file,
+            line: issue.line,
+            severity: issue.severity,
+            type: issue.type,
+            message: issue.message,
+            source: 'sonarqube' as const,
+          });
+        });
+      }
+
+      // Build file analyses for ALL PR files, not just those with issues
+      const fileAnalyses = prFiles.map(prFile => {
+        const issues = fileIssuesMap.get(prFile.filename) || [];
+        // Map Git status to change type
+        let changeType: 'feature' | 'bugfix' | 'refactor' | 'unknown' = 'unknown';
+        if (prFile.status === 'added') changeType = 'feature';
+        else if (prFile.status === 'modified') changeType = 'refactor';
+        else if (prFile.status === 'removed') changeType = 'bugfix';
+
+        return {
+          file: prFile.filename,
+          changeType,
+          summary: issues.length > 0
+            ? `${issues.length} issue(s) found`
+            : 'No issues found',
+          issues,
+          linesChanged: prFile.changes,
+        };
+      });
+
+      console.log(`[PR Analysis] Created ${fileAnalyses.length} file analyses with ${fileIssuesMap.size} files having issues`);
+
+      // Convert PR analysis result to MergedAnalysisResult format
+      const mergedResult: MergedAnalysisResult = {
+        changeType: 'pull-request' as any, // Extend the type
+        summary: {
+          filesChanged: prFiles.length, // Use actual PR file count
+          insertions: prFiles.reduce((sum, f) => sum + f.additions, 0),
+          deletions: prFiles.reduce((sum, f) => sum + f.deletions, 0),
+        },
+        fileAnalyses,
         impactAnalysis: {
-          riskLevel: prResult.analysis.riskLevel,
+          riskLevel: prResult?.analysis?.riskLevel || 'medium',
           affectedModules: [],
           breakingChanges: [],
           testingRecommendations: [],
           deploymentRisks: [],
-          qualityScore: prResult.analysis.qualityScore,
+          qualityScore: prResult?.analysis?.qualityScore || 50,
         },
         timestamp: new Date().toISOString(),
         duration: 0,

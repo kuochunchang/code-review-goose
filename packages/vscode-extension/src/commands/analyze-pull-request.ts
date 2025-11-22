@@ -96,53 +96,151 @@ export async function analyzePullRequest(
             }
         }
 
-        // Step 3: Prompt for PR number
-        const prNumberInput = await vscode.window.showInputBox({
-            prompt: `Enter Pull Request number for ${repository.owner}/${repository.repo}`,
-            placeHolder: 'e.g., 12345',
-            validateInput: (value) => {
-                if (!value || !value.match(/^\d+$/)) {
-                    return 'Please enter a valid PR number';
-                }
-                return null;
-            },
-        });
-
-        if (!prNumberInput) {
-            return; // User cancelled
-        }
-
-        const prNumber = parseInt(prNumberInput, 10);
-
-        // Step 4: Get GitHub token from secret storage
+        // Step 3: Get GitHub token first (needed for API calls)
         let githubToken = await context.secrets.get('gooseCodeReview.githubToken');
 
         if (!githubToken) {
-            // Prompt user to enter GitHub token
-            const tokenInput = await vscode.window.showInputBox({
-                prompt: 'Enter your GitHub Personal Access Token',
-                placeHolder: 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-                password: true,
-                ignoreFocusOut: true,
-                validateInput: (value) => {
-                    if (!value || value.length < 10) {
-                        return 'Please enter a valid GitHub token';
-                    }
-                    return null;
+            // Try to get token from gh CLI
+            const ghTokenResult = await vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'Checking GitHub authentication...',
                 },
-            });
+                async () => {
+                    try {
+                        const { execFile } = await import('child_process');
+                        const { promisify } = await import('util');
+                        const execFilePromise = promisify(execFile);
+                        const { stdout } = await execFilePromise('gh', ['auth', 'token']);
+                        return stdout.trim();
+                    } catch (error) {
+                        return null;
+                    }
+                }
+            );
 
-            if (!tokenInput) {
-                vscode.window.showErrorMessage(
-                    'GitHub token is required for PR analysis. Please try again.'
-                );
-                return;
+            if (ghTokenResult) {
+                await context.secrets.store('gooseCodeReview.githubToken', ghTokenResult);
+                githubToken = ghTokenResult;
+            } else {
+                // Prompt user to enter GitHub token
+                const tokenInput = await vscode.window.showInputBox({
+                    prompt: 'Enter your GitHub Personal Access Token (按 \'Enter\' 鍵確認或按 \'Esc\' 鍵取消)',
+                    placeHolder: 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+                    password: true,
+                    ignoreFocusOut: true,
+                    validateInput: (value) => {
+                        if (!value || value.length < 10) {
+                            return 'Please enter a valid GitHub token';
+                        }
+                        return null;
+                    },
+                });
+
+                if (!tokenInput) {
+                    vscode.window.showErrorMessage(
+                        'GitHub token is required for PR analysis. Please try again.'
+                    );
+                    return;
+                }
+
+                await context.secrets.store('gooseCodeReview.githubToken', tokenInput);
+                githubToken = tokenInput;
             }
-
-            // Store token in secret storage
-            await context.secrets.store('gooseCodeReview.githubToken', tokenInput);
-            githubToken = tokenInput;
         }
+
+        // Step 4: Fetch pull requests and let user select
+        const prSelection = await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: 'Fetching pull requests...',
+            },
+            async () => {
+                try {
+                    // Fetch open PRs from GitHub API
+                    const response = await fetch(
+                        `https://api.github.com/repos/${repository.owner}/${repository.repo}/pulls?state=open&per_page=100`,
+                        {
+                            headers: {
+                                Authorization: `Bearer ${githubToken}`,
+                                Accept: 'application/vnd.github.v3+json',
+                            },
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(`GitHub API error: ${response.statusText}`);
+                    }
+
+                    const prs = await response.json();
+
+                    if (!Array.isArray(prs) || prs.length === 0) {
+                        vscode.window.showInformationMessage(
+                            `No open pull requests found in ${repository.owner}/${repository.repo}`
+                        );
+                        return null;
+                    }
+
+                    // Try to detect current branch
+                    let currentBranch: string | null = null;
+                    try {
+                        const { execFile } = await import('child_process');
+                        const { promisify } = await import('util');
+                        const execFilePromise = promisify(execFile);
+                        const { stdout } = await execFilePromise('git', ['branch', '--show-current'], {
+                            cwd: workingDirectory,
+                        });
+                        currentBranch = stdout.trim();
+                    } catch (error) {
+                        // Ignore error, continue without current branch detection
+                    }
+
+                    // Create quick pick items
+                    const items = prs.map((pr: any) => {
+                        const isCurrentBranch = currentBranch && pr.head.ref === currentBranch;
+                        return {
+                            label: `${isCurrentBranch ? '$(git-branch) ' : ''}#${pr.number}: ${pr.title}`,
+                            description: `by @${pr.user.login}`,
+                            detail: `${pr.head.ref} → ${pr.base.ref}${isCurrentBranch ? ' (current branch)' : ''}`,
+                            prNumber: pr.number,
+                            prTitle: pr.title,
+                            isCurrentBranch,
+                        };
+                    });
+
+                    // Sort: current branch first, then by PR number descending
+                    items.sort((a, b) => {
+                        if (a.isCurrentBranch && !b.isCurrentBranch) return -1;
+                        if (!a.isCurrentBranch && b.isCurrentBranch) return 1;
+                        return b.prNumber - a.prNumber;
+                    });
+
+                    return items;
+                } catch (error) {
+                    vscode.window.showErrorMessage(
+                        `Failed to fetch pull requests: ${error instanceof Error ? error.message : String(error)}`
+                    );
+                    return null;
+                }
+            }
+        );
+
+        if (!prSelection || prSelection.length === 0) {
+            return;
+        }
+
+        const selectedPR = await vscode.window.showQuickPick(prSelection, {
+            placeHolder: 'Select a pull request to analyze',
+            matchOnDescription: true,
+            matchOnDetail: true,
+        });
+
+        if (!selectedPR) {
+            return; // User cancelled
+        }
+
+        const prNumber = selectedPR.prNumber;
+        const prTitle = selectedPR.prTitle;
 
         // Step 5: Select analysis types
         const analysisTypes = await selectAnalysisTypes(context);
@@ -155,7 +253,7 @@ export async function analyzePullRequest(
             changeSource: 'pull-request',
             workingDirectory,
             pullRequestNumber: prNumber,
-            pullRequestTitle: undefined, // Will be filled after fetching PR
+            pullRequestTitle: prTitle,
             repository,
         });
 
@@ -177,12 +275,11 @@ export async function analyzePullRequest(
         );
 
         // Step 8: Update panel with results
-        // Note: We could fetch the PR title from the result if needed
         updatePanelWithResults(context.extensionUri, result, {
             changeSource: 'pull-request',
             workingDirectory,
             pullRequestNumber: prNumber,
-            pullRequestTitle: `Pull Request`, // Could extract from result if needed
+            pullRequestTitle: prTitle,
             repository,
         });
 
