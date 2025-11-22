@@ -4,24 +4,18 @@
  */
 
 import {
-  AnalysisMode,
   AnalysisOrchestrator,
-  ChangeAnalyzer,
   MergeService,
   ReportExporter,
   SonarQubeService,
   type AnalysisType,
-  type ChangeAnalysisResult,
   type ExportFormat,
   type ExportOptions,
   type GitFileChange,
-  type IAIProvider,
   type MergedAnalysisResult,
-  type WorkingDirectoryChanges,
 } from '@code-review-goose/git-analyzer';
 import * as fs from 'node:fs/promises';
 import * as vscode from 'vscode';
-import { getAIProvider } from './providers/provider-factory.js';
 import { SonarQubeConfigService } from './sonarqube-config-service.js';
 
 /**
@@ -61,46 +55,26 @@ export type ProgressCallback = (message: string, increment?: number) => void;
 
 /**
  * Git Analysis Service for VS Code
- * Provides high-level API for Git change analysis
+ * Provides high-level API for Git change analysis (SonarQube only)
  */
 export class GitAnalysisService {
-  private readonly changeAnalyzer: ChangeAnalyzer | null = null;
   private readonly mergeService: MergeService;
   private readonly reportExporter: ReportExporter;
-  private aiProvider: IAIProvider | null = null;
   private readonly sonarQubeConfigService: SonarQubeConfigService;
   private orchestrator: AnalysisOrchestrator | null = null;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  constructor(context: vscode.ExtensionContext) {
     this.mergeService = new MergeService();
     this.reportExporter = new ReportExporter();
     this.sonarQubeConfigService = new SonarQubeConfigService(context);
   }
 
   /**
-   * Initialize the service with AI provider and SonarQube (if configured)
+   * Initialize the service with SonarQube
    */
   async initialize(): Promise<void> {
-    console.log('[Git Analysis] Initializing service...');
+    console.log('[Git Analysis] Initializing service (SonarQube-only mode)...');
     try {
-      // Check if we're in sonarqube-only mode
-      const analysisMode = this.sonarQubeConfigService.getAnalysisMode();
-      console.log('[Git Analysis] Analysis mode preference:', analysisMode);
-      const isSonarQubeOnly = analysisMode === 'sonarqube-only';
-
-      // Only initialize AI provider if not in sonarqube-only mode
-      if (!isSonarQubeOnly) {
-        try {
-          this.aiProvider = await getAIProvider(this.context);
-          console.log('[Git Analysis] AI provider initialized:', this.aiProvider !== null);
-        } catch (error) {
-          // If AI provider initialization fails and we're not in sonarqube-only mode,
-          // log the error but continue (might fall back to sonarqube-only)
-          console.warn('[Git Analysis] Failed to initialize AI provider:', error);
-          this.aiProvider = null;
-        }
-      }
-
       // Initialize SonarQube orchestrator if enabled and configured
       const sqEnabled = this.sonarQubeConfigService.isEnabled();
       console.log('[Git Analysis] SonarQube enabled:', sqEnabled);
@@ -121,14 +95,12 @@ export class GitAnalysisService {
   private async initializeSonarQube(): Promise<void> {
     console.log('[Git Analysis] Initializing SonarQube...');
     const sqConfig = await this.sonarQubeConfigService.getSonarQubeConfig();
-    const aiProviderAvailable = this.aiProvider !== null;
 
     console.log('[Git Analysis] SonarQube config:', sqConfig ? 'found' : 'NOT FOUND');
-    console.log('[Git Analysis] AI provider available:', aiProviderAvailable);
 
     if (sqConfig) {
       const sonarQubeService = new SonarQubeService(sqConfig);
-      this.orchestrator = new AnalysisOrchestrator(sonarQubeService, aiProviderAvailable);
+      this.orchestrator = new AnalysisOrchestrator(sonarQubeService, false);
 
       // Detect mode (will test connection and set up graceful degradation)
       try {
@@ -141,14 +113,9 @@ export class GitAnalysisService {
         // Create a minimal orchestrator that will skip analysis
         this.orchestrator = new AnalysisOrchestrator(undefined, false);
       }
-    } else if (aiProviderAvailable) {
-      console.log('[Git Analysis] No SonarQube config, using AI-only mode');
-      // No SonarQube config - Create orchestrator with AI-only mode
-      this.orchestrator = new AnalysisOrchestrator(undefined, true);
-      await this.orchestrator.detectMode();
     } else {
-      console.log('[Git Analysis] No SonarQube config and no AI provider');
-      // No SonarQube config and no AI provider - create empty orchestrator
+      console.log('[Git Analysis] No SonarQube config');
+      // No SonarQube config - create empty orchestrator
       this.orchestrator = new AnalysisOrchestrator(undefined, false);
     }
   }
@@ -168,77 +135,25 @@ export class GitAnalysisService {
         await this.initializeSonarQube();
       }
 
-      const mode = this.orchestrator?.getMode();
-      const analysisMode = this.sonarQubeConfigService.getAnalysisMode();
-
-      // Determine actual analysis mode based on preference and availability
-      let actualMode: AnalysisMode | 'ai-only' = AnalysisMode.AI_ONLY;
-      if (mode) {
-        if (analysisMode === 'hybrid' && mode === AnalysisMode.HYBRID) {
-          actualMode = AnalysisMode.HYBRID;
-        } else if (analysisMode === 'sonarqube-only' && mode === AnalysisMode.SONARQUBE_ONLY) {
-          actualMode = AnalysisMode.SONARQUBE_ONLY;
-        } else if (analysisMode === 'ai-only') {
-          actualMode = AnalysisMode.AI_ONLY;
-        } else {
-          actualMode = mode; // Use detected mode
-        }
-      }
-
       progress?.('Checking working directory changes...', 10);
 
-      // Log analysis mode for debugging
-      console.log(`[Git Analysis] Detected mode: ${mode}, User preference: ${analysisMode}, Actual mode: ${actualMode}`);
-      console.log(`[Git Analysis] AI Provider available: ${this.aiProvider !== null}`);
-      console.log(`[Git Analysis] SonarQube available: ${this.orchestrator?.isSonarQubeAvailable()}`);
-
-      // Check if user requested sonarqube-only but SonarQube is not available
-      if (analysisMode === 'sonarqube-only' && !this.orchestrator?.isSonarQubeAvailable()) {
+      // Check if SonarQube is available
+      if (!this.orchestrator?.isSonarQubeAvailable()) {
         throw new Error(
-          'SonarQube-only mode selected but SonarQube is not available. ' +
-          'Please configure SonarQube connection first using "Goose: Add SonarQube Connection" command, ' +
-          'or choose a different analysis mode (ai-only or hybrid).'
+          'SonarQube is not available. ' +
+          'Please configure SonarQube connection first using "Goose: Add SonarQube Connection" command.'
         );
       }
 
-      // Perform AI analysis (if needed and AI provider is available)
-      let aiResult: ChangeAnalysisResult | undefined;
-      if ((actualMode === AnalysisMode.HYBRID || actualMode === AnalysisMode.AI_ONLY) && this.aiProvider) {
-        progress?.('Analyzing changes with AI...', 30);
+      // Fetch git changes for summary and SonarQube
+      const { GitService } = await import('@code-review-goose/git-analyzer');
+      const gitService = new GitService(config.workingDirectory);
+      const gitRoot = await gitService.getGitRoot();
+      const gitChanges = await gitService.getWorkingDirectoryChanges();
 
-        // Create analyzer for this repo with AI provider
-        const analyzer = new ChangeAnalyzer({
-          aiProvider: this.aiProvider,
-          repoPath: config.workingDirectory,
-          maxParallelRequests: config.maxConcurrency || 3,
-        });
-
-        aiResult = await analyzer.analyzeWorkingDirectory({
-          checkQuality: config.analysisTypes.includes('quality'),
-          checkSecurity: config.analysisTypes.includes('security'),
-          checkArchitecture: config.analysisTypes.includes('architecture'),
-        });
-      } else if ((actualMode === AnalysisMode.HYBRID || actualMode === AnalysisMode.AI_ONLY) && !this.aiProvider) {
-        // AI mode requested but AI provider not available
-        progress?.('AI provider not available, skipping AI analysis...', 30);
-      }
-
-      // If no AI result, fetch git changes manually for summary and SonarQube
-      let gitChanges: WorkingDirectoryChanges | undefined;
-      let gitRoot = config.workingDirectory;
-      if (!aiResult) {
-        const { GitService } = await import('@code-review-goose/git-analyzer');
-        const gitService = new GitService(config.workingDirectory);
-        gitRoot = await gitService.getGitRoot();
-        gitChanges = await gitService.getWorkingDirectoryChanges();
-      }
-
-      // Perform SonarQube analysis (if needed and available)
+      // Perform SonarQube analysis
       let sonarQubeResult = undefined;
-      if (
-        (actualMode === AnalysisMode.HYBRID || actualMode === AnalysisMode.SONARQUBE_ONLY) &&
-        this.orchestrator?.isSonarQubeAvailable()
-      ) {
+      if (this.orchestrator?.isSonarQubeAvailable()) {
         progress?.('Analyzing with SonarQube...', 50);
         try {
           const sqConfig = await this.sonarQubeConfigService.getSonarQubeConfig();
@@ -246,15 +161,7 @@ export class GitAnalysisService {
             const sqService = new SonarQubeService(sqConfig);
 
             // Get changed files for SonarQube analysis
-            // Get changed files for SonarQube analysis
-            if (!gitChanges) {
-              const { GitService } = await import('@code-review-goose/git-analyzer');
-              const gitService = new GitService(config.workingDirectory);
-              gitRoot = await gitService.getGitRoot();
-              gitChanges = await gitService.getWorkingDirectoryChanges();
-            }
-            const changes = gitChanges;
-            const changedFilePaths = changes.files.map((f: GitFileChange) => f.path);
+            const changedFilePaths = gitChanges.files.map((f: GitFileChange) => f.path);
 
             console.log(`[Git Analysis] Found ${changedFilePaths.length} changed files for SonarQube analysis`);
 
@@ -327,53 +234,45 @@ export class GitAnalysisService {
             }
           }
         } catch (error) {
-          // SonarQube failed, but continue with AI-only
+          // SonarQube failed - throw error since we're in SonarQube-only mode
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`[Git Analysis] SonarQube analysis failed:`, error);
 
           const workingDirOutputChannel = global.gooseOutputChannel;
           if (workingDirOutputChannel) {
             workingDirOutputChannel.appendLine(`[SonarQube] Analysis failed: ${errorMessage}`);
-            workingDirOutputChannel.appendLine(`[SonarQube] Continuing with AI-only analysis...`);
           }
 
-          progress?.(`SonarQube analysis failed: ${errorMessage}. Continuing with AI-only...`, 50);
+          throw new Error(`SonarQube analysis failed: ${errorMessage}`);
         }
       }
 
-      progress?.('Merging analysis results...', 80);
+      progress?.('Preparing analysis results...', 80);
 
-      // Merge results
-      // If no AI result, create empty one (for SonarQube-only mode)
-      // If we have git changes, populate file analyses so they show up in the report even without issues
-      const initialFileAnalyses = aiResult?.fileAnalyses || (gitChanges?.files.map(f => ({
+      // Create file analyses from git changes
+      const initialFileAnalyses = gitChanges.files.map(f => ({
         file: f.path,
         changeType: 'unknown' as const,
         issues: [],
         summary: 'File changed',
         linesChanged: (f.linesAdded || 0) + (f.linesDeleted || 0)
-      })) || []);
+      }));
 
-      const aiAnalysisResult = aiResult
-        ? {
-          fileAnalyses: aiResult.fileAnalyses,
-          impactAnalysis: aiResult.impactAnalysis,
-        }
-        : {
-          fileAnalyses: initialFileAnalyses,
-          impactAnalysis: {
-            riskLevel: 'low' as const,
-            affectedModules: [],
-            breakingChanges: [],
-            testingRecommendations: [],
-            deploymentRisks: [],
-            qualityScore: 100,
-          },
-        };
+      const aiAnalysisResult = {
+        fileAnalyses: initialFileAnalyses,
+        impactAnalysis: {
+          riskLevel: 'low' as const,
+          affectedModules: [],
+          breakingChanges: [],
+          testingRecommendations: [],
+          deploymentRisks: [],
+          qualityScore: 100,
+        },
+      };
 
-      const baseResult = aiResult || {
+      const baseResult = {
         changeType: 'working-directory' as const,
-        summary: gitChanges?.summary || { filesChanged: 0, insertions: 0, deletions: 0 },
+        summary: gitChanges.summary,
         fileAnalyses: [],
         impactAnalysis: aiAnalysisResult.impactAnalysis,
         timestamp: new Date().toISOString(),
@@ -403,68 +302,24 @@ export class GitAnalysisService {
     progress?: ProgressCallback
   ): Promise<MergedAnalysisResult> {
     try {
-      progress?.('Detecting analysis mode...', 5);
+      progress?.('Initializing analysis...', 5);
 
       // Ensure orchestrator is initialized
       if (!this.orchestrator) {
         await this.initializeSonarQube();
       }
 
-      const mode = this.orchestrator?.getMode();
-      const analysisMode = this.sonarQubeConfigService.getAnalysisMode();
-
-      // Determine actual analysis mode
-      let actualMode: AnalysisMode | 'ai-only' = AnalysisMode.AI_ONLY;
-      if (mode) {
-        if (analysisMode === 'hybrid' && mode === AnalysisMode.HYBRID) {
-          actualMode = AnalysisMode.HYBRID;
-        } else if (analysisMode === 'sonarqube-only' && mode === AnalysisMode.SONARQUBE_ONLY) {
-          actualMode = AnalysisMode.SONARQUBE_ONLY;
-        } else if (analysisMode === 'ai-only') {
-          actualMode = AnalysisMode.AI_ONLY;
-        } else {
-          actualMode = mode;
-        }
+      // Check if SonarQube is available
+      if (!this.orchestrator?.isSonarQubeAvailable()) {
+        throw new Error(
+          'SonarQube is not available. ' +
+          'Please configure SonarQube connection first using "Goose: Add SonarQube Connection" command.'
+        );
       }
 
       progress?.('Comparing branches...', 10);
 
-      // Check if user requested sonarqube-only but SonarQube is not available
-      if (analysisMode === 'sonarqube-only' && !this.orchestrator?.isSonarQubeAvailable()) {
-        throw new Error(
-          'SonarQube-only mode selected but SonarQube is not available. ' +
-          'Please configure SonarQube connection first using "Goose: Add SonarQube Connection" command, ' +
-          'or choose a different analysis mode (ai-only or hybrid).'
-        );
-      }
-
-      // Perform AI analysis (if needed and AI provider is available)
-      let aiResult: ChangeAnalysisResult | undefined;
-      if ((actualMode === AnalysisMode.HYBRID || actualMode === AnalysisMode.AI_ONLY) && this.aiProvider) {
-        progress?.('Analyzing changes with AI...', 30);
-
-        // Create analyzer for this repo with AI provider
-        const analyzer = new ChangeAnalyzer({
-          aiProvider: this.aiProvider,
-          repoPath: config.workingDirectory,
-          maxParallelRequests: config.maxConcurrency || 3,
-        });
-
-        aiResult = await analyzer.analyzeBranchComparison(
-          config.sourceBranch,
-          config.targetBranch,
-          {
-            checkQuality: config.analysisTypes.includes('quality'),
-            checkSecurity: config.analysisTypes.includes('security'),
-            checkArchitecture: config.analysisTypes.includes('architecture'),
-          }
-        );
-      } else if ((actualMode === AnalysisMode.HYBRID || actualMode === AnalysisMode.AI_ONLY) && !this.aiProvider) {
-        // AI mode requested but AI provider not available
-        progress?.('AI provider not available, skipping AI analysis...', 30);
-      }
-
-      // Get git changes for branch comparison (needed for both SonarQube and result summary)
+      // Get git changes for branch comparison
       const { GitService } = await import('@code-review-goose/git-analyzer');
       const gitService = new GitService(config.workingDirectory);
       console.log(`[Git Analysis] Comparing branches: ${config.sourceBranch} -> ${config.targetBranch}`);
@@ -474,12 +329,9 @@ export class GitAnalysisService {
       );
       console.log(`[Git Analysis] Branch comparison found ${gitChanges.files.length} changed files`);
 
-      // Perform SonarQube analysis (if needed and available)
+      // Perform SonarQube analysis
       let sonarQubeResult = undefined;
-      if (
-        (actualMode === AnalysisMode.HYBRID || actualMode === AnalysisMode.SONARQUBE_ONLY) &&
-        this.orchestrator?.isSonarQubeAvailable()
-      ) {
+      if (this.orchestrator?.isSonarQubeAvailable()) {
         progress?.('Analyzing with SonarQube...', 50);
         try {
           const sqConfig = await this.sonarQubeConfigService.getSonarQubeConfig();
@@ -553,51 +405,43 @@ export class GitAnalysisService {
             }
           }
         } catch (error) {
-          // SonarQube failed, but continue with AI-only
+          // SonarQube failed - throw error since we're in SonarQube-only mode
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`[Git Analysis] SonarQube analysis failed:`, error);
 
           const branchComparisonOutputChannel = (global as any).gooseOutputChannel;
           if (branchComparisonOutputChannel) {
             branchComparisonOutputChannel.appendLine(`[SonarQube] Analysis failed: ${errorMessage}`);
-            branchComparisonOutputChannel.appendLine(`[SonarQube] Continuing with AI-only analysis...`);
           }
 
-          progress?.(`SonarQube analysis failed: ${errorMessage}. Continuing with AI-only...`, 50);
+          throw new Error(`SonarQube analysis failed: ${errorMessage}`);
         }
       }
 
-      progress?.('Merging analysis results...', 80);
+      progress?.('Preparing analysis results...', 80);
 
-      // Merge results
-      // If no AI result, create empty one (for SonarQube-only mode)
-      // If we have git changes, populate file analyses so they show up in the report even without issues
-      const initialFileAnalyses = aiResult?.fileAnalyses || (gitChanges?.files.map(f => ({
+      // Create file analyses from git changes
+      const initialFileAnalyses = gitChanges.files.map(f => ({
         file: f.path,
         changeType: 'unknown' as const,
         issues: [],
         summary: 'File changed',
         linesChanged: (f.linesAdded || 0) + (f.linesDeleted || 0)
-      })) || []);
+      }));
 
-      const aiAnalysisResult = aiResult
-        ? {
-          fileAnalyses: aiResult.fileAnalyses,
-          impactAnalysis: aiResult.impactAnalysis,
-        }
-        : {
-          fileAnalyses: initialFileAnalyses,
-          impactAnalysis: {
-            riskLevel: 'low' as const,
-            affectedModules: [],
-            breakingChanges: [],
-            testingRecommendations: [],
-            deploymentRisks: [],
-            qualityScore: 100,
-          },
-        };
+      const aiAnalysisResult = {
+        fileAnalyses: initialFileAnalyses,
+        impactAnalysis: {
+          riskLevel: 'low' as const,
+          affectedModules: [],
+          breakingChanges: [],
+          testingRecommendations: [],
+          deploymentRisks: [],
+          qualityScore: 100,
+        },
+      };
 
-      const baseResult = aiResult || {
+      const baseResult = {
         changeType: 'branch-comparison' as const,
         summary: gitChanges.summary,
         fileAnalyses: [],
@@ -732,15 +576,14 @@ export class GitAnalysisService {
       }
 
       // Import necessary services
-      const { PRAnalysisService, GitHubService } = await import('@code-review-goose/git-analyzer');
+      const { GitHubService } = await import('@code-review-goose/git-analyzer');
 
-      // Check analysis mode
-      const analysisMode = this.sonarQubeConfigService.getAnalysisMode();
-      const isSonarQubeOnly = analysisMode === 'sonarqube-only';
-
-      // Validate AI provider is available (unless in sonarqube-only mode)
-      if (!isSonarQubeOnly && !this.aiProvider) {
-        throw new Error('AI provider is required for PR analysis. Please configure your AI provider first, or switch to SonarQube-only mode.');
+      // Check if SonarQube is available
+      if (!this.orchestrator?.isSonarQubeAvailable()) {
+        throw new Error(
+          'SonarQube is not available. ' +
+          'Please configure SonarQube connection first using "Goose: Add SonarQube Connection" command.'
+        );
       }
 
       progress?.('Fetching PR information...', 10);
@@ -754,47 +597,9 @@ export class GitAnalysisService {
 
       console.log(`[PR Analysis] Found ${prFiles.length} files in PR #${config.prNumber}`);
 
-      // Perform AI analysis (if not in sonarqube-only mode)
-      let prResult: any = null;
-      if (!isSonarQubeOnly && this.aiProvider) {
-        progress?.('Analyzing pull request with AI...', 20);
-
-        // Create PR analysis service
-        const prAnalysisService = new PRAnalysisService({
-          github: {
-            token: config.githubToken,
-          },
-          aiProvider: this.aiProvider,
-          workingDir: config.workingDirectory,
-        });
-
-        // Validate GitHub connection
-        const validation = await prAnalysisService.validateConfiguration();
-        if (!validation.github.valid) {
-          throw new Error(`GitHub authentication failed: ${validation.github.error || 'Invalid token'}`);
-        }
-
-        // Analyze the PR with AI
-        prResult = await prAnalysisService.analyzePullRequest({
-          repository: config.repository,
-          prNumber: config.prNumber,
-          analysisTypes: config.analysisTypes,
-          postComment: false, // User wants results only in VS Code
-        });
-
-        progress?.('Processing AI results...', 50);
-      } else {
-        console.log(`[PR Analysis] Skipping AI analysis (SonarQube-only mode)`);
-        progress?.('Skipping AI analysis (SonarQube-only mode)...', 20);
-      }
-
-      // Perform SonarQube analysis (if available)
+      // Perform SonarQube analysis
       let sonarQubeResult = undefined;
-      const isSonarQubeEnabled =
-        (analysisMode === 'hybrid' || analysisMode === 'sonarqube-only') &&
-        this.orchestrator?.isSonarQubeAvailable();
-
-      if (isSonarQubeEnabled) {
+      if (this.orchestrator?.isSonarQubeAvailable()) {
         progress?.('Analyzing with SonarQube...', 60);
         try {
           const sqConfig = await this.sonarQubeConfigService.getSonarQubeConfig();
@@ -869,41 +674,23 @@ export class GitAnalysisService {
             }
           }
         } catch (error) {
-          // SonarQube failed, but continue with AI-only
+          // SonarQube failed - throw error since we're in SonarQube-only mode
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`[PR Analysis] SonarQube analysis failed:`, error);
 
           const prOutputChannel = (global as any).gooseOutputChannel;
           if (prOutputChannel) {
             prOutputChannel.appendLine(`[SonarQube] Analysis failed: ${errorMessage}`);
-            prOutputChannel.appendLine(`[SonarQube] Continuing with AI-only analysis...`);
           }
 
-          progress?.(`SonarQube analysis failed: ${errorMessage}. Continuing with AI-only...`, 75);
+          throw new Error(`SonarQube analysis failed: ${errorMessage}`);
         }
       }
 
-      progress?.('Merging results...', 90);
+      progress?.('Preparing results...', 90);
 
-      // Create a map of files with issues from both AI and SonarQube
+      // Create a map of files with issues from SonarQube
       const fileIssuesMap = new Map<string, any[]>();
-
-      // Add AI issues (if available)
-      if (prResult?.analysis?.issues) {
-        prResult.analysis.issues.forEach((issue: any) => {
-          if (!fileIssuesMap.has(issue.file)) {
-            fileIssuesMap.set(issue.file, []);
-          }
-          fileIssuesMap.get(issue.file)!.push({
-            file: issue.file,
-            line: issue.line,
-            severity: issue.severity,
-            type: issue.type,
-            message: issue.message,
-            source: issue.source,
-          });
-        });
-      }
 
       // Add SonarQube issues
       if (sonarQubeResult?.issues) {
@@ -954,12 +741,12 @@ export class GitAnalysisService {
         },
         fileAnalyses,
         impactAnalysis: {
-          riskLevel: prResult?.analysis?.riskLevel || 'medium',
+          riskLevel: 'low',
           affectedModules: [],
           breakingChanges: [],
           testingRecommendations: [],
           deploymentRisks: [],
-          qualityScore: prResult?.analysis?.qualityScore || 50,
+          qualityScore: 100,
         },
         timestamp: new Date().toISOString(),
         duration: 0,

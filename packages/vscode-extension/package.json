@@ -379,18 +379,14 @@
         },
         "gooseCodeReview.gitAnalysis.mode": {
           "type": "string",
-          "default": "hybrid",
+          "default": "sonarqube-only",
           "enum": [
-            "hybrid",
-            "ai-only",
             "sonarqube-only"
           ],
           "enumDescriptions": [
-            "Hybrid: SonarQube + AI analysis (best quality, requires both configured)",
-            "AI Only: Use only AI analysis (no SonarQube required)",
-            "SonarQube Only: Use only SonarQube analysis (no AI required)"
+            "SonarQube Only: Use only SonarQube analysis"
           ],
-          "description": "Git change analysis mode. Auto-detects available providers and falls back gracefully.",
+          "description": "Git change analysis mode (SonarQube only)",
           "scope": "application"
         }
       }
