@@ -74,6 +74,15 @@ const TextEditorRevealType = {
 };
 
 const window = {
+    createOutputChannel: vi.fn((name: string) => ({
+        name,
+        append: vi.fn(),
+        appendLine: vi.fn(),
+        clear: vi.fn(),
+        show: vi.fn(),
+        hide: vi.fn(),
+        dispose: vi.fn(),
+    })),
     createStatusBarItem: vi.fn(() => ({
         show: vi.fn(),
         hide: vi.fn(),

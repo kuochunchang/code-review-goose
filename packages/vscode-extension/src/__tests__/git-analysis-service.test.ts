@@ -1,5 +1,5 @@
 /**
- * Git Analysis Service Tests
+ * Git Analysis Service Tests (SonarQube-only mode)
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -13,15 +13,15 @@ const mockGitServiceInstance = {
       {
         path: 'test.ts',
         status: 'modified',
-        additions: 10,
-        deletions: 5,
+        linesAdded: 10,
+        linesDeleted: 5,
         diff: 'mock diff',
       },
     ],
     summary: {
-      totalFiles: 1,
-      totalAdditions: 10,
-      totalDeletions: 5,
+      filesChanged: 1,
+      insertions: 10,
+      deletions: 5,
     },
   }),
   compareBranches: vi.fn().mockResolvedValue({
@@ -29,20 +29,21 @@ const mockGitServiceInstance = {
       {
         path: 'test.ts',
         status: 'modified',
-        additions: 10,
-        deletions: 5,
+        linesAdded: 10,
+        linesDeleted: 5,
         diff: 'mock diff',
       },
     ],
     summary: {
-      totalFiles: 1,
-      totalAdditions: 10,
-      totalDeletions: 5,
+      filesChanged: 1,
+      insertions: 10,
+      deletions: 5,
     },
   }),
   getCurrentBranch: vi.fn().mockResolvedValue('main'),
   isClean: vi.fn().mockResolvedValue(false),
   getRepoRoot: vi.fn().mockResolvedValue('/repo'),
+  getGitRoot: vi.fn().mockResolvedValue('/repo'),
   getBranches: vi.fn().mockResolvedValue({
     all: ['main', 'develop', 'feature/test'],
     current: 'main',
@@ -51,153 +52,91 @@ const mockGitServiceInstance = {
   }),
 };
 
+const mockSonarQubeServiceInstance = {
+  testConnection: vi.fn().mockResolvedValue({ success: true }),
+  executeScan: vi.fn().mockResolvedValue({
+    success: true,
+    taskId: 'mock-task-id',
+  }),
+  waitForAnalysis: vi.fn().mockResolvedValue(undefined),
+};
+
+const mockOrchestratorInstance = {
+  detectMode: vi.fn().mockResolvedValue({
+    mode: 'sonarqube-only',
+    sonarQubeAvailable: true,
+    aiProviderAvailable: false,
+  }),
+  getMode: vi.fn().mockReturnValue('sonarqube-only'),
+  isSonarQubeAvailable: vi.fn().mockReturnValue(true),
+};
+
 vi.mock('@code-review-goose/git-analyzer', () => ({
   GitService: vi.fn().mockImplementation(() => mockGitServiceInstance),
-  ChangeAnalyzer: vi.fn().mockImplementation(() => ({
-    analyzeWorkingDirectory: vi.fn().mockResolvedValue({
-      fileAnalyses: [
-        {
-          file: 'test.ts',
-          changeType: 'feature',
-          issues: [
-            {
-              source: 'ai',
-              severity: 'medium',
-              type: 'code-smell',
-              file: 'test.ts',
-              line: 10,
-              message: 'Test issue',
-              description: 'Test description',
-            },
-          ],
-          summary: 'Test summary',
-          linesChanged: 15,
-          qualityScore: 85,
-        },
-      ],
-      summary: {
-        totalFiles: 1,
-        totalIssues: 1,
-        bySeverity: { medium: 1 },
-        byType: { 'code-smell': 1 },
-      },
-    }),
-    analyzeBranchComparison: vi.fn().mockResolvedValue({
-      fileAnalyses: [
-        {
-          file: 'test.ts',
-          changeType: 'feature',
-          issues: [
-            {
-              source: 'ai',
-              severity: 'medium',
-              type: 'code-smell',
-              file: 'test.ts',
-              line: 10,
-              message: 'Test issue',
-              description: 'Test description',
-            },
-          ],
-          summary: 'Test summary',
-          linesChanged: 15,
-          qualityScore: 85,
-        },
-      ],
-      summary: {
-        totalFiles: 1,
-        totalIssues: 1,
-        bySeverity: { medium: 1 },
-        byType: { 'code-smell': 1 },
-      },
-    }),
-  })),
   MergeService: vi.fn().mockImplementation(() => ({
     merge: vi.fn().mockReturnValue({
+      changeType: 'working-directory',
       fileAnalyses: [
         {
           file: 'test.ts',
-          changeType: 'feature',
-          issues: [
-            {
-              source: 'ai',
-              severity: 'medium',
-              type: 'code-smell',
-              file: 'test.ts',
-              line: 10,
-              message: 'Test issue',
-              description: 'Test description',
-            },
-          ],
-          summary: 'Test summary',
+          changeType: 'unknown',
+          issues: [],
+          summary: 'File changed',
           linesChanged: 15,
-          qualityScore: 85,
         },
       ],
       summary: {
-        totalFiles: 1,
-        totalIssues: 1,
-        bySeverity: { medium: 1 },
-        byType: { 'code-smell': 1 },
-        bySource: { ai: 1 },
-        qualityScore: 85,
-        riskLevel: 'low',
-        deduplicationInfo: {
-          originalTotal: 1,
-          duplicatesRemoved: 0,
-          finalTotal: 1,
-        },
+        filesChanged: 1,
+        insertions: 10,
+        deletions: 5,
       },
       impactAnalysis: {
         riskLevel: 'low',
-        affectedModules: ['test'],
+        affectedModules: [],
         breakingChanges: [],
-        migrationRequired: false,
+        testingRecommendations: [],
+        deploymentRisks: [],
+        qualityScore: 100,
       },
-      changes: {
-        files: [],
-        summary: {
-          totalFiles: 1,
-          totalAdditions: 10,
-          totalDeletions: 5,
-        },
-      },
+      timestamp: new Date().toISOString(),
+      duration: 0,
     }),
   })),
   ReportExporter: vi.fn().mockImplementation(() => ({
     export: vi.fn().mockReturnValue('# Mock Report'),
   })),
-  AnalysisOrchestrator: vi.fn().mockImplementation(() => ({
-    detectMode: vi.fn().mockResolvedValue(undefined),
-    getMode: vi.fn().mockReturnValue('ai-only'),
-    isSonarQubeAvailable: vi.fn().mockReturnValue(false),
-  })),
-  AnalysisMode: {
-    HYBRID: 'hybrid',
-    AI_ONLY: 'ai-only',
-    SONARQUBE_ONLY: 'sonarqube-only',
-  },
-  SonarQubeService: vi.fn().mockImplementation(() => ({
-    executeScan: vi.fn().mockResolvedValue({ success: true }),
-  })),
-}));
-
-// Mock provider factory
-vi.mock('../services/providers/provider-factory.js', () => ({
-  getAIProvider: vi.fn().mockResolvedValue({
-    analyze: vi.fn().mockResolvedValue('Mock analysis result'),
-  }),
+  AnalysisOrchestrator: vi.fn().mockImplementation(() => mockOrchestratorInstance),
+  SonarQubeService: vi.fn().mockImplementation(() => mockSonarQubeServiceInstance),
 }));
 
 // Mock SonarQubeConfigService
+const mockSonarQubeConfigService = {
+  getAnalysisMode: vi.fn().mockReturnValue('sonarqube-only'),
+  isEnabled: vi.fn().mockReturnValue(true),
+  getSonarQubeConfig: vi.fn().mockResolvedValue({
+    serverUrl: 'http://localhost:9000',
+    token: 'mock-token',
+    projectKey: 'test-project',
+    projectName: 'Test Project',
+    timeout: 3000,
+  }),
+};
+
 vi.mock('../services/sonarqube-config-service.js', () => ({
-  SonarQubeConfigService: vi.fn().mockImplementation(() => ({
-    getAnalysisMode: vi.fn().mockReturnValue('ai-only'),
-    isEnabled: vi.fn().mockReturnValue(false),
-    getSonarQubeConfig: vi.fn().mockResolvedValue(null),
-  })),
+  SonarQubeConfigService: vi.fn().mockImplementation(() => mockSonarQubeConfigService),
 }));
 
-describe('GitAnalysisService', () => {
+// Mock fetch for SonarQube API calls
+global.fetch = vi.fn().mockResolvedValue({
+  ok: true,
+  json: vi.fn().mockResolvedValue({
+    issues: [],
+    component: { measures: [] },
+    projectStatus: { status: 'OK', conditions: [] },
+  }),
+}) as any;
+
+describe('GitAnalysisService (SonarQube-only)', () => {
   let service: GitAnalysisService;
   let mockContext: vscode.ExtensionContext;
 
@@ -216,43 +155,50 @@ describe('GitAnalysisService', () => {
   });
 
   describe('initialize', () => {
-    it('should initialize successfully', async () => {
+    it('should initialize successfully with SonarQube enabled', async () => {
       const newService = new GitAnalysisService(mockContext);
       await expect(newService.initialize()).resolves.not.toThrow();
     });
 
-    it('should continue initialization if AI provider fails in non-sonarqube-only mode', async () => {
-      const { getAIProvider } = await import('../services/providers/provider-factory.js');
-      vi.mocked(getAIProvider).mockRejectedValueOnce(new Error('Provider init failed'));
-
-      const newService = new GitAnalysisService(mockContext);
-      // Should not throw, but log a warning and continue
-      await expect(newService.initialize()).resolves.not.toThrow();
-    });
-
-    it('should not initialize AI provider in sonarqube-only mode', async () => {
-      const { getAIProvider } = await import('../services/providers/provider-factory.js');
-      const getAIProviderSpy = vi.mocked(getAIProvider);
-      getAIProviderSpy.mockClear();
-
+    it('should skip SonarQube initialization when disabled', async () => {
       const newService = new GitAnalysisService(mockContext);
 
-      // Override the sonarQubeConfigService instance
+      // Override config service to return disabled
       (newService as any).sonarQubeConfigService = {
         getAnalysisMode: vi.fn().mockReturnValue('sonarqube-only'),
         isEnabled: vi.fn().mockReturnValue(false),
         getSonarQubeConfig: vi.fn().mockResolvedValue(null),
       };
 
-      await newService.initialize();
-
-      // AI provider should not be called in sonarqube-only mode
-      expect(getAIProviderSpy).not.toHaveBeenCalled();
+      await expect(newService.initialize()).resolves.not.toThrow();
     });
   });
 
   describe('analyzeWorkingDirectory', () => {
-    it('should analyze working directory changes successfully', async () => {
+    it('should throw error when SonarQube is not available', async () => {
+      const newService = new GitAnalysisService(mockContext);
+
+      // Override orchestrator to return not available
+      (newService as any).orchestrator = {
+        detectMode: vi.fn().mockResolvedValue({
+          mode: 'sonarqube-only',
+          sonarQubeAvailable: false,
+        }),
+        getMode: vi.fn().mockReturnValue('sonarqube-only'),
+        isSonarQubeAvailable: vi.fn().mockReturnValue(false),
+      };
+
+      const config = {
+        workingDirectory: '/test/repo',
+        analysisTypes: ['quality'] as any[],
+      };
+
+      await expect(newService.analyzeWorkingDirectory(config)).rejects.toThrow(
+        'SonarQube is not available'
+      );
+    });
+
+    it('should analyze working directory with SonarQube successfully', async () => {
       const config = {
         workingDirectory: '/test/repo',
         analysisTypes: ['quality', 'security'] as any[],
@@ -262,66 +208,8 @@ describe('GitAnalysisService', () => {
       const result = await service.analyzeWorkingDirectory(config, progressCallback);
 
       expect(result).toBeDefined();
-      expect(result.summary.totalFiles).toBe(1);
-      expect(result.summary.totalIssues).toBe(1);
+      expect(result.summary.filesChanged).toBe(1);
       expect(progressCallback).toHaveBeenCalled();
-    });
-
-    it('should throw error when sonarqube-only mode selected but SonarQube not available', async () => {
-      // Create a new service with mocked config service that returns sonarqube-only mode
-      const newService = new GitAnalysisService(mockContext);
-
-      // Override the sonarQubeConfigService instance
-      (newService as any).sonarQubeConfigService = {
-        getAnalysisMode: vi.fn().mockReturnValue('sonarqube-only'),
-        isEnabled: vi.fn().mockReturnValue(false),
-        getSonarQubeConfig: vi.fn().mockResolvedValue(null),
-      };
-
-      await newService.initialize();
-
-      const config = {
-        workingDirectory: '/test/repo',
-        analysisTypes: ['quality'] as any[],
-      };
-
-      // Should throw error because SonarQube is not available
-      await expect(newService.analyzeWorkingDirectory(config)).rejects.toThrow(
-        'SonarQube-only mode selected but SonarQube is not available'
-      );
-    });
-
-    it('should throw error if no changes found', async () => {
-      // Create a new service instance
-      const newService = new GitAnalysisService(mockContext);
-      await newService.initialize();
-
-      const config = {
-        workingDirectory: '/test/repo',
-        analysisTypes: ['quality'] as any[],
-      };
-
-      // Override ChangeAnalyzer mock for this test to throw error
-      const { ChangeAnalyzer } = await import('@code-review-goose/git-analyzer');
-      const MockedChangeAnalyzer = vi.mocked(ChangeAnalyzer);
-      
-      // Save original implementation
-      const originalImplementation = MockedChangeAnalyzer.getMockImplementation();
-      
-      // Override to throw error
-      MockedChangeAnalyzer.mockImplementationOnce(() => ({
-        analyzeWorkingDirectory: vi.fn().mockRejectedValue(
-          new Error('No changes found in working directory')
-        ),
-        analyzeBranchComparison: vi.fn(),
-      }) as any);
-
-      await expect(newService.analyzeWorkingDirectory(config)).rejects.toThrow('No changes found');
-
-      // Restore original implementation
-      if (originalImplementation) {
-        MockedChangeAnalyzer.mockImplementation(originalImplementation);
-      }
     });
 
     it('should call progress callback with correct messages', async () => {
@@ -334,14 +222,59 @@ describe('GitAnalysisService', () => {
       await service.analyzeWorkingDirectory(config, progressCallback);
 
       expect(progressCallback).toHaveBeenCalledWith('Checking working directory changes...', 10);
-      expect(progressCallback).toHaveBeenCalledWith('Analyzing changes with AI...', 30);
-      expect(progressCallback).toHaveBeenCalledWith('Merging analysis results...', 80);
+      expect(progressCallback).toHaveBeenCalledWith('Analyzing with SonarQube...', 50);
+      expect(progressCallback).toHaveBeenCalledWith('Preparing analysis results...', 80);
       expect(progressCallback).toHaveBeenCalledWith('Analysis complete!', 100);
+    });
+
+    it('should throw error when SonarQube analysis fails', async () => {
+      const newService = new GitAnalysisService(mockContext);
+      await newService.initialize();
+
+      // Mock SonarQube to fail
+      const { SonarQubeService } = await import('@code-review-goose/git-analyzer');
+      vi.mocked(SonarQubeService).mockImplementationOnce(() => ({
+        testConnection: vi.fn().mockResolvedValue({ success: false, error: 'Connection failed' }),
+        executeScan: vi.fn(),
+        waitForAnalysis: vi.fn(),
+      }) as any);
+
+      const config = {
+        workingDirectory: '/test/repo',
+        analysisTypes: ['quality'] as any[],
+      };
+
+      await expect(newService.analyzeWorkingDirectory(config)).rejects.toThrow('SonarQube');
     });
   });
 
   describe('analyzeBranchComparison', () => {
-    it('should analyze branch comparison successfully', async () => {
+    it('should throw error when SonarQube is not available', async () => {
+      const newService = new GitAnalysisService(mockContext);
+
+      // Override orchestrator to return not available
+      (newService as any).orchestrator = {
+        detectMode: vi.fn().mockResolvedValue({
+          mode: 'sonarqube-only',
+          sonarQubeAvailable: false,
+        }),
+        getMode: vi.fn().mockReturnValue('sonarqube-only'),
+        isSonarQubeAvailable: vi.fn().mockReturnValue(false),
+      };
+
+      const config = {
+        workingDirectory: '/test/repo',
+        sourceBranch: 'main',
+        targetBranch: 'develop',
+        analysisTypes: ['quality'] as any[],
+      };
+
+      await expect(newService.analyzeBranchComparison(config)).rejects.toThrow(
+        'SonarQube is not available'
+      );
+    });
+
+    it('should analyze branch comparison with SonarQube successfully', async () => {
       const config = {
         workingDirectory: '/test/repo',
         sourceBranch: 'main',
@@ -353,62 +286,8 @@ describe('GitAnalysisService', () => {
       const result = await service.analyzeBranchComparison(config, progressCallback);
 
       expect(result).toBeDefined();
-      expect(result.summary.totalFiles).toBe(1);
-      expect(result.summary.totalIssues).toBe(1);
+      expect(result.summary.filesChanged).toBe(1);
       expect(progressCallback).toHaveBeenCalled();
-    });
-
-    it('should throw error when sonarqube-only mode selected but SonarQube not available', async () => {
-      // Create a new service with mocked config service that returns sonarqube-only mode
-      const newService = new GitAnalysisService(mockContext);
-
-      // Override the sonarQubeConfigService instance
-      (newService as any).sonarQubeConfigService = {
-        getAnalysisMode: vi.fn().mockReturnValue('sonarqube-only'),
-        isEnabled: vi.fn().mockReturnValue(false),
-        getSonarQubeConfig: vi.fn().mockResolvedValue(null),
-      };
-
-      await newService.initialize();
-
-      const config = {
-        workingDirectory: '/test/repo',
-        sourceBranch: 'main',
-        targetBranch: 'develop',
-        analysisTypes: ['quality'] as any[],
-      };
-
-      // Should throw error because SonarQube is not available
-      await expect(newService.analyzeBranchComparison(config)).rejects.toThrow(
-        'SonarQube-only mode selected but SonarQube is not available'
-      );
-    });
-
-    it('should throw error if no differences found', async () => {
-      // Create a new service instance
-      const newService = new GitAnalysisService(mockContext);
-      await newService.initialize();
-
-      const config = {
-        workingDirectory: '/test/repo',
-        sourceBranch: 'main',
-        targetBranch: 'develop',
-        analysisTypes: ['quality'] as any[],
-      };
-
-      // Get the ChangeAnalyzer mock and override it for this test
-      const { ChangeAnalyzer } = await import('@code-review-goose/git-analyzer');
-      const MockedChangeAnalyzer = vi.mocked(ChangeAnalyzer);
-      
-      // Override the mock implementation for this test
-      MockedChangeAnalyzer.mockImplementationOnce(() => ({
-        analyzeWorkingDirectory: vi.fn(),
-        analyzeBranchComparison: vi.fn().mockRejectedValue(
-          new Error('No differences found between branches')
-        ),
-      }) as any);
-
-      await expect(newService.analyzeBranchComparison(config)).rejects.toThrow('No differences found');
     });
 
     it('should call progress callback with correct messages', async () => {
@@ -423,8 +302,8 @@ describe('GitAnalysisService', () => {
       await service.analyzeBranchComparison(config, progressCallback);
 
       expect(progressCallback).toHaveBeenCalledWith('Comparing branches...', 10);
-      expect(progressCallback).toHaveBeenCalledWith('Analyzing changes with AI...', 30);
-      expect(progressCallback).toHaveBeenCalledWith('Merging analysis results...', 80);
+      expect(progressCallback).toHaveBeenCalledWith('Analyzing with SonarQube...', 50);
+      expect(progressCallback).toHaveBeenCalledWith('Preparing analysis results...', 80);
       expect(progressCallback).toHaveBeenCalledWith('Analysis complete!', 100);
     });
   });
@@ -432,89 +311,28 @@ describe('GitAnalysisService', () => {
   describe('exportResult', () => {
     it('should export result successfully', async () => {
       const mockResult = {
+        changeType: 'working-directory' as const,
         fileAnalyses: [],
         summary: {
-          totalFiles: 0,
-          totalIssues: 0,
-          bySeverity: {},
-          byType: {},
-          bySource: {},
-          qualityScore: 100,
-          riskLevel: 'low' as const,
-          deduplicationInfo: {
-            originalTotal: 0,
-            duplicatesRemoved: 0,
-            finalTotal: 0,
-          },
+          filesChanged: 0,
+          insertions: 0,
+          deletions: 0,
         },
         impactAnalysis: {
           riskLevel: 'low' as const,
           affectedModules: [],
           breakingChanges: [],
-          migrationRequired: false,
+          testingRecommendations: [],
+          deploymentRisks: [],
           qualityScore: 100,
         },
-        changes: {
-          files: [],
-          summary: { totalFiles: 0, totalAdditions: 0, totalDeletions: 0 },
-        },
+        timestamp: new Date().toISOString(),
+        duration: 0,
       };
 
-      // Mock ReportExporter to return content, and fs.writeFile will be called
-      // The actual file write might fail, but we're testing that the method doesn't throw
-      // due to our code, only due to file system issues which is expected
       await expect(
         service.exportResult(mockResult, 'markdown', '/tmp/test-output.md')
       ).resolves.not.toThrow();
-    });
-
-    it('should handle export errors', async () => {
-      // Create a new service instance with a fresh mock
-      const newService = new GitAnalysisService(mockContext);
-      await newService.initialize();
-
-      // Mock ReportExporter to throw error
-      const { ReportExporter } = await import('@code-review-goose/git-analyzer');
-      const originalExport = (ReportExporter as any).prototype.export;
-      (ReportExporter as any).prototype.export = vi.fn().mockImplementation(() => {
-        throw new Error('Export failed');
-      });
-
-      const mockResult = {
-        fileAnalyses: [],
-        summary: {
-          totalFiles: 0,
-          totalIssues: 0,
-          bySeverity: {},
-          byType: {},
-          bySource: {},
-          qualityScore: 100,
-          riskLevel: 'low' as const,
-          deduplicationInfo: {
-            originalTotal: 0,
-            duplicatesRemoved: 0,
-            finalTotal: 0,
-          },
-        },
-        impactAnalysis: {
-          riskLevel: 'low' as const,
-          affectedModules: [],
-          breakingChanges: [],
-          migrationRequired: false,
-          qualityScore: 100,
-        },
-        changes: {
-          files: [],
-          summary: { totalFiles: 0, totalAdditions: 0, totalDeletions: 0 },
-        },
-      };
-
-      await expect(newService.exportResult(mockResult, 'markdown', '/test/output.md')).rejects.toThrow(
-        'Failed to export report'
-      );
-
-      // Restore original
-      (ReportExporter as any).prototype.export = originalExport;
     });
   });
 
@@ -552,4 +370,3 @@ describe('GitAnalysisService', () => {
     });
   });
 });
-

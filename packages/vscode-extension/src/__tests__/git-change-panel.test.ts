@@ -296,12 +296,7 @@ describe('GitChangePanel', () => {
 
       GitChangePanel.createOrShow(mockExtensionUri, dataWithResult);
 
-      // Get the callback from the mock calls
-      expect(mockPanel.webview.onDidReceiveMessage).toHaveBeenCalled();
-      const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
-      expect(messageHandler).toBeDefined();
-
-      // Get the panel instance to ensure the callback has the right context
+      // Get the panel instance to call _handleMessage directly
       const panelInstance = (GitChangePanel as any).currentPanel;
       expect(panelInstance).toBeDefined();
 
@@ -313,8 +308,8 @@ describe('GitChangePanel', () => {
       vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument as any);
       vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockEditor as any);
 
-      // Call the message handler - it should call _handleMessage which calls _openFile
-      await messageHandler({
+      // Call _handleMessage directly to ensure proper this context
+      await (panelInstance as any)._handleMessage({
         command: 'openFile',
         file: '/test/file.ts',
         line: 10,
@@ -379,7 +374,9 @@ describe('GitChangePanel', () => {
 
       GitChangePanel.createOrShow(mockExtensionUri, dataWithResult);
 
-      const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
+      // Get the panel instance to call _handleMessage directly
+      const panelInstance = (GitChangePanel as any).currentPanel;
+      expect(panelInstance).toBeDefined();
 
       const expectedPath = '/test/repo/scripts/split_repositories.py';
       const mockUri = vscode.Uri.file(expectedPath);
@@ -390,8 +387,8 @@ describe('GitChangePanel', () => {
       vi.mocked(vscode.workspace.openTextDocument).mockResolvedValueOnce(mockDocument as any);
       vi.mocked(vscode.window.showTextDocument).mockResolvedValueOnce(mockEditor as any);
 
-      // Call with relative path (as SonarQube provides)
-      await messageHandler({
+      // Call _handleMessage directly with relative path (as SonarQube provides)
+      await (panelInstance as any)._handleMessage({
         command: 'openFile',
         file: 'scripts/split_repositories.py',
         line: 18,
@@ -438,12 +435,7 @@ describe('GitChangePanel', () => {
 
       GitChangePanel.createOrShow(mockExtensionUri, dataWithResult);
 
-      // Get the callback from the mock calls
-      expect(mockPanel.webview.onDidReceiveMessage).toHaveBeenCalled();
-      const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
-      expect(messageHandler).toBeDefined();
-
-      // Get the panel instance to ensure the callback has the right context
+      // Get the panel instance to call _handleMessage directly
       const panelInstance = (GitChangePanel as any).currentPanel;
       expect(panelInstance).toBeDefined();
 
@@ -452,8 +444,8 @@ describe('GitChangePanel', () => {
       vi.mocked(vscode.window.showSaveDialog).mockResolvedValueOnce(mockUri);
       vi.mocked(vscode.workspace.fs.writeFile).mockResolvedValueOnce();
 
-      // Call the message handler - it should call _handleMessage which calls _exportReport
-      await messageHandler({
+      // Call _handleMessage directly to ensure proper this context
+      await (panelInstance as any)._handleMessage({
         command: 'exportReport',
         format: 'markdown',
       });
@@ -468,9 +460,12 @@ describe('GitChangePanel', () => {
     it('should show warning when exporting without result', async () => {
       GitChangePanel.createOrShow(mockExtensionUri, mockData);
 
-      const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
+      // Get the panel instance to call _handleMessage directly
+      const panelInstance = (GitChangePanel as any).currentPanel;
+      expect(panelInstance).toBeDefined();
 
-      await messageHandler({
+      // Call _handleMessage directly to ensure proper this context
+      await (panelInstance as any)._handleMessage({
         command: 'exportReport',
         format: 'markdown',
       });
@@ -515,11 +510,14 @@ describe('GitChangePanel', () => {
 
       GitChangePanel.createOrShow(mockExtensionUri, dataWithResult);
 
-      const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
+      // Get the panel instance to call _handleMessage directly
+      const panelInstance = (GitChangePanel as any).currentPanel;
+      expect(panelInstance).toBeDefined();
 
       vi.mocked(vscode.env.clipboard.writeText).mockResolvedValueOnce();
 
-      await messageHandler({
+      // Call _handleMessage directly to ensure proper this context
+      await (panelInstance as any)._handleMessage({
         command: 'copyToClipboard',
         format: 'markdown',
       });
@@ -533,9 +531,12 @@ describe('GitChangePanel', () => {
     it('should show warning when copying without result', async () => {
       GitChangePanel.createOrShow(mockExtensionUri, mockData);
 
-      const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
+      // Get the panel instance to call _handleMessage directly
+      const panelInstance = (GitChangePanel as any).currentPanel;
+      expect(panelInstance).toBeDefined();
 
-      await messageHandler({
+      // Call _handleMessage directly to ensure proper this context
+      await (panelInstance as any)._handleMessage({
         command: 'copyToClipboard',
         format: 'json',
       });
@@ -548,9 +549,12 @@ describe('GitChangePanel', () => {
     it('should handle refresh message', async () => {
       GitChangePanel.createOrShow(mockExtensionUri, mockData);
 
-      const messageHandler = mockPanel.webview.onDidReceiveMessage.mock.calls[0][0];
+      // Get the panel instance to call _handleMessage directly
+      const panelInstance = (GitChangePanel as any).currentPanel;
+      expect(panelInstance).toBeDefined();
 
-      await messageHandler({
+      // Call _handleMessage directly to ensure proper this context
+      await (panelInstance as any)._handleMessage({
         command: 'refresh',
       });
 

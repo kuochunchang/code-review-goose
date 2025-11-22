@@ -20,6 +20,10 @@ describe('Git Commands', () => {
     mockContext = {
       subscriptions: [],
       extensionUri: { fsPath: '/mock/path' } as any,
+      workspaceState: {
+        get: vi.fn((key: string, defaultValue?: any) => defaultValue),
+        update: vi.fn().mockResolvedValue(undefined),
+      },
     } as any;
 
     mockGitAnalysisService = {

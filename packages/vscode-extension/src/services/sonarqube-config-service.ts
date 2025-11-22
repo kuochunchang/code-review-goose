@@ -192,12 +192,10 @@ export class SonarQubeConfigService {
   }
 
   /**
-   * Get analysis mode preference
+   * Get analysis mode preference (always returns 'sonarqube-only')
    */
-  getAnalysisMode(): 'hybrid' | 'ai-only' | 'sonarqube-only' {
-    return vscode.workspace
-      .getConfiguration('gooseCodeReview.gitAnalysis')
-      .get<'hybrid' | 'ai-only' | 'sonarqube-only'>('mode', 'hybrid');
+  getAnalysisMode(): 'sonarqube-only' {
+    return 'sonarqube-only';
   }
 }
 
