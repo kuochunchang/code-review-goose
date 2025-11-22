@@ -74,6 +74,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   /**
+   * Analyze Pull Request
+   */
+  const analyzePullRequestCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.analyzePullRequest',
+    async () => {
+      const { analyzePullRequest } = await import('./commands/analyze-pull-request.js');
+      await analyzePullRequest(context, gitAnalysisService);
+    }
+  );
+
+  /**
    * Open Git Change Panel
    */
   const openGitChangePanelCmd = vscode.commands.registerCommand(
@@ -122,6 +133,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     analyzeWorkingDirectoryCmd,
     analyzeBranchCmd,
+    analyzePullRequestCmd,
     openGitChangePanelCmd,
     gitAnalysisMenuCmd,
     addSonarQubeConnectionCmd,

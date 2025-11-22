@@ -4,6 +4,7 @@
  */
 
 import * as vscode from 'vscode';
+import type { AnalysisType } from '@code-review-goose/git-analyzer';
 import { GitAnalysisService } from '../services/git-analysis-service.js';
 import { GitChangePanel } from '../views/git-change-panel.js';
 import { analyzeBranchComparison } from './analyze-branch.js';
@@ -93,6 +94,16 @@ export async function showGitAnalysisMenu(
         },
     });
 
+    menuItems.push({
+        label: '$(git-pull-request) Analyze Pull Request',
+        description: 'Analyze GitHub PR',
+        detail: 'Review pull request changes with AI and SonarQube',
+        action: async () => {
+            const { analyzePullRequest } = await import('./analyze-pull-request.js');
+            await analyzePullRequest(context, gitAnalysisService);
+        },
+    });
+
     // === View Results ===
     if (hasPreviousResults) {
         menuItems.push({
@@ -168,7 +179,7 @@ async function analyzeWorkingDirectoryQuick(
         ['quality', 'security', 'impact']
     );
 
-    const analysisTypes = lastSelected as any[];
+    const analysisTypes = lastSelected as AnalysisType[];
 
     // Import necessary helpers
     const {

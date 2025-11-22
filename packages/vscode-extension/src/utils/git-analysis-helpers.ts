@@ -87,10 +87,13 @@ function updatePanelProgress(message: string, increment?: number): void {
 export function showAnalyzingPanel(
   extensionUri: vscode.Uri,
   config: {
-    changeSource: 'working-directory' | 'branch-comparison';
+    changeSource: 'working-directory' | 'branch-comparison' | 'pull-request';
     workingDirectory: string;
     sourceBranch?: string;
     targetBranch?: string;
+    pullRequestNumber?: number;
+    pullRequestTitle?: string;
+    repository?: { owner: string; repo: string };
   }
 ): void {
   GitChangePanel.createOrShow(extensionUri, {
@@ -98,11 +101,16 @@ export function showAnalyzingPanel(
     workingDirectory: config.workingDirectory,
     sourceBranch: config.sourceBranch,
     targetBranch: config.targetBranch,
+    pullRequestNumber: config.pullRequestNumber,
+    pullRequestTitle: config.pullRequestTitle,
+    repository: config.repository,
     status: 'analyzing',
     progress: {
-      message: config.changeSource === 'branch-comparison'
-        ? 'Initializing branch comparison...'
-        : 'Initializing analysis...',
+      message: config.changeSource === 'pull-request'
+        ? `Analyzing PR #${config.pullRequestNumber}...`
+        : config.changeSource === 'branch-comparison'
+          ? 'Initializing branch comparison...'
+          : 'Initializing analysis...',
       percentage: 0,
     },
   });
@@ -115,10 +123,13 @@ export function updatePanelWithResults(
   extensionUri: vscode.Uri,
   result: MergedAnalysisResult,
   config: {
-    changeSource: 'working-directory' | 'branch-comparison';
+    changeSource: 'working-directory' | 'branch-comparison' | 'pull-request';
     workingDirectory: string;
     sourceBranch?: string;
     targetBranch?: string;
+    pullRequestNumber?: number;
+    pullRequestTitle?: string;
+    repository?: { owner: string; repo: string };
   }
 ): void {
   GitChangePanel.createOrShow(extensionUri, {
@@ -127,6 +138,9 @@ export function updatePanelWithResults(
     workingDirectory: config.workingDirectory,
     sourceBranch: config.sourceBranch,
     targetBranch: config.targetBranch,
+    pullRequestNumber: config.pullRequestNumber,
+    pullRequestTitle: config.pullRequestTitle,
+    repository: config.repository,
     status: 'completed',
   });
 }
@@ -136,10 +150,13 @@ export function updatePanelWithResults(
  */
 export function updatePanelWithError(
   config: {
-    changeSource: 'working-directory' | 'branch-comparison';
+    changeSource: 'working-directory' | 'branch-comparison' | 'pull-request';
     workingDirectory: string;
     sourceBranch?: string;
     targetBranch?: string;
+    pullRequestNumber?: number;
+    pullRequestTitle?: string;
+    repository?: { owner: string; repo: string };
   }
 ): void {
   const currentPanel = GitChangePanel.currentPanel;
@@ -149,6 +166,9 @@ export function updatePanelWithError(
       workingDirectory: config.workingDirectory,
       sourceBranch: config.sourceBranch,
       targetBranch: config.targetBranch,
+      pullRequestNumber: config.pullRequestNumber,
+      pullRequestTitle: config.pullRequestTitle,
+      repository: config.repository,
       status: 'error',
     });
   }
@@ -202,10 +222,13 @@ export function handleAnalysisError(
   error: unknown,
   errorContext: string,
   panelConfig: {
-    changeSource: 'working-directory' | 'branch-comparison';
+    changeSource: 'working-directory' | 'branch-comparison' | 'pull-request';
     workingDirectory: string;
     sourceBranch?: string;
     targetBranch?: string;
+    pullRequestNumber?: number;
+    pullRequestTitle?: string;
+    repository?: { owner: string; repo: string };
   }
 ): void {
   const errorMessage = error instanceof Error ? error.message : String(error);
