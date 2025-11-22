@@ -21,41 +21,54 @@ export function getWorkspaceFolder(): vscode.WorkspaceFolder | null {
 /**
  * Select analysis types via quick pick
  */
-export async function selectAnalysisTypes(): Promise<AnalysisType[] | undefined> {
+export async function selectAnalysisTypes(
+  context: vscode.ExtensionContext
+): Promise<AnalysisType[] | undefined> {
+  // Read last selected types from workspace state
+  const lastSelected = context.workspaceState.get<string[]>(
+    'git-analysis.lastSelectedTypes',
+    ['quality', 'security', 'impact']
+  );
+
   const items: vscode.QuickPickItem[] = [
     {
       label: 'Quality',
       description: 'Code quality, complexity, and maintainability',
-      picked: true,
+      picked: lastSelected.includes('quality'),
     },
     {
       label: 'Security',
       description: 'Security vulnerabilities and hotspots',
-      picked: true,
+      picked: lastSelected.includes('security'),
     },
     {
       label: 'Impact',
       description: 'Impact analysis and risk assessment',
-      picked: true,
+      picked: lastSelected.includes('impact'),
     },
     {
       label: 'Architecture',
       description: 'Architecture review and design patterns',
-      picked: false,
+      picked: lastSelected.includes('architecture'),
     },
   ];
 
   const selected = await vscode.window.showQuickPick(items, {
     canPickMany: true,
     title: 'Select Analysis Types',
-    placeHolder: 'Choose which types of analysis to perform',
+    placeHolder: 'Choose analysis types (previously selected are pre-checked)',
   });
 
   if (!selected || selected.length === 0) {
     return undefined;
   }
 
-  return selected.map((item) => item.label.toLowerCase() as AnalysisType);
+  const selectedTypes = selected.map((item) => item.label.toLowerCase() as AnalysisType);
+
+  // Save selection for next time
+  await context.workspaceState.update('git-analysis.lastSelectedTypes', selectedTypes);
+
+  return selectedTypes;
 }
 
 /**
@@ -87,7 +100,7 @@ export function showAnalyzingPanel(
     targetBranch: config.targetBranch,
     status: 'analyzing',
     progress: {
-      message: config.changeSource === 'branch-comparison' 
+      message: config.changeSource === 'branch-comparison'
         ? 'Initializing branch comparison...'
         : 'Initializing analysis...',
       percentage: 0,

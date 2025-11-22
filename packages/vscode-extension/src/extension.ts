@@ -4,22 +4,23 @@
  */
 
 import * as vscode from 'vscode';
-import { DiagramPanel } from './views/diagram-panel.js';
-import { openAnalysisPanel } from './commands/open-analysis-panel.js';
+import { addSonarQubeConnection } from './commands/add-sonarqube-connection.js';
+import { analyzeBranchComparison } from './commands/analyze-branch.js';
+import { registerAnalyzeProjectSonarQubeCommand } from './commands/analyze-project-sonarqube.js';
+import { analyzeWorkingDirectory } from './commands/analyze-working-directory.js';
+import { bindSonarQubeProject } from './commands/bind-sonarqube-project.js';
+import { diagnoseSonarQube } from './commands/diagnose-sonarqube.js';
 import { GenerateClassDiagramCommand } from './commands/generate-class-diagram.js';
 import { GenerateSequenceDiagramCommand } from './commands/generate-sequence-diagram.js';
-import { analyzeWorkingDirectory } from './commands/analyze-working-directory.js';
-import { analyzeBranchComparison } from './commands/analyze-branch.js';
+import { showGitAnalysisMenu } from './commands/git-analysis-menu.js';
+import { openAnalysisPanel } from './commands/open-analysis-panel.js';
 import { openGitChangePanel } from './commands/open-git-change-panel.js';
-import { addSonarQubeConnection } from './commands/add-sonarqube-connection.js';
-import { bindSonarQubeProject } from './commands/bind-sonarqube-project.js';
 import { testSonarQubeConnection } from './commands/test-sonarqube-connection.js';
 import { testSonarQubeScanner } from './commands/test-sonarqube-scanner.js';
-import { diagnoseSonarQube } from './commands/diagnose-sonarqube.js';
-import { registerAnalyzeProjectSonarQubeCommand } from './commands/analyze-project-sonarqube.js';
 import { GitAnalysisService } from './services/git-analysis-service.js';
+import { DiagramPanel } from './views/diagram-panel.js';
 
-import { isSupportedLanguage, getSupportedLanguagesList } from './utils/language-support.js';
+import { getSupportedLanguagesList, isSupportedLanguage } from './utils/language-support.js';
 
 /**
  * Extension activation
@@ -81,6 +82,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   /**
+   * Git Analysis Menu (Quick Access)
+   */
+  const gitAnalysisMenuCmd = vscode.commands.registerCommand(
+    'gooseCodeReview.showGitAnalysisMenu',
+    () => showGitAnalysisMenu(context, gitAnalysisService)
+  );
+
+  /**
    * SonarQube Configuration Commands
    */
   const addSonarQubeConnectionCmd = vscode.commands.registerCommand(
@@ -114,6 +123,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     analyzeWorkingDirectoryCmd,
     analyzeBranchCmd,
     openGitChangePanelCmd,
+    gitAnalysisMenuCmd,
     addSonarQubeConnectionCmd,
     bindSonarQubeProjectCmd,
     testSonarQubeConnectionCmd,

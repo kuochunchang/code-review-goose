@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none">
+  <!-- Line-style goose icon -->
+  <!-- Body outline -->
+  <path d="M 5.5 9 Q 7 8.5, 9 9 Q 11 9.5, 12.5 10 Q 13.5 10.5, 13.5 11.5 Q 13.5 12.5, 12 13 Q 10 13.5, 7.5 13 Q 6 12.5, 5.5 11.5 Q 5 10.5, 5.5 9" 
+        stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/>
+  
+  <!-- Neck -->
+  <path d="M 7.5 9 Q 6.5 7.5, 6 6 Q 5.8 5, 6 4" 
+        stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+  
+  <!-- Head outline -->
+  <path d="M 5 4 Q 4.5 3, 5 2.5 Q 6 2, 7 2.5 Q 7.5 3, 7 4 Q 6.5 4.5, 6 4" 
+        stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/>
+  
+  <!-- Beak -->
+  <path d="M 4.5 3.5 L 3 3.5" 
+        stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+  
+  <!-- Eye -->
+  <circle cx="6.2" cy="3.2" r="0.5" fill="currentColor"/>
+  
+  <!-- Wing line -->
+  <path d="M 9 10 Q 10 9, 11 9.5" 
+        stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+  
+  <!-- Tail feathers -->
+  <path d="M 12.5 11.5 Q 13.5 10.5, 14 9.5" 
+        stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+  <path d="M 12.8 12 Q 13.8 11.5, 14.5 11" 
+        stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+  
+  <!-- Feet -->
+  <line x1="7.5" y1="13" x2="7.5" y2="14" stroke="currentColor" stroke-width="1.2"/>
+  <path d="M 7 14 L 8 14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+  
+  <line x1="10" y1="13" x2="10" y2="14" stroke="currentColor" stroke-width="1.2"/>
+  <path d="M 9.5 14 L 10.5 14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+</svg>
