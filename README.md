@@ -1,26 +1,28 @@
-# Goose Code Review Tool
+# Goose Code Review
 
-A local AI-assisted code review tool with a web-based interface.
+A VS Code extension for AI-assisted code review and analysis with UML diagram generation and Git change analysis.
 
 ## Features
 
-- **CLI-based**: Run `goose` in any project directory to start the review tool
-- **Local server**: Automatically starts a local server and opens the browser
-- **Read-only**: View and analyze code without editing capabilities
-- **AI analysis**: Automated code quality, security, and performance analysis
-- **UML visualization**: Generate class diagrams and flowcharts from code
-- **Multi-language support**: Supports TypeScript, JavaScript, Java, and Python
+- **UML Visualization**: Generate class diagrams, sequence diagrams, and flowcharts from code
+- **Git Analysis**: Analyze working directory changes, branch comparisons, and Pull Requests
+- **SonarQube Integration**: Fetch and display SonarQube analysis results directly in VS Code
+- **AI-Powered Analysis**: Automated code quality, security, and performance analysis with OpenAI and Gemini
+- **Multi-Language Support**: TypeScript, JavaScript, Java, and Python
+- **Native VS Code Integration**: Seamless integration with VS Code's UI and workflows
 
 ## Installation
 
-### Install from npm (Recommended)
+### Install from VS Code Marketplace (Recommended)
 
+1. Open VS Code
+2. Go to Extensions (Cmd+Shift+X / Ctrl+Shift+X)
+3. Search for "Goose Code Review"
+4. Click Install
+
+Or install from command line:
 ```bash
-# Install globally
-npm install -g @kuochunchang/goose-code-review
-
-# Or use npx without installing
-npx @kuochunchang/goose-code-review
+code --install-extension kuochunchang.goose-code-review-vscode
 ```
 
 ### Install from Source (For Development)
@@ -33,48 +35,59 @@ cd code-review-goose
 # Install dependencies
 npm install
 
-# Build the project
+# Build all packages
 npm run build
 
-# Link globally for local development
-npm link
+# Package the extension
+cd packages/vscode-extension
+npm run package
+
+# Install the .vsix file in VS Code
+code --install-extension goose-code-review-vscode-*.vsix
 ```
 
 ## Quick Start
 
-After installation, navigate to your project directory and run:
+After installation:
 
-```bash
-cd /path/to/your-project
-goose
-```
+1. Open a TypeScript, JavaScript, Java, or Python file in VS Code
+2. Use keyboard shortcuts or command palette:
+   - **Cmd+Shift+A** (Mac) / **Ctrl+Shift+A** (Windows/Linux): Open Analysis Panel
+   - **Cmd+Shift+U** (Mac) / **Ctrl+Shift+U** (Windows/Linux): Open UML Panel
+   - **Cmd+Shift+G** (Mac) / **Ctrl+Shift+G** (Windows/Linux): Open Git Change Analysis
 
-The tool will automatically start a local server and open your browser.
+Or use the command palette (Cmd+Shift+P / Ctrl+Shift+P):
+- Search for "Goose Code Review"
+- Select the desired command
 
 ## Usage
 
-```bash
-# Start in your project directory
-cd /path/to/your-project
-goose
+### UML Diagram Generation
 
-# Specify custom port
-goose -p 8080
+1. Open a source code file
+2. Press **Cmd+Shift+U** (Mac) or **Ctrl+Shift+U** (Windows/Linux)
+3. Select diagram type (Class, Sequence, or Flowchart)
+4. Configure analysis depth and mode
+5. View the generated diagram in the panel
 
-# Prevent automatic browser opening
-goose --no-open
+### Git Change Analysis
 
-# View help
-goose --help
-```
+1. Press **Cmd+Shift+G** (Mac) or **Ctrl+Shift+G** (Windows/Linux)
+2. Or click the Goose icon in the Source Control view
+3. Select analysis type:
+   - **Working Directory**: Analyze uncommitted changes
+   - **Branch Comparison**: Compare two branches
+   - **Pull Request**: Analyze a GitHub PR
+4. View analysis results with SonarQube integration (if configured)
 
-The tool will automatically:
+### SonarQube Integration
 
-1. Start a local web server
-2. Open your default browser
-3. Display the code review interface
-
-All data is stored locally in `.code-review/` directory within your project.
+1. Open Settings (Cmd+, / Ctrl+,)
+2. Search for "Goose Code Review"
+3. Configure SonarQube connection:
+   - Add connection ID and server URL
+   - Bind your project to a SonarQube project
+4. SonarQube issues will automatically appear in Git analysis results
 
 ## Supported Languages
 
@@ -104,47 +117,40 @@ Goose Code Review supports multiple programming languages:
 
 ### AI Provider Setup
 
-Before using AI analysis features, you need to configure your AI provider.
+Configure AI providers through VS Code settings:
 
-**Configure OpenAI API Key**:
+1. Open Settings (Cmd+, / Ctrl+,)
+2. Search for "Goose Code Review"
+3. Configure your preferred AI provider:
 
-- The first time you run `goose`, it will prompt you to enter your OpenAI API key
-- Or manually create `.code-review/config.json` in your project directory:
+**OpenAI Configuration**:
+- Set `AI Provider` to "openai"
+- Enter your OpenAI API Key (stored securely in VS Code Secret Storage)
+- Select model (default: gpt-4o)
 
-```json
-{
-  "aiProvider": "openai",
-  "openai": {
-    "apiKey": "sk-your-api-key-here",
-    "model": "gpt-4"
-  }
-}
-```
+**Gemini Configuration**:
+- Set `AI Provider` to "gemini"
+- Enter your Gemini API Key (stored securely in VS Code Secret Storage)
+- Select model (default: gemini-2.5-flash)
 
-**Get your OpenAI API Key**:
+**Custom OpenAI-Compatible API**:
+- Enable `Use Custom API`
+- Set `Custom API URL` (e.g., https://your-api.com/v1)
+- Set `Custom Model Name`
 
-- Visit [OpenAI Platform](https://platform.openai.com/api-keys)
-- Create a new API key
-- Copy and paste it into the configuration
+**Get API Keys**:
+- OpenAI: Visit [OpenAI Platform](https://platform.openai.com/api-keys)
+- Gemini: Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ### Advanced Configuration
 
-The `.code-review/config.json` file supports additional options:
+Additional settings available in VS Code:
 
-```json
-{
-  "aiProvider": "openai",
-  "openai": {
-    "apiKey": "sk-your-api-key-here",
-    "model": "gpt-4"
-  },
-  "ignorePatterns": ["node_modules", ".git", "dist", "build", "*.log"],
-  "maxFileSize": 5242880
-}
-```
-
-- `ignorePatterns`: Array of glob patterns to exclude from analysis
-- `maxFileSize`: Maximum file size in bytes (default: 5MB)
+- **Analysis Depth**: Depth of relationship analysis (1-5, default: 2)
+- **Analysis Mode**: Focused or comprehensive analysis
+- **Show Private Members**: Include private members in class diagrams
+- **Auto Refresh**: Automatically refresh diagrams when file changes
+- **SonarQube Settings**: Configure SonarQube connections and project bindings
 
 ## Development
 

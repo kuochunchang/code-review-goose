@@ -2,13 +2,15 @@
 
 ## Project Overview
 
-**Goose Code Review** is a local AI-assisted code review tool with a web-based interface. It's a CLI tool that starts a local server and opens a browser interface for analyzing code with AI-powered insights and UML visualization.
+**Goose Code Review** is a VS Code extension for AI-assisted code review and analysis. It provides UML diagram generation, Git change analysis, and SonarQube integration directly within VS Code.
 
-- **Type**: npm-published CLI tool with monorepo structure
-- **Purpose**: Local code review and analysis with AI assistance (read-only, no code editing)
-- **Tech Stack**: TypeScript, Node.js, Express, Vue 3, Vuetify, Monaco Editor
-- **AI Integration**: OpenAI API for code analysis and review
-- **UML Generation**: Mermaid.js for visualizing class diagrams and flowcharts
+- **Type**: VS Code Extension with monorepo structure
+- **Purpose**: Code review, UML visualization, and Git analysis within VS Code
+- **Tech Stack**: TypeScript, VS Code Extension API, Tree-sitter parsers
+- **AI Integration**: OpenAI and Google Gemini for code analysis
+- **UML Generation**: Mermaid.js for visualizing class diagrams, sequence diagrams, and flowcharts
+- **Git Integration**: Simple-git for Git operations, Octokit for GitHub PR analysis
+- **SonarQube**: Integration with SonarQube for code quality analysis
 
 ## Architecture
 
@@ -17,29 +19,38 @@
 ```
 code-review-goose/
 ├── packages/
-│   ├── cli/          # CLI entry point (published to npm)
-│   ├── server/       # Express.js backend
-│   └── web/          # Vue 3 frontend
+│   ├── analysis-types/              # Type definitions
+│   ├── analysis-utils/              # Shared utilities
+│   ├── analysis-core/               # Platform-agnostic analysis engine
+│   ├── analysis-adapter-node/       # Node.js file system adapter
+│   ├── analysis-adapter-vscode/     # VS Code file system adapter
+│   ├── analysis-parser-common/      # Common parser utilities
+│   ├── analysis-parser-typescript/  # TypeScript/JavaScript parser
+│   ├── analysis-parser-java/        # Java parser
+│   ├── analysis-parser-python/      # Python parser
+│   ├── git-analyzer/                # Git change analysis & SonarQube
+│   └── vscode-extension/            # VS Code Extension (main app)
 │
 └── docs/
-    ├── REFACTORING_PLAN.md       # 🆕 Planned architecture refactoring
-    └── DEVELOPMENT.md            # Development guide
+    ├── ARCHITECTURE.md              # Architecture documentation
+    └── DEVELOPMENT.md               # Development guide
 ```
 
 ### Key Components
 
-- **CLI Package**: Launches server, auto-opens browser, handles port detection
-- **Server Package**: REST API for file operations, AI analysis, UML generation, config management
-- **Web Package**: SPA with Monaco Editor, Mermaid diagrams, Vuetify UI components
-- **VsCode Extension**: Future extension for VS Code integration
+- **VS Code Extension**: Main application with UML panels, Git analysis views, and SonarQube integration
+- **Analysis Core**: Platform-agnostic UML and code analysis engine
+- **Language Parsers**: Tree-sitter based parsers for TypeScript, JavaScript, Java, and Python
+- **Git Analyzer**: Git change analysis, branch comparison, and PR analysis with SonarQube integration
+- **File Providers**: Adapters for Node.js and VS Code file systems
 
 ## Common Commands
 
 ### Development
 
 ```bash
-npm run dev                  # Run CLI in dev mode with tsx
-npm run build               # Build all packages (server → web → cli)
+npm run build               # Build all packages
+npm run build:packages      # Build only core packages (types, utils, core, parsers, git-analyzer, vscode-extension)
 npm run clean               # Clean all build artifacts
 ```
 
@@ -47,10 +58,7 @@ npm run clean               # Clean all build artifacts
 
 ```bash
 npm run test                # Run all unit tests (Vitest)
-npm run test:e2e            # Run Playwright E2E tests
-npm run test:e2e:ui         # Run E2E tests with Playwright UI
-npm run test:e2e:debug      # Debug E2E tests
-npm test:coverage           # Generate test coverage report
+npm run test:coverage       # Generate test coverage report
 ```
 
 ### Linting & Formatting
@@ -60,13 +68,18 @@ npm run lint                # ESLint check
 npm run format              # Prettier format all files
 ```
 
-### Package-specific
+### VS Code Extension Development
 
 ```bash
-cd packages/cli && npm run dev              # Run CLI in dev mode
-cd packages/server && npm run dev           # Server with hot reload
-cd packages/web && npm run dev              # Vite dev server with HMR
+cd packages/vscode-extension
+npm run build               # Build extension
+npm run watch               # Watch mode for development
+npm run package             # Package extension as .vsix
 ```
+
+To test the extension:
+1. Press F5 in VS Code to launch Extension Development Host
+2. Or run `npm run watch` and reload the extension window
 
 ## Code Style & Conventions
 
@@ -81,16 +94,16 @@ cd packages/web && npm run dev              # Vite dev server with HMR
 ### File Naming
 
 - Use kebab-case for files: `ai-service.ts`, `file-analysis.spec.ts`
-- Use PascalCase for classes and components: `AIService`, `FileViewer.vue`
+- Use PascalCase for classes and components: `AIService`, `UMLAnalyzer`
 - Use camelCase for variables and functions: `generateUML`, `fileContent`
 
-### Vue 3 Guidelines
+### VS Code Extension Guidelines
 
-- **Composition API only** (no Options API)
-- Use TypeScript with `<script setup lang="ts">`
-- Import types with `import type { ... }`
-- Use Pinia for state management
-- Follow Vuetify 3 component conventions
+- Follow VS Code Extension API best practices
+- Use proper activation events to minimize extension load time
+- Dispose resources properly to avoid memory leaks
+- Use VS Code's built-in UI components (TreeView, WebView, etc.)
+- Handle errors gracefully with user-friendly messages
 
 ### Comments & Documentation
 
@@ -105,87 +118,25 @@ cd packages/web && npm run dev              # Vite dev server with HMR
 
 ### Unit Tests (Vitest)
 
-- Server: Mock file system (`fs-extra`), OpenAI API
+- Core packages: Mock file system operations
+- Git analyzer: Mock git operations and API calls
 - Test files: `__tests__/*.test.ts` or `*.spec.ts`
 - Coverage: Generate with `npm run test:coverage`
 
-### E2E Tests (Playwright)
+### VS Code Extension Testing
 
-**Framework**: Playwright - A modern, reliable end-to-end testing framework for web applications.
-
-**Location**: `packages/web/e2e/`
-
-**Configuration**: `playwright.config.ts` at the root of the project
-
-#### Playwright Commands
-
-```bash
-# Run all E2E tests
-npm run test:e2e
-
-# Run E2E tests with Playwright UI (visual test runner)
-npm run test:e2e:ui
-
-# Debug E2E tests interactively
-npm run test:e2e:debug
-
-# Run a single test file
-npm run test:e2e -- simple-load.spec.ts
-
-# Run tests with specific options
-npm run test:e2e -- --repeat-each=3  # Repeat each test 3 times (for flaky test detection)
-npm run test:e2e -- --headed          # Run tests in headed mode (visible browser)
-npm run test:e2e -- --project=chromium # Run only on Chromium browser
-```
-
-#### Playwright Test Structure
-
-E2E tests should follow this structure:
-
-```typescript
-import { test, expect } from '@playwright/test';
-
-test.describe('Feature Name', () => {
-  test.beforeEach(async ({ page }) => {
-    // Setup: Navigate to the page, set up test data
-    await page.goto('http://localhost:3000');
-  });
-
-  test('should do something', async ({ page }) => {
-    // Arrange: Set up test conditions
-
-    // Act: Perform user actions
-    await page.click('button#submit');
-
-    // Assert: Verify expected outcomes
-    await expect(page.locator('.result')).toBeVisible();
-  });
-
-  test.afterEach(async ({ page }) => {
-    // Cleanup if necessary
-  });
-});
-```
-
-#### Playwright Test Checklist
-
-Before committing E2E tests, verify:
-
-- ✅ Tests run successfully with `npm run test:e2e`
-- ✅ Tests are deterministic (not flaky) - run multiple times to verify
-- ✅ Tests use proper selectors (user-facing attributes, not brittle CSS classes)
-- ✅ Tests validate complete user workflows end-to-end
-- ✅ Tests cover both success and error scenarios
-- ✅ Tests are well-documented with clear test descriptions
-- ✅ Tests run in reasonable time (avoid unnecessarily long tests)
-- ✅ Tests don't leave side effects (clean up after themselves)
+- Use VS Code Extension Test Runner
+- Test extension activation and commands
+- Mock VS Code APIs when needed
+- Test file provider implementations
 
 ### Testing Best Practices
 
-- Prefer running single tests during development for performance
+- Write tests for all new features
+- Maintain minimum 80% code coverage
+- Test both success and error scenarios
+- Use descriptive test names
 - Always run full test suite before committing
-- Check E2E tests if changing API endpoints or frontend behavior
-- Use `npm run test:coverage` to ensure adequate coverage
 
 ## Build & Deploy
 
@@ -193,25 +144,32 @@ Before committing E2E tests, verify:
 
 Must build in this specific order due to dependencies:
 
-1. `npm run build -w @code-review-goose/server` (builds server)
-2. `npm run build -w @code-review-goose/web` (builds web UI)
-3. `npm run build -w @kuochunchang/goose-code-review` (builds CLI, copies server-dist & web-dist)
+1. `npm run build` (builds all packages in correct order using TypeScript project references)
 
-Or simply: `npm run build` (handles order automatically)
+Or build specific packages:
+```bash
+npm run build:packages  # Build core packages only
+cd packages/vscode-extension && npm run build  # Build extension
+```
 
 ### Publishing
 
-**Published npm Packages** (Post-Refactoring):
+**Published Packages**:
 
-**Application Packages**: 5. `@kuochunchang/goose-code-review` - CLI tool (includes server and web)
+**Core Library Packages** (npm):
+1. `@code-review-goose/analysis-types` - Type definitions
+2. `@code-review-goose/analysis-utils` - Shared utilities
+3. `@code-review-goose/analysis-core` - Analysis engine
+4. `@code-review-goose/analysis-adapter-node` - Node.js adapter
+5. `@code-review-goose/analysis-adapter-vscode` - VS Code adapter
+6. `@code-review-goose/analysis-parser-common` - Common parser utilities
+7. `@code-review-goose/analysis-parser-typescript` - TypeScript/JavaScript parser
+8. `@code-review-goose/analysis-parser-java` - Java parser
+9. `@code-review-goose/analysis-parser-python` - Python parser
+10. `@code-review-goose/git-analyzer` - Git analysis and SonarQube integration
 
-- Includes: `dist/`, `server-dist/`, `web-dist/`
-- Binary commands: `goose` and `goose-code-review`
-
-**Future Packages**:
-
-- `@code-review-goose/analysis-adapter-vscode` - VS Code adapter
-- VS Code Extension - Published to VS Code Marketplace (not npm)
+**VS Code Extension** (VS Code Marketplace):
+- `goose-code-review-vscode` - Published to VS Code Marketplace
 
 **Version Management**:
 
@@ -219,30 +177,19 @@ Or simply: `npm run build` (handles order automatically)
 - Each package can have its own version number
 - `npx changeset` to create a changeset
 - `npx changeset version` to bump versions
-- `npx changeset publish` to publish all updated packages
+- `npx changeset publish` to publish npm packages
 
-**Publishing Workflow**:
+**VS Code Extension Publishing**:
 
 ```bash
-# 1. Make changes to packages
-# 2. Create changeset
-npx changeset
+cd packages/vscode-extension
 
-# 3. Version and publish (usually in CI/CD)
-npx changeset version
-npx changeset publish
+# Package extension
+npm run package
+
+# Publish to marketplace (requires publisher account)
+npx vsce publish
 ```
-
-### Port Detection
-
-- CLI auto-detects available ports starting from 3000
-- Server uses `detect-port` to avoid conflicts
-- Frontend dev mode uses Vite default (5173)
-
-### Browser Auto-Open
-
-- CLI automatically opens default browser unless `--no-open` flag
-- Use `--port` or `-p` to specify custom port
 
 ## Workflow Guidelines
 
@@ -363,45 +310,41 @@ git checkout -b feature/add-new-analysis-type
 - Coverage reports must be checked after EVERY code change
 - Pull requests with <80% coverage will be REJECTED
 
-### Server Key Dependencies
+### Core Package Dependencies
 
-- `express` - Web framework
-- `openai` - OpenAI API client
+- `@babel/parser`, `@babel/traverse`, `@babel/types` - JavaScript/TypeScript AST parsing
+- `tree-sitter` - Universal parser generator
+- `tree-sitter-typescript`, `tree-sitter-java`, `tree-sitter-python` - Language-specific parsers
+
+### VS Code Extension Dependencies
+
+- `vscode` - VS Code Extension API
 - `@code-review-goose/analysis-core` - Core UML analysis engine
-- `@code-review-goose/analysis-adapter-node` - Node.js file system adapter
-- `detect-port` - Port availability checking
+- `@code-review-goose/analysis-adapter-vscode` - VS Code file system adapter
+- `@code-review-goose/git-analyzer` - Git change analysis
+- `openai` - OpenAI API client
+- `@google/generative-ai` - Google Gemini API client
 
-### Web Key Dependencies
+### Git Analyzer Dependencies
 
-- `vue` (3.x) - Framework
-- `vuetify` (3.x) - Material Design UI library
-- `monaco-editor` - VS Code editor component
-- `mermaid` - UML diagram rendering
-- `marked` - Markdown rendering
-- `axios` - HTTP client
-- `pinia` - State management
-- `splitpanes` - Resizable split panes
-
-### CLI Key Dependencies
-
-- `commander` - CLI framework
-- `detect-port` - Port availability checking
-- `open` - Cross-platform browser opening
-- `chalk` - Terminal colors
+- `simple-git` - Git operations
+- `@octokit/rest` - GitHub API client
+- `sonarqube-scanner` - SonarQube integration
 
 ## Troubleshooting Tips
 
 ### Build issues
 
 - Clean and reinstall: `npm run clean && npm install && npm run build`
-- Check build order if individual package builds fail
-- Ensure TypeScript compilation succeeds before debugging further
+- Check TypeScript project references if individual package builds fail
+- Ensure all dependencies are installed: `npm install`
 
 ### Runtime issues
 
-- Port conflicts: CLI handles automatically, but check if port is explicitly specified
-- API key errors: Verify `.code-review/config.json` exists with valid OpenAI key
-- File not found: Check ignore patterns and file size limits
+- **Extension not activating**: Check activation events in `package.json`
+- **Commands not appearing**: Reload VS Code window (Cmd+R / Ctrl+R)
+- **API key errors**: Check VS Code settings for AI provider configuration
+- **File provider errors**: Ensure workspace folder is open in VS Code
 
 ### Test failures
 
@@ -411,47 +354,21 @@ git checkout -b feature/add-new-analysis-type
 - Import errors: Check module resolution and TypeScript configuration
 - Coverage drops: Run `npm run test:coverage` to identify uncovered code
 
-**E2E test failures (Playwright)**:
+**VS Code Extension test failures**:
 
-- **Server startup**: E2E tests automatically start their own server - no manual server needed
-- **Timeout issues**:
-  - Increase timeout in `playwright.config.ts` for slow operations
-  - Use `test.setTimeout(60000)` for specific tests needing more time
-  - Check if CI environment needs different timeout values
-- **Flaky tests**:
-  - Run with `--repeat-each=3` to identify intermittent failures
-  - Check for race conditions in async operations
-  - Ensure proper wait conditions before assertions
-  - Avoid hard-coded waits (`waitForTimeout`) - use `waitForSelector` instead
-- **Selector failures**:
-  - Use Playwright Inspector: `npm run test:e2e:debug`
-  - Check if selectors are too brittle (CSS classes changed)
-  - Prefer `data-testid` attributes for test stability
-  - Use `page.pause()` to inspect the page during test execution
-- **Network errors**:
-  - Check if API mocking is set up correctly
-  - Verify backend routes are accessible
-  - Use `page.route()` to mock external API calls if needed
-- **Screenshot mismatches** (visual testing):
-  - Update baseline screenshots: `npm run test:e2e -- --update-snapshots`
-  - Check if UI changes are intentional
-  - Different OS may produce slightly different screenshots
-- **Debugging tips**:
-  - Visual debugging: `npm run test:e2e:ui`
-  - Verbose logging: `DEBUG=pw:api npm run test:e2e`
-  - Pause execution: Add `await page.pause()` in test code
-  - View trace files: `npx playwright show-trace trace.zip`
-  - Run headed mode: `npm run test:e2e -- --headed`
+- Extension Host issues: Restart VS Code and try again
+- API mocking: Ensure VS Code APIs are properly mocked in tests
+- Timeout issues: Increase timeout for slow operations
 
 ### External Documentation
 
 - **GitHub repo**: https://github.com/kuochunchang/code-review-goose
+- **VS Code Extension API**: https://code.visualstudio.com/api
 - **OpenAI API docs**: https://platform.openai.com/docs
+- **Gemini API docs**: https://ai.google.dev/docs
 - **Mermaid syntax**: https://mermaid.js.org/
-- **Vuetify docs**: https://vuetifyjs.com/
-- **Monaco Editor API**: https://microsoft.github.io/monaco-editor/
-- **Playwright docs**: https://playwright.dev/
-- **Playwright best practices**: https://playwright.dev/docs/best-practices
+- **Tree-sitter**: https://tree-sitter.github.io/tree-sitter/
+- **SonarQube API**: https://docs.sonarqube.org/latest/extend/web-api/
 - **npm workspaces**: https://docs.npmjs.com/cli/v8/using-npm/workspaces
 - **TypeScript Project References**: https://www.typescriptlang.org/docs/handbook/project-references.html
 - **Changesets**: https://github.com/changesets/changesets

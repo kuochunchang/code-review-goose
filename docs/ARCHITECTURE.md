@@ -1,9 +1,5 @@
 # Goose Code Review Architecture Documentation
 
-> Version: 2.0 (Post-Refactoring)
-> Last Updated: 2025-11-16
-> Status: Phase 5 & 6 Complete
-
 ---
 
 ## Table of Contents
@@ -23,14 +19,17 @@
 
 ## Overview
 
-Goose Code Review is a local AI-assisted code review tool built on a modular, platform-agnostic architecture. The project uses a monorepo structure with independent packages that enable code reuse across multiple platforms (Web, Node.js CLI, VS Code extension).
+Goose Code Review is a VS Code extension for AI-assisted code review and analysis, built on a modular, platform-agnostic architecture. The project uses a monorepo structure with independent packages that enable code reuse and extensibility.
 
-### Key Achievements
+### Key Features
 
-- **80%+ Code Reuse**: Core analysis logic shared across all platforms
-- **Platform Independence**: Core engine has zero dependencies on Node.js/Browser APIs
-- **Testability**: Core logic runs in milliseconds with mocked file providers
-- **Extensibility**: Easy to add new diagram types, analysis modes, or platform adapters
+- **VS Code Integration**: Native VS Code extension with UML diagram generation and Git change analysis
+- **Multi-Language Support**: TypeScript, JavaScript, Java, and Python with dedicated parsers
+- **Git Analysis**: Working directory changes, branch comparison, and Pull Request analysis
+- **SonarQube Integration**: Fetch and display SonarQube analysis results directly in VS Code
+- **AI-Powered Analysis**: Support for OpenAI and Google Gemini models
+- **Platform Independence**: Core analysis engine has zero dependencies on platform-specific APIs
+- **Extensibility**: Modular architecture makes it easy to add new languages, diagram types, or analysis modes
 
 ---
 
@@ -39,28 +38,30 @@ Goose Code Review is a local AI-assisted code review tool built on a modular, pl
 ```
 code-review-goose/
 ├── packages/
-│   ├── analysis-types/          # 🔷 Type definitions (zero dependencies)
-│   ├── analysis-utils/          # 🔷 Shared utilities
-│   ├── analysis-core/           # 🔷 Platform-agnostic analysis engine
-│   ├── analysis-adapter-node/   # 🔷 Node.js file system adapter
-│   ├── server/                  # ♻️ Express.js backend (refactored)
-│   ├── web/                     # ✅ Vue 3 frontend
-│   └── cli/                     # ✅ CLI tool
+│   ├── analysis-types/              # 🔷 Type definitions (zero dependencies)
+│   ├── analysis-utils/              # 🔷 Shared utilities
+│   ├── analysis-core/               # 🔷 Platform-agnostic analysis engine
+│   ├── analysis-adapter-node/       # 🔷 Node.js file system adapter
+│   ├── analysis-adapter-vscode/     # 🔷 VS Code file system adapter
+│   ├── analysis-parser-common/      # 🔷 Common parser utilities
+│   ├── analysis-parser-typescript/  # 🔷 TypeScript/JavaScript parser
+│   ├── analysis-parser-java/        # 🔷 Java parser
+│   ├── analysis-parser-python/      # 🔷 Python parser
+│   ├── git-analyzer/                # 🔷 Git change analysis & SonarQube integration
+│   └── vscode-extension/            # ✅ VS Code Extension (main application)
 │
 ├── docs/
-│   ├── REFACTORING_PLAN.md      # Refactoring plan
-│   ├── ARCHITECTURE.md          # This file
-│   └── DEVELOPMENT.md           # Development guide
+│   ├── ARCHITECTURE.md              # This file
+│   └── DEVELOPMENT.md               # Development guide
 │
-├── tsconfig.base.json           # Shared TypeScript config
-├── .changeset/                  # Version management
-└── package.json                 # Workspace root
+├── tsconfig.base.json               # Shared TypeScript config
+├── .changeset/                      # Version management
+└── package.json                     # Workspace root
 ```
 
 **Legend:**
-- 🔷 = New packages created during refactoring
-- ♻️ = Refactored to use new packages
-- ✅ = Unchanged (uses refactored backend)
+- 🔷 = Core library packages
+- ✅ = Application package (VS Code Extension)
 
 ---
 
@@ -183,44 +184,124 @@ This enables:
 
 ---
 
-### 📦 @code-review-goose/server
+### 📦 @code-review-goose/analysis-adapter-vscode
 
-**Purpose**: Express.js REST API server
+**Purpose**: VS Code file system implementation
 
-**Refactoring Changes**:
-- ✅ Removed `umlService.ts`, `ooAnalysisService.ts`, `sequenceAnalysisService.ts`, `crossFileAnalysisService.ts`
-- ✅ Updated to use `UMLAnalyzer` + `NodeFileProvider`
-- ✅ Updated imports to use new packages
+**Key Components**:
+- `VSCodeFileProvider` - Implements `IFileProvider` using `vscode.workspace.fs`
+- Integrates with VS Code workspace APIs
 
 **Dependencies**:
-- `@code-review-goose/analysis-core`
-- `@code-review-goose/analysis-adapter-node`
 - `@code-review-goose/analysis-types`
-- `express`, `cors`, `openai`, etc.
-
-**Published**: No (private package, bundled in CLI)
-
----
-
-### 📦 @code-review-goose/web
-
-**Purpose**: Vue 3 frontend application
-
-**Changes**: None (uses refactored backend APIs)
-
-**Published**: No (private package, bundled in CLI)
-
----
-
-### 📦 @kuochunchang/goose-code-review
-
-**Purpose**: CLI tool (main npm package)
-
-**Changes**: None (uses refactored server package)
+- `vscode` (VS Code Extension API)
 
 **Published**: Yes (public npm package)
 
-**Binary Commands**: `goose`, `goose-code-review`
+---
+
+### 📦 @code-review-goose/analysis-parser-common
+
+**Purpose**: Common utilities for language parsers
+
+**Key Components**:
+- Shared parser interfaces and utilities
+- Common AST traversal helpers
+
+**Dependencies**:
+- `@code-review-goose/analysis-types`
+
+**Published**: Yes (public npm package)
+
+---
+
+### 📦 @code-review-goose/analysis-parser-typescript
+
+**Purpose**: TypeScript and JavaScript parser using Tree-sitter
+
+**Key Components**:
+- TypeScript/JavaScript AST parsing
+- Class, method, and property extraction
+
+**Dependencies**:
+- `@code-review-goose/analysis-types`
+- `@code-review-goose/analysis-parser-common`
+- `tree-sitter`, `tree-sitter-typescript`
+
+**Published**: Yes (public npm package)
+
+---
+
+### 📦 @code-review-goose/analysis-parser-java
+
+**Purpose**: Java parser using Tree-sitter
+
+**Key Components**:
+- Java AST parsing
+- Support for inheritance, interfaces, and generics
+
+**Dependencies**:
+- `@code-review-goose/analysis-types`
+- `@code-review-goose/analysis-parser-common`
+- `tree-sitter`, `tree-sitter-java`
+
+**Published**: Yes (public npm package)
+
+---
+
+### 📦 @code-review-goose/analysis-parser-python
+
+**Purpose**: Python parser using Tree-sitter
+
+**Key Components**:
+- Python AST parsing
+- Support for classes, inheritance, and type hints
+
+**Dependencies**:
+- `@code-review-goose/analysis-types`
+- `@code-review-goose/analysis-parser-common`
+- `tree-sitter`, `tree-sitter-python`
+
+**Published**: Yes (public npm package)
+
+---
+
+### 📦 @code-review-goose/git-analyzer
+
+**Purpose**: Git change analysis with SonarQube and AI integration
+
+**Key Components**:
+- `GitChangeAnalyzer` - Analyze working directory changes
+- `BranchComparisonAnalyzer` - Compare branches
+- `PullRequestAnalyzer` - Analyze GitHub Pull Requests
+- `SonarQubeService` - Fetch and integrate SonarQube analysis results
+
+**Dependencies**:
+- `@code-review-goose/analysis-types`
+- `simple-git`, `@octokit/rest`, `sonarqube-scanner`
+
+**Published**: Yes (public npm package)
+
+---
+
+### 📦 goose-code-review-vscode
+
+**Purpose**: VS Code Extension (main application)
+
+**Key Features**:
+- UML diagram generation (class, sequence, flowchart)
+- Git change analysis (working directory, branch comparison, PR)
+- SonarQube integration
+- AI-powered code analysis (OpenAI and Gemini)
+- Multi-language support (TypeScript, JavaScript, Java, Python)
+
+**Dependencies**:
+- `@code-review-goose/analysis-core`
+- `@code-review-goose/analysis-adapter-vscode`
+- `@code-review-goose/git-analyzer`
+- `openai`, `@google/generative-ai`
+
+**Published**: Yes (VS Code Marketplace)
 
 ---
 
@@ -235,13 +316,21 @@ analysis-types (zero deps)
     ↑         ↑
     ├─────────┼─── analysis-core
     ↑         ↑         ↑
-    └─────────┴─────────┼─── analysis-adapter-node
-                        ↑         ↑
-                        └─────────┼─── server
-                                  ↑         ↑
-                                  └─────────┼─── cli
-                                            ↑
-                                            └─── web
+    ├─────────┴─────────┼─── analysis-adapter-node
+    ↑                   ↑
+    ├───────────────────┼─── analysis-adapter-vscode
+    ↑                   ↑         ↑
+    ├─── analysis-parser-common   │
+    ↑         ↑                   │
+    ├─────────┼─── analysis-parser-typescript
+    ↑         ↑                   │
+    ├─────────┼─── analysis-parser-java
+    ↑         ↑                   │
+    ├─────────┼─── analysis-parser-python
+    ↑                             │
+    └─── git-analyzer             │
+              ↑                   ↑
+              └───────────────────┼─── vscode-extension
 ```
 
 ### Build Order
@@ -250,9 +339,13 @@ analysis-types (zero deps)
 2. `analysis-utils` (depends on types)
 3. `analysis-core` (depends on types + utils)
 4. `analysis-adapter-node` (depends on types)
-5. `server` (depends on core + adapter-node)
-6. `web` (standalone build)
-7. `cli` (bundles server + web)
+5. `analysis-adapter-vscode` (depends on types)
+6. `analysis-parser-common` (depends on types)
+7. `analysis-parser-typescript` (depends on types + parser-common)
+8. `analysis-parser-java` (depends on types + parser-common)
+9. `analysis-parser-python` (depends on types + parser-common)
+10. `git-analyzer` (depends on types)
+11. `vscode-extension` (depends on core, adapter-vscode, git-analyzer)
 
 **TypeScript Project References** ensure correct build order automatically.
 
@@ -349,7 +442,7 @@ const result = await analyzer.generateUnifiedDiagram(filePath, 'class', {
 | Provider | Platform | Module Used | Status |
 |----------|----------|-------------|--------|
 | `NodeFileProvider` | Node.js | `fs-extra` | ✅ Implemented |
-| `VSCodeFileProvider` | VS Code | `vscode.workspace.fs` | 🚧 Future |
+| `VSCodeFileProvider` | VS Code | `vscode.workspace.fs` | ✅ Implemented |
 | `BrowserFileProvider` | Browser | In-memory FS | 🚧 Future |
 
 ---
@@ -499,79 +592,98 @@ npx changeset publish
 
 ### Published Packages
 
-| Package | Visibility | npm Package Name |
-|---------|------------|------------------|
+| Package | Visibility | npm/Marketplace Package Name |
+|---------|------------|------------------------------|
 | analysis-types | Public | `@code-review-goose/analysis-types` |
 | analysis-utils | Public | `@code-review-goose/analysis-utils` |
 | analysis-core | Public | `@code-review-goose/analysis-core` |
 | analysis-adapter-node | Public | `@code-review-goose/analysis-adapter-node` |
-| cli | Public | `@kuochunchang/goose-code-review` |
-| server | Private | (bundled in CLI) |
-| web | Private | (bundled in CLI) |
+| analysis-adapter-vscode | Public | `@code-review-goose/analysis-adapter-vscode` |
+| analysis-parser-common | Public | `@code-review-goose/analysis-parser-common` |
+| analysis-parser-typescript | Public | `@code-review-goose/analysis-parser-typescript` |
+| analysis-parser-java | Public | `@code-review-goose/analysis-parser-java` |
+| analysis-parser-python | Public | `@code-review-goose/analysis-parser-python` |
+| git-analyzer | Public | `@code-review-goose/git-analyzer` |
+| vscode-extension | Public | VS Code Marketplace: `goose-code-review-vscode` |
 
 ---
 
 ## Future Enhancements
 
-### Phase 7: VS Code Extension (Planned)
+### Planned Features
 
+**Enhanced Language Support**:
 ```
 packages/
-├── analysis-adapter-vscode/    # 🚧 VS Code file system adapter
-└── vscode-extension/           # 🚧 VS Code extension
+├── analysis-parser-go/         # 🚧 Go language parser
+├── analysis-parser-rust/       # 🚧 Rust language parser
+└── analysis-parser-csharp/     # 🚧 C# language parser
 ```
 
-**Benefits of Refactored Architecture**:
-- ✅ Reuse `analysis-core` (no duplication)
-- ✅ Same UML generation logic as Web/CLI
-- ✅ Just implement `VSCodeFileProvider`
-
-### Other Future Tools
-
+**Additional Tools**:
 ```
-future-tools/
-├── dependency-analyzer/        # 🚀 Dependency graph tool
-└── code-quality-analyzer/      # 🚀 Code smell detection
+packages/
+├── cli/                        # 🚧 Standalone CLI tool (like original)
+├── server/                     # 🚧 Web server for browser interface
+└── web/                        # 🚧 Browser-based UI
 ```
 
-All can reuse `analysis-core` infrastructure!
+**Advanced Analysis**:
+```
+packages/
+├── dependency-analyzer/        # 🚧 Dependency graph analysis
+├── code-quality-analyzer/      # 🚧 Code smell detection
+└── security-analyzer/          # 🚧 Security vulnerability scanning
+```
+
+**Benefits of Current Architecture**:
+- ✅ All future tools can reuse `analysis-core` infrastructure
+- ✅ Language parsers are modular and independent
+- ✅ Easy to add new platforms (browser, CLI, etc.)
 
 ---
 
-## Migration Guide (for Developers)
+## Usage Examples
 
-### Before Refactoring
+### VS Code Extension
 
 ```typescript
-// Old way (server/src/routes/uml.ts)
-import { UMLService } from '../services/umlService.js';
+// Extension activation (extension.ts)
+import { UMLAnalyzer } from '@code-review-goose/analysis-core';
+import { VSCodeFileProvider } from '@code-review-goose/analysis-adapter-vscode';
 
-const umlService = new UMLService();
-const result = await umlService.generateUnifiedDiagram(
-  filePath,
-  projectPath,
-  type,
-  options
+// Create file provider for current workspace
+const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+const fileProvider = new VSCodeFileProvider(workspaceRoot);
+
+// Create analyzer
+const analyzer = new UMLAnalyzer(fileProvider);
+
+// Generate UML diagram
+const result = await analyzer.generateUnifiedDiagram(
+  filePath, 
+  'class', 
+  { depth: 2, mode: 'bidirectional' }
 );
 ```
 
-### After Refactoring
+### Git Change Analysis
 
 ```typescript
-// New way (server/src/routes/uml.ts)
-import { UMLAnalyzer } from '@code-review-goose/analysis-core';
-import { NodeFileProvider } from '@code-review-goose/analysis-adapter-node';
+// Git analysis service (git-analysis-service.ts)
+import { GitChangeAnalyzer } from '@code-review-goose/git-analyzer';
 
-const fileProvider = new NodeFileProvider(projectPath);
-const analyzer = new UMLAnalyzer(fileProvider);
-const result = await analyzer.generateUnifiedDiagram(filePath, type, options);
+const analyzer = new GitChangeAnalyzer(workspaceRoot);
+
+// Analyze working directory changes
+const changes = await analyzer.analyzeWorkingDirectory();
+
+// Analyze branch comparison
+const comparison = await analyzer.compareBranches('main', 'feature-branch');
+
+// Analyze Pull Request
+const prAnalysis = await analyzer.analyzePullRequest(owner, repo, prNumber);
 ```
-
-**Key Changes**:
-1. `UMLService` → `UMLAnalyzer`
-2. Pass `projectPath` to `NodeFileProvider` constructor
-3. Inject `fileProvider` into `UMLAnalyzer`
-4. `projectPath` parameter removed from `generateUnifiedDiagram()`
 
 ---
 
@@ -665,10 +777,10 @@ import { NodeFileProvider } from '@code-review-goose/analysis-adapter-node';
 
 ## References
 
-- **Refactoring Plan**: [docs/REFACTORING_PLAN.md](./REFACTORING_PLAN.md)
 - **Development Guide**: [docs/DEVELOPMENT.md](./DEVELOPMENT.md)
-- **Project Instructions**: [CLAUDE.md](../CLAUDE.md)
+- **Project Instructions**: [AGENT.md](../AGENT.md)
 - **Repository**: https://github.com/kuochunchang/code-review-goose
+- **VS Code Marketplace**: https://marketplace.visualstudio.com/items?itemName=kuochunchang.goose-code-review-vscode
 
 ---
 
@@ -676,12 +788,12 @@ import { NodeFileProvider } from '@code-review-goose/analysis-adapter-node';
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 2.0 | 2025-11-16 | Phase 5 & 6 complete - Server refactored, documentation added |
-| 1.0 | 2025-01-16 | Phase 1-4 complete - Monorepo setup, core packages created |
-| 0.1 | 2025-01-01 | Original monolithic architecture |
+| 3.0 | 2025-11-23 | VS Code Extension complete - Git analysis, SonarQube integration, multi-language support |
+| 2.0 | 2025-11-16 | Core packages refactored - Modular architecture with language parsers |
+| 1.0 | 2025-01-16 | Initial monorepo setup - Core analysis packages created |
 
 ---
 
-**Author**: KCC
-**License**: MIT
-**Status**: ✅ Production Ready (Phase 5 & 6 Complete)
+**Author**: KCC  
+**License**: MIT  
+**Status**: ✅ Production Ready (VS Code Extension)
