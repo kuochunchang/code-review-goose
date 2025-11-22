@@ -4,6 +4,7 @@
  */
 
 import type { CodeIssue, FileAnalysis, MergedAnalysisResult } from '@code-review-goose/git-analyzer';
+import * as path from 'node:path';
 import * as vscode from 'vscode';
 
 /**
@@ -231,7 +232,6 @@ export class GitChangePanel {
       let resolvedPath = filePath;
       if (!filePath.startsWith('/') && !filePath.match(/^[a-zA-Z]:\\/)) {
         // Relative path - prepend working directory
-        const path = await import('path');
         resolvedPath = path.join(this._data.workingDirectory, filePath);
       }
 
