@@ -13,13 +13,19 @@ export interface GitChangePanelData {
   /** Analysis result (optional, can be null for initial panel) */
   result?: MergedAnalysisResult;
   /** Change source type */
-  changeSource: 'working-directory' | 'branch-comparison' | 'none';
+  changeSource: 'working-directory' | 'branch-comparison' | 'pull-request' | 'none';
   /** Working directory path */
   workingDirectory: string;
   /** Source branch (for branch comparison) */
   sourceBranch?: string;
   /** Target branch (for branch comparison) */
   targetBranch?: string;
+  /** Pull request number (for PR analysis) */
+  pullRequestNumber?: number;
+  /** Pull request title (for PR analysis) */
+  pullRequestTitle?: string;
+  /** GitHub repository (for PR analysis) */
+  repository?: { owner: string; repo: string };
   /** Current status of the analysis */
   status?: 'idle' | 'analyzing' | 'completed' | 'error';
   /** Progress information */
@@ -280,7 +286,7 @@ export class GitChangePanel {
       const { ReportExporter } = await import('@code-review-goose/git-analyzer');
       const exporter = new ReportExporter();
       const content = exporter.export(this._data.result, format);
-      
+
       await vscode.env.clipboard.writeText(content);
       vscode.window.showInformationMessage(`Copied ${format.toUpperCase()} to clipboard`);
     } catch (error) {
@@ -415,13 +421,15 @@ export class GitChangePanel {
    * Get header HTML
    */
   private _getHeaderHtml(_result: MergedAnalysisResult): string {
-    const { changeSource, sourceBranch, targetBranch } = this._data;
+    const { changeSource, sourceBranch, targetBranch, pullRequestNumber, pullRequestTitle, repository } = this._data;
     let subtitle = '';
 
     if (changeSource === 'working-directory') {
       subtitle = 'Working Directory Changes';
     } else if (changeSource === 'branch-comparison') {
       subtitle = `${sourceBranch} → ${targetBranch}`;
+    } else if (changeSource === 'pull-request' && pullRequestNumber && repository) {
+      subtitle = `PR #${pullRequestNumber}: ${pullRequestTitle || 'Untitled'} (${repository.owner}/${repository.repo})`;
     }
 
     return `

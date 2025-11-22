@@ -64,6 +64,12 @@
         "icon": "$(git-compare)"
       },
       {
+        "command": "gooseCodeReview.analyzePullRequest",
+        "title": "Analyze Pull Request",
+        "category": "Goose Code Review",
+        "icon": "$(git-pull-request)"
+      },
+      {
         "command": "gooseCodeReview.openGitChangePanel",
         "title": "Open Git Change Analysis",
         "category": "Goose Code Review",

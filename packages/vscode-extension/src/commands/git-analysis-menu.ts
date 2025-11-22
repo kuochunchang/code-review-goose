@@ -93,6 +93,16 @@ export async function showGitAnalysisMenu(
         },
     });
 
+    menuItems.push({
+        label: '$(git-pull-request) Analyze Pull Request',
+        description: 'Analyze GitHub PR',
+        detail: 'Review pull request changes with AI and SonarQube',
+        action: async () => {
+            const { analyzePullRequest } = await import('./analyze-pull-request.js');
+            await analyzePullRequest(context, gitAnalysisService);
+        },
+    });
+
     // === View Results ===
     if (hasPreviousResults) {
         menuItems.push({

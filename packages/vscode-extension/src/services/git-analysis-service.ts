@@ -669,6 +669,152 @@ export class GitAnalysisService {
   }
 
   /**
+   * Get GitHub repository information from git remote
+   */
+  async getGitHubRepository(workingDirectory: string): Promise<{ owner: string; repo: string } | null> {
+    try {
+      const { GitService } = await import('@code-review-goose/git-analyzer');
+      const gitService = new GitService(workingDirectory);
+
+      // Get remote URL
+      const { execSync } = await import('node:child_process');
+      const gitRoot = await gitService.getGitRoot();
+      const remoteUrl = execSync('git remote get-url origin', { cwd: gitRoot, encoding: 'utf-8' }).trim();
+
+      // Parse GitHub URL (supports both HTTPS and SSH formats)
+      // HTTPS: https://github.com/owner/repo.git
+      // SSH: git@github.com:owner/repo.git
+      const httpsMatch = remoteUrl.match(/github\.com\/([^\/]+)\/([^\/\.]+)/);
+      const sshMatch = remoteUrl.match(/github\.com:([^\/]+)\/([^\/\.]+)/);
+
+      const match = httpsMatch || sshMatch;
+      if (match) {
+        return {
+          owner: match[1],
+          repo: match[2].replace(/\.git$/, ''),
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.warn('Failed to detect GitHub repository:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Analyze a GitHub Pull Request
+   */
+  async analyzePullRequest(
+    config: {
+      workingDirectory: string;
+      repository: { owner: string; repo: string };
+      prNumber: number;
+      analysisTypes: AnalysisType[];
+      githubToken: string;
+    },
+    progress?: ProgressCallback
+  ): Promise<MergedAnalysisResult> {
+    try {
+      progress?.('Initializing PR analysis...', 5);
+
+      // Validate GitHub token
+      if (!config.githubToken) {
+        throw new Error('GitHub token is required for PR analysis');
+      }
+
+      // Import necessary services
+      const { PRAnalysisService, GitHubService } = await import('@code-review-goose/git-analyzer');
+
+      // Validate AI provider is available
+      if (!this.aiProvider) {
+        throw new Error('AI provider is required for PR analysis. Please configure your AI provider first.');
+      }
+
+      progress?.('Fetching PR information...', 10);
+
+      // Create PR analysis service
+      const prAnalysisService = new PRAnalysisService({
+        github: {
+          token: config.githubToken,
+        },
+        aiProvider: this.aiProvider,
+        workingDir: config.workingDirectory,
+      });
+
+      // Validate GitHub connection
+      const validation = await prAnalysisService.validateConfiguration();
+      if (!validation.github.valid) {
+        throw new Error(`GitHub authentication failed: ${validation.github.error || 'Invalid token'}`);
+      }
+
+      progress?.('Analyzing pull request...', 20);
+
+      // Analyze the PR
+      const prResult = await prAnalysisService.analyzePullRequest({
+        repository: config.repository,
+        prNumber: config.prNumber,
+        analysisTypes: config.analysisTypes,
+        postComment: false, // User wants results only in VS Code
+      });
+
+      progress?.('Processing results...', 90);
+
+      // Convert PR analysis result to MergedAnalysisResult format
+      const mergedResult: MergedAnalysisResult = {
+        changeType: 'pull-request' as any, // Extend the type
+        summary: {
+          filesChanged: prResult.analysis.filesAnalyzed,
+          insertions: 0, // Not available in PR result
+          deletions: 0,  // Not available in PR result
+        },
+        fileAnalyses: prResult.analysis.issues.reduce((acc, issue) => {
+          let fileAnalysis = acc.find(fa => fa.file === issue.file);
+          if (!fileAnalysis) {
+            fileAnalysis = {
+              file: issue.file,
+              changeType: 'modified' as const,
+              summary: `PR #${config.prNumber} changes`,
+              issues: [],
+              linesChanged: 0,
+            };
+            acc.push(fileAnalysis);
+          }
+
+          fileAnalysis.issues.push({
+            file: issue.file,
+            line: issue.line,
+            severity: issue.severity,
+            type: issue.type,
+            message: issue.message,
+            source: issue.source,
+          });
+
+          return acc;
+        }, [] as any[]),
+        impactAnalysis: {
+          riskLevel: prResult.analysis.riskLevel,
+          affectedModules: [],
+          breakingChanges: [],
+          testingRecommendations: [],
+          deploymentRisks: [],
+          qualityScore: prResult.analysis.qualityScore,
+        },
+        timestamp: new Date().toISOString(),
+        duration: 0,
+      };
+
+      progress?.('Analysis complete!', 100);
+
+      return mergedResult;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Pull request analysis failed: ${errorMessage}`);
+    }
+  }
+
+
+  /**
    * Get SonarQube results for changed files only
    */
   private async getSonarQubeResultsForChangedFiles(
