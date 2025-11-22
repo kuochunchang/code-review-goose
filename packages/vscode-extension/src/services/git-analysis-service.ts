@@ -25,6 +25,14 @@ import { getAIProvider } from './providers/provider-factory.js';
 import { SonarQubeConfigService } from './sonarqube-config-service.js';
 
 /**
+ * Global type declaration for output channel
+ */
+declare global {
+    // eslint-disable-next-line no-var
+    var gooseOutputChannel: vscode.OutputChannel | undefined;
+}
+
+/**
  * Git analysis configuration
  */
 export interface GitAnalysisConfig {
@@ -251,7 +259,7 @@ export class GitAnalysisService {
             console.log(`[Git Analysis] Found ${changedFilePaths.length} changed files for SonarQube analysis`);
 
             // Log to output channel as well
-            const workingDirOutputChannel = (global as any).gooseOutputChannel;
+            const workingDirOutputChannel = global.gooseOutputChannel;
             if (workingDirOutputChannel) {
               workingDirOutputChannel.appendLine(`[SonarQube] Found ${changedFilePaths.length} changed files`);
             }
@@ -323,7 +331,7 @@ export class GitAnalysisService {
           const errorMessage = error instanceof Error ? error.message : String(error);
           console.error(`[Git Analysis] SonarQube analysis failed:`, error);
 
-          const workingDirOutputChannel = (global as any).gooseOutputChannel;
+          const workingDirOutputChannel = global.gooseOutputChannel;
           if (workingDirOutputChannel) {
             workingDirOutputChannel.appendLine(`[SonarQube] Analysis failed: ${errorMessage}`);
             workingDirOutputChannel.appendLine(`[SonarQube] Continuing with AI-only analysis...`);
@@ -480,7 +488,7 @@ export class GitAnalysisService {
             const changedFilePaths = gitChanges.files.map((f: GitFileChange) => f.path);
 
             // Log to output channel as well
-            const branchComparisonOutputChannel = (global as any).gooseOutputChannel;
+            const branchComparisonOutputChannel = global.gooseOutputChannel;
             if (branchComparisonOutputChannel) {
               branchComparisonOutputChannel.appendLine(`[SonarQube] Branch comparison: ${changedFilePaths.length} changed files`);
             }
@@ -684,8 +692,8 @@ export class GitAnalysisService {
       // Parse GitHub URL (supports both HTTPS and SSH formats)
       // HTTPS: https://github.com/owner/repo.git
       // SSH: git@github.com:owner/repo.git
-      const httpsMatch = remoteUrl.match(/github\.com\/([^\/]+)\/([^\/\.]+)/);
-      const sshMatch = remoteUrl.match(/github\.com:([^\/]+)\/([^\/\.]+)/);
+      const httpsMatch = remoteUrl.match(/github\.com\/([^/]+)\/([^/.]+)/);
+      const sshMatch = remoteUrl.match(/github\.com:([^/]+)\/([^/.]+)/);
 
       const match = httpsMatch || sshMatch;
       if (match) {
@@ -801,7 +809,7 @@ export class GitAnalysisService {
             const changedFilePaths = prFiles.map(f => f.filename);
             console.log(`[PR Analysis] Running SonarQube on ${changedFilePaths.length} changed files`);
 
-            const prOutputChannel = (global as any).gooseOutputChannel;
+            const prOutputChannel = global.gooseOutputChannel;
             if (prOutputChannel) {
               prOutputChannel.appendLine(`[SonarQube] PR #${config.prNumber}: ${changedFilePaths.length} changed files`);
             }

@@ -70,6 +70,16 @@ function calculateSummaryStats(result: MergedAnalysisResult): {
 }
 
 /**
+ * Webview message types
+ */
+interface WebviewMessage {
+  command: 'openFile' | 'exportReport' | 'copyToClipboard' | 'refresh';
+  file?: string;
+  line?: number;
+  format?: string;
+}
+
+/**
  * Git Change Analysis Panel
  */
 export class GitChangePanel {
@@ -188,7 +198,7 @@ export class GitChangePanel {
   /**
    * Handle messages from webview
    */
-  private async _handleMessage(message: any): Promise<void> {
+  private async _handleMessage(message: WebviewMessage): Promise<void> {
     switch (message.command) {
       case 'openFile':
         await this._openFile(message.file, message.line);

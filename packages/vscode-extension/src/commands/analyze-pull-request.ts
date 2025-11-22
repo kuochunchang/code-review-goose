@@ -16,6 +16,17 @@ import {
 } from '../utils/git-analysis-helpers.js';
 
 /**
+ * GitHub Pull Request (minimal type for PR list)
+ */
+interface GitHubPullRequest {
+    number: number;
+    title: string;
+    head: { ref: string };
+    base: { ref: string };
+    user: { login: string };
+}
+
+/**
  * Analyze Pull Request
  */
 export async function analyzePullRequest(
@@ -196,7 +207,7 @@ export async function analyzePullRequest(
                     }
 
                     // Create quick pick items
-                    const items = prs.map((pr: any) => {
+                    const items = (prs as GitHubPullRequest[]).map((pr) => {
                         const isCurrentBranch = currentBranch && pr.head.ref === currentBranch;
                         return {
                             label: `${isCurrentBranch ? '$(git-branch) ' : ''}#${pr.number}: ${pr.title}`,

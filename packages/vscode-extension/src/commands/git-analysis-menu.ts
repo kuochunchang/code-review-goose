@@ -4,6 +4,7 @@
  */
 
 import * as vscode from 'vscode';
+import type { AnalysisType } from '@code-review-goose/git-analyzer';
 import { GitAnalysisService } from '../services/git-analysis-service.js';
 import { GitChangePanel } from '../views/git-change-panel.js';
 import { analyzeBranchComparison } from './analyze-branch.js';
@@ -178,7 +179,7 @@ async function analyzeWorkingDirectoryQuick(
         ['quality', 'security', 'impact']
     );
 
-    const analysisTypes = lastSelected as any[];
+    const analysisTypes = lastSelected as AnalysisType[];
 
     // Import necessary helpers
     const {
