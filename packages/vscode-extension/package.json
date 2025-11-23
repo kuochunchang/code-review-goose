@@ -4,7 +4,6 @@
   "description": "AI-assisted code review with UML diagram generation in VS Code",
   "version": "0.1.0",
   "publisher": "kuochunchang",
-  "icon": "icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -396,7 +395,7 @@
     "build": "tsc",
     "clean": "rm -rf dist",
     "watch": "tsc --watch",
-    "package": "vsce package",
+    "package": "vsce package --no-dependencies",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },

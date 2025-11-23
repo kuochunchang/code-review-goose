@@ -25,11 +25,15 @@ coverage/
 # Documentation
 .github/
 docs/
+../docs/
+../../docs/
 
 # Git
 .git/
 .gitignore
 .gitattributes
+../.git/
+../../.git/
 
 # Other
 .DS_Store
@@ -38,3 +42,30 @@ Thumbs.db
 .eslintrc.*
 .prettierrc.*
 *.md.backup
+
+# Monorepo files - exclude everything from parent directories
+../*
+../../*
+!../analysis-adapter-vscode/dist/
+!../analysis-core/dist/
+!../analysis-parser-common/dist/
+!../analysis-parser-java/dist/
+!../analysis-parser-python/dist/
+!../analysis-parser-typescript/dist/
+!../analysis-types/dist/
+!../analysis-utils/dist/
+!../git-analyzer/dist/
+# Explicitly exclude problematic directories
+../../.changeset/
+../../.dockerignore
+../../docker-compose.yml
+../../.github/
+../../.prettierrc
+../../AGENT.md
+../../CLAUDE.md
+../../README.md
+../../LICENSE
+../../package.json
+../../package-lock.json
+../../tsconfig.base.json
+../../tsconfig.json
