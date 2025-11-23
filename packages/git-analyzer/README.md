@@ -42,6 +42,10 @@ console.log(result.issues);
 npm install @code-review-goose/git-analyzer
 ```
 
+## Documentation
+
+- [SonarQube Testing Guide](./docs/SONARQUBE_TESTING.md) - Complete guide for testing SonarQube integration
+
 ## License
 
 MIT

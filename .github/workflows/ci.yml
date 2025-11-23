@@ -38,29 +38,10 @@ jobs:
       run: npm run test
       continue-on-error: true
 
-  publish:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        registry-url: 'https://registry.npmjs.org'
-
-    - name: Install dependencies
-      run: npm install
-
-    - name: Build all packages
-      run: npm run build
-
-    - name: Publish to NPM
-      working-directory: ./packages/cli
-      run: npm publish --access public
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  # Note: VS Code Extension is published manually using 'vsce publish'
+  # No npm packages are published - all packages are internal dependencies
+  # To publish VS Code Extension:
+  #   1. cd packages/vscode-extension
+  #   2. npm run build
+  #   3. npm run package
+  #   4. npx vsce publish
