@@ -7,5 +7,19 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@code-review-goose/web", "@code-review-goose/server"]
+  "ignore": [
+    "@code-review-goose/web",
+    "@code-review-goose/server",
+    "@code-review-goose/analysis-types",
+    "@code-review-goose/analysis-utils",
+    "@code-review-goose/analysis-core",
+    "@code-review-goose/analysis-adapter-node",
+    "@code-review-goose/analysis-adapter-vscode",
+    "@code-review-goose/analysis-parser-common",
+    "@code-review-goose/analysis-parser-typescript",
+    "@code-review-goose/analysis-parser-java",
+    "@code-review-goose/analysis-parser-python",
+    "@code-review-goose/git-analyzer",
+    "goose-code-review-vscode"
+  ]
 }
