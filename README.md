@@ -1,4 +1,14 @@
-# Goose Code Review
+# Goose Code Review (Deprecated)
+
+> **⚠️ DEPRECATED: This project has been split into independent extensions.**
+>
+> This monolithic repository is no longer maintained. Please use the new independent extensions:
+>
+> - **[Goose UML](https://github.com/kuochunchang/goose-uml-vscode)**: UML diagram generation and visualization.
+> - **[Goose Analysis](https://github.com/kuochunchang/goose-analysis-vscode)**: AI-powered code analysis and explanation.
+> - **[Goose SonarQube](https://github.com/kuochunchang/goose-sonarqube-vscode)**: SonarQube integration and Git analysis.
+
+# Goose Code Review (Legacy)
 
 A VS Code extension for AI-assisted code review and analysis with UML diagram generation and Git change analysis.
 
